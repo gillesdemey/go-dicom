@@ -1,5 +1,7 @@
 # DICOM parser in Go
 
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gillesdemey/go-dicom?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## Usage [![GoDoc](https://godoc.org/github.com/gillesdemey/go-dicom?status.svg)](https://godoc.org/github.com/gillesdemey/go-dicom)
 ```Go
 package main
