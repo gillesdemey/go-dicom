@@ -3401,11 +3401,11 @@ func init() {
 	dict[0x0040][0xA161] = &dictEntry{"FD", "FloatingPointValue", "1-n", "CP_1064"}
 	dict[0x0040][0xA162] = &dictEntry{"SL", "RationalNumeratorValue", "1-n", "CP_1064"}
 	dict[0x0040][0xA163] = &dictEntry{"UL", "RationalDenominatorValue", "1-n", "CP_1064"}
-	//
+
 	dict[0x0010][0x0200] = &dictEntry{"CS", "QualityControlSubject", "1", "CP_1123"}
-	//
+
 	dict[0x3006][0x0018] = &dictEntry{"SQ", "PredecessorStructureSetSequence", "1", "CP_1137"}
-	//
+
 	dict[0x300A] = make([]*dictEntry, 0x021C+1)
 	dict[0x300A][0x0088] = &dictEntry{"FL", "RETIRED_BeamDosePointDepth", "1", "CP_1138/retired"}
 	dict[0x300A][0x0089] = &dictEntry{"FL", "RETIRED_BeamDosePointEquivalentDepth", "1", "CP_1138/retired"}
@@ -3414,22 +3414,22 @@ func init() {
 	dict[0x300A][0x008D] = &dictEntry{"FL", "AverageBeamDosePointDepth", "1", "CP_1138"}
 	dict[0x300A][0x008E] = &dictEntry{"FL", "AverageBeamDosePointEquivalentDepth", "1", "CP_1138"}
 	dict[0x300A][0x008F] = &dictEntry{"FL", "AverageBeamDosePointSSD", "1", "CP_1138"}
-	//
+
 	dict[0x0040][0xA171] = &dictEntry{"UI", "ObservationUID", "1", "CP_1147"}
-	//
+
 	dict[0x300A][0x00EF] = &dictEntry{"SH", "CompensatorTrayID", "1", "CP_1188"}
-	//
+
 	dict[0x0066][0x0037] = &dictEntry{"FL", "RecommendedPointRadius", "1", "CP_1200"}
 	dict[0x0066][0x0038] = &dictEntry{"FL", "RecommendedLineThickness", "1", "CP_1200"}
-	//
+
 	dict[0x300A][0x021B] = &dictEntry{"SH", "SourceModel", "1", "CP_1204"}
 	dict[0x300A][0x021C] = &dictEntry{"LO", "SourceDescription", "1", "CP_1204"}
-	//
+
 	dict[0x0008][0x0015] = &dictEntry{"DT", "InstanceCoercionDateTime", "1", "CP_1216"}
 	/* ---------------------------------------------------------------------------
-
-	Private Creator Data Elements
-	*/
+	 *
+	 * Private Creator Data Elements
+	 */
 	dict[0x0009] = make([]*dictEntry, 0x0FF+1)
 	dict[0x0009][0x0000] = &dictEntry{"UL", "PivateGroupLength", "1", "PRIVATE"}
 	dict[0x0009][0x0010] = &dictEntry{"LO", "PrivateCreator", "1", "PRIVATE"}
@@ -3452,16 +3452,16 @@ func init() {
 		dict[i] = dict[0x0001]
 	}
 
-	//---------------------------------------------------------------------------
-	//
-	// A "catch all" for group length elements
-	//
-	// dict[0x0000][0xu-ff] f=&dictEntry {"00", "0", 	UL	GnericGroupLength, "1", "GENERIC"}
-	//
-	//---------------------------------------------------------------------------
-	//
-	// Retired data elements from ACR/NEMA 2 [0x1988][0x
-	//
+	/*---------------------------------------------------------------------------
+	 *
+	 * A "catch all" for group length elements
+	 *
+	 * dict[0x0000][0xu-ff] f=&dictEntry {"00", "0", 	UL	GnericGroupLength, "1", "GENERIC"}
+	 *
+	 * ---------------------------------------------------------------------------
+	 *
+	 * Retired data elements from ACR/NEMA 2 [0x1988][0x
+	 */
 	dict[0x0000][0x0001] = &dictEntry{"UL", "ACR_NEMA_CommandGroupLengthToEnd", "1", "ACR/NEMA2"}
 	dict[0x0000][0x0010] = &dictEntry{"CS", "ACR_NEMA_CommandRecognitionCode", "1", "ACR/NEMA2"}
 	dict[0x0000][0x0200] = &dictEntry{"LO", "ACR_NEMA_Initiator", "1", "ACR/NEMA2"}
