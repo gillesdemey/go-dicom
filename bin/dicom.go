@@ -54,7 +54,7 @@ func main() {
 		fmt.Fprintf(table, "Tag\tVR\tValue\tVL\tName\n")
 
 		for _, elem := range data.Elements {
-			fmt.Fprintf(table, "(%04X,%04X)\t%s\t%v\t%d\t%s\n", elem.Group, elem.Element, elem.Vr, elem.Value, elem.Vl, elem.Name)
+			fmt.Fprintf(table, "(%04X,%04X)\t%d\t%v\t%d\t%s\n", elem.Group, elem.Element, elem.Vr, elem.Value, elem.Vl, elem.Name)
 		}
 
 		table.Flush()

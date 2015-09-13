@@ -66,7 +66,7 @@ func TestParseFile(t *testing.T) {
 func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 
 	file := &DicomFile{}
-	file.appendDataElement(&DicomElement{0002, 0010, "TransferSyntaxUID", "UI", 0, []string{"1.2.840.10008.1.2"}})
+	file.appendDataElement(&DicomElement{0002, 0010, "TransferSyntaxUID", UI, 0, []string{"1.2.840.10008.1.2"}})
 
 	bo, implicit, err := file.getTransferSyntax()
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var parser *Parser
+var dict *Dictionary
 
 func init() {
 	parser, _ = NewParser()
@@ -18,7 +18,7 @@ func TestDefaultDictionary(t *testing.T) {
 }
 
 func TestGetDictEntry(t *testing.T) {
-	elem, err := parser.getDictEntry(32736, 16)
+	elem, err := dict.getDictEntry(32736, 16)
 	if err != nil {
 		t.Error(err)
 	}
@@ -27,7 +27,7 @@ func TestGetDictEntry(t *testing.T) {
 		t.Errorf("Wrong element name: %s", elem.name)
 	}
 
-	if elem.vr != "OX" {
+	if elem.vr != OX {
 		t.Errorf("Wrong element VR: %s", elem.vr)
 	}
 

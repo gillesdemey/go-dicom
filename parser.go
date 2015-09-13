@@ -17,13 +17,13 @@ type DicomElement struct {
 	Group   uint16
 	Element uint16
 	Name    string
-	Vr      string
+	Vr      VR
 	Vl      uint32
 	Value   interface{}
 }
 
 type Parser struct {
-	dictionary [][]*dictEntry
+	dict *Dictionary
 }
 
 // Return the tag as a string to use in the Dicom dictionary
@@ -38,12 +38,13 @@ func NewParser(options ...func(*Parser) error) (*Parser, error) {
 	p := Parser{}
 
 	// apply defaults
-	dict := bytes.NewReader([]byte(dicomDictData))
-	err := Dictionary(dict)(&p)
+	dict, err := ParseDictionary(bytes.NewReader([]byte(dicomDictData)))
 
 	if err != nil {
 		panic(err)
 	}
+
+	p.dict = dict
 
 	// override defaults
 	for _, option := range options {
@@ -60,9 +61,9 @@ func NewParser(options ...func(*Parser) error) (*Parser, error) {
 func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 
 	implicit := buffer.implicit
-	elem := buffer.readTag(p)
+	elem := buffer.readTag(p.dict)
 
-	var vr string     // Value Representation
+	var vr VR         // Value Representation
 	var vl uint32 = 0 // Value Length
 
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
@@ -72,7 +73,7 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 	}
 
 	if implicit {
-		vr, vl = buffer.readImplicit(elem, p)
+		vr, vl = buffer.readImplicit(elem, p.dict)
 	} else {
 		vr, vl = buffer.readExplicit(elem)
 	}
@@ -84,28 +85,28 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 	var data interface{}
 
 	switch vr {
-	case "AT":
+	case AT:
 		data = buffer.readUInt16Array(4)
-	case "UL":
+	case UL:
 		data = buffer.readUInt32()
-	case "SL":
+	case SL:
 		data = buffer.readInt32()
-	case "US":
+	case US:
 		data = buffer.readUInt16()
-	case "SS":
+	case SS:
 		data = buffer.readInt16()
-	case "FL":
+	case FL:
 		data = buffer.readFloat()
-	case "FD":
+	case FD:
 		data = buffer.readFloat64()
-	case "OW":
+	case OW:
 		data = buffer.readUInt16Array(vl)
-	case "OB", "NA":
+	case OB, NA:
 		data = buffer.Next(int(vl))
-	case "OX":
+	case OX:
 		// TODO: work with the BitsAllocated tag
 		data = buffer.readUInt16Array(vl)
-	case "SQ":
+	case SQ:
 		// TODO: imlement sequence read
 		_ = buffer.Next(int(vl))
 		data = "..."

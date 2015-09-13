@@ -24,13 +24,13 @@ func newDicomBuffer(b []byte) *dicomBuffer {
 
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
-func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, uint32) {
+func (buffer *dicomBuffer) readImplicit(elem *DicomElement, d *Dictionary) (VR, uint32) {
 
-	var vr string
+	var vr VR
 
-	entry, err := p.getDictEntry(elem.Group, elem.Element)
+	entry, err := d.getEntry(elem.Group, elem.Element)
 	if err != nil {
-		vr = "UN"
+		vr = UN
 	} else {
 		vr = entry.vr
 	}
@@ -45,8 +45,8 @@ func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, 
 
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
-func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32) {
-	vr := string(buffer.Next(2))
+func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (VR, uint32) {
+	vr := ParseVR(string(buffer.Next(2)))
 	vl, err := decodeValueLength(buffer, vr)
 	if err == ErrOddLength {
 		fmt.Printf("WARN: attempted to read odd length VL for %+v\n", elem)
@@ -55,13 +55,13 @@ func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32) {
 	return vr, vl
 }
 
-func decodeValueLength(buffer *dicomBuffer, vr string) (uint32, error) {
+func decodeValueLength(buffer *dicomBuffer, vr VR) (uint32, error) {
 
 	var vl uint32
 
 	// long value representations
 	switch vr {
-	case "OB", "OF", "SQ", "OW", "UN", "UT":
+	case OB, OF, SQ, OW, UN, UT:
 		buffer.Next(2) // ignore two bytes for "future use" (0000H)
 		vl = buffer.readUInt32()
 	default:
@@ -83,12 +83,12 @@ func decodeValueLength(buffer *dicomBuffer, vr string) (uint32, error) {
 
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
-func (buffer *dicomBuffer) readTag(p *Parser) *DicomElement {
+func (buffer *dicomBuffer) readTag(d *Dictionary) *DicomElement {
 	group := buffer.readHex()   // group
 	element := buffer.readHex() // element
 
 	var name string
-	entry, err := p.getDictEntry(group, element)
+	entry, err := d.getEntry(group, element)
 	if err != nil {
 		name = unknown_group_name
 	} else {
