@@ -54,7 +54,7 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, <-chan DicomMessage) {
 		for start-buffer.Len() < metaLength {
 			elem := buffer.readDataElement(p)
 			p.appendDataElement(file, elem)
-			c <- DicomMessage{&elem, waitMsg}
+			c <- DicomMessage{elem, waitMsg}
 			<-waitMsg
 		}
 
