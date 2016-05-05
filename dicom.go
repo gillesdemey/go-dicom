@@ -3,10 +3,12 @@ package dicom
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 type DicomFile struct {
 	Elements []DicomElement
+	parser   *Parser
 }
 
 // Errors
@@ -231,6 +233,26 @@ func (file *DicomFile) LookupElement(name string) (*DicomElement, error) {
 			return &elem, nil
 		}
 	}
-
 	return nil, ErrTagNotFound
+}
+
+// Return a flattened tag as a string as mongo fieldName
+func (e *DicomElement) getTagFlat() string {
+	return fmt.Sprintf("%04X%04X", e.Group, e.Element)
+}
+
+// Returns then flattened tag of an dictionay item by name
+// flattened tag = (GGGG, EEEE) => GGGGEEEE
+func (p *Parser) GetFlattenedTagByName(tagName string) string {
+
+	entry := p.dictionaryNameIndex[tagName]
+	if entry != nil {
+		return fmt.Sprintf("%04X%04X", entry.g, entry.e)
+	}
+	return ""
+}
+
+// Helper func to access an dictionay item by name from Dicomfile parser
+func (file *DicomFile) GetFlattenedTagByName(tagName string) string {
+	return file.parser.GetFlattenedTagByName(tagName)
 }

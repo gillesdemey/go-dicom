@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Constants
@@ -36,7 +37,8 @@ type DicomElement struct {
 }
 
 type Parser struct {
-	dictionary [][]*dictEntry
+	dictionary          [][]*dictEntry
+	dictionaryNameIndex map[string]*dictEntry
 }
 
 // Stringer
@@ -84,6 +86,44 @@ func NewParser(options ...func(*Parser) error) (*Parser, error) {
 	return &p, nil
 }
 
+func nomalizeDT(str string) string {
+
+	tz := func(str string) (string, string) {
+		p := strings.IndexAny(str, "+-")
+		if p > -1 {
+			return str[:p], (str[p:] + "00")[0:5]
+		} else {
+			return str, "+0000"
+		}
+	}
+
+	var strZ string
+	var strFrac string
+	var strDT string
+
+	fmt.Println("-", str)
+	strs := strings.Split(str, ".")
+	strDT = strs[0]
+	if len(strs) > 1 {
+		// has fraction
+		strFrac, strZ = tz(strs[1])
+	} else {
+		strDT, strZ = tz(strs[0])
+	}
+	p := strings.IndexAny(strDT, "+-")
+	if p > -1 {
+		strDT = strDT[:p]
+	}
+
+	strFrac = "." + (strFrac + "000000")[0:6]
+	strR := strDT + strFrac + strZ
+	strR = strR[0:4] + "/" + strR[4:6] + "/" + strR[6:8] + " " +
+		strR[8:10] + ":" + strR[10:12] + ":" + strR[12:14] + "." +
+		strFrac + " " + strR[14:19]
+
+	return strR
+}
+
 // Read a DICOM data element
 func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 
@@ -119,6 +159,33 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 		case "AT":
 			valLen = 2
 			data = append(data, buffer.readHex())
+
+		//TODO:  DA, DT, TM
+		// implement Range Matching and Specific Character Set (0008,0005) see PS3.4 C.2.2.2
+		case "DA":
+			valLen = vl
+			str := strings.TrimRight(buffer.readString(vl), " ")
+			dcmVal, _ := time.Parse("2006/01/02", str[0:4]+"/"+str[4:6]+"/"+str[6:8])
+			data = append(data, dcmVal)
+
+		case "TM":
+			//HHMMSS.FFFFFF
+			valLen = vl
+			str := strings.TrimRight(buffer.readString(vl), " ")
+			strs := strings.Split(str, ".")
+			if len(strs) == 1 {
+				strs = append(strs, "")
+			}
+			dcmValT, _ := time.Parse("15:04:05.999999", strs[0][0:2]+":"+strs[0][2:4]+":"+strs[0][4:6]+"."+(strs[1] + "000000")[0:6])
+			data = append(data, dcmValT)
+
+		case "DT":
+			//  YYYYMMDDHHMMSS.FFFFFF&ZZXX where .FFFFFF and &ZZXX are optional
+			valLen = vl
+			str := strings.TrimRight(buffer.readString(vl), " ")
+			dcmValT, _ := time.Parse("2006/01/02 15:04:05.999999 -0700", nomalizeDT(str))
+			data = append(data, dcmValT)
+
 		case "UL":
 			valLen = 4
 			data = append(data, buffer.readUInt32())

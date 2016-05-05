@@ -9,6 +9,8 @@ import (
 )
 
 type dictEntry struct {
+	g       uint16
+	e       uint16
 	tag     string
 	vr      string
 	name    string
@@ -26,6 +28,7 @@ func Dictionary(r io.Reader) func(*Parser) error {
 		reader.Comment = '#' // comments start with #
 
 		dictionary := make([][]*dictEntry, 0xffff+1)
+		dictionaryNameIndex := make(map[string]*dictEntry, 0xffff+1)
 
 		for {
 
@@ -49,15 +52,20 @@ func Dictionary(r io.Reader) func(*Parser) error {
 			}
 
 			dictionary[group][element] = &dictEntry{
+				uint16(group),
+				uint16(element),
 				row[0],
 				strings.ToUpper(row[1]),
 				row[2],
 				row[3],
 				row[4],
 			}
+
+			dictionaryNameIndex[row[2]] = dictionary[group][element]
 		}
 
 		p.dictionary = dictionary
+		p.dictionaryNameIndex = dictionaryNameIndex
 		return nil
 	}
 
@@ -79,7 +87,7 @@ func (p *Parser) getDictEntry(group, element uint16) (*dictEntry, error) {
 	if !exists {
 		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
 		if group%2 == 0 && element == 0x0000 {
-			entry = &dictEntry{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
+			entry = &dictEntry{group, 0, tag, "UL", "GenericGroupLength", "1", "GENERIC"}
 		}
 	}
 

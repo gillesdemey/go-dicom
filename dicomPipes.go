@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
+	fp "path/filepath"
 	"strconv"
 	"sync"
 )
@@ -14,13 +16,20 @@ type DicomMessage struct {
 	wait chan bool
 }
 
-// generator
+const (
+	JPEG_2000       = "1.2.840.10008.1.2.4.91"
+	JPEG_BASELINE_1 = "1.2.840.10008.1.2.4.50"
+)
+
+// DicomMessage channel Generator
+// DicomMessage contains dicom elements parsed from dicom file.
 func (di *DicomFile) Parse(buff []byte) <-chan DicomMessage {
 
 	parser, err := NewParser()
 	if err != nil {
 		panic(err)
 	}
+	di.parser = parser
 
 	_, c := parser.Parse(buff)
 	if err != nil {
@@ -41,16 +50,19 @@ func (di *DicomFile) Discard(in <-chan DicomMessage, done *sync.WaitGroup) {
 
 }
 
-func fileName(folderName, uid, ext string, i, n int) string {
-	posf := ""
-	if n > 1 {
-		posf = "_" + strconv.Itoa(i)
-	}
-	return folderName + "\\" + uid + posf + "." + ext
+func filePathNameMultiple(folder, fn string, i int, ext string) string {
+	filename := fn + "_" + fmt.Sprintf("%03d", i) + "." + ext
+	return fp.Join(folder, filename)
 }
 
-// Writes pixel data to files
-func (di *DicomFile) WriteImagesToFile(in <-chan DicomMessage, done *sync.WaitGroup, folderName string) <-chan DicomMessage {
+func filePathNameUnique(folder, fn string, ext string) string {
+	filename := fn + "." + ext
+	return fp.Join(folder, filename)
+}
+
+// Consumer that writes pixel data to files
+// SOPInstanceUID identifies image with uniqueness
+func (di *DicomFile) WriteImagesToFile(in <-chan DicomMessage, done *sync.WaitGroup, folder string) <-chan DicomMessage {
 
 	out := make(chan DicomMessage)
 	waitMsg := make(chan bool)
@@ -60,10 +72,8 @@ func (di *DicomFile) WriteImagesToFile(in <-chan DicomMessage, done *sync.WaitGr
 
 		var inImg bool = false
 		var idx int
-		var n int
-		var txUID, instanceUID, fext string
-
-		//first := true
+		var numberOfFrames int = 1
+		var txUID, instanceUID, filename, fext string
 
 		for dcmMsg := range in {
 
@@ -72,6 +82,9 @@ func (di *DicomFile) WriteImagesToFile(in <-chan DicomMessage, done *sync.WaitGr
 			case "TransferSyntaxUID":
 				txUID = dcmMsg.msg.Value[0].(string)
 
+			case "NumberOfFrames":
+				numberOfFrames, _ = strconv.Atoi(dcmMsg.msg.Value[0].(string))
+
 			case "SOPInstanceUID":
 				instanceUID = dcmMsg.msg.Value[0].(string)
 
@@ -79,28 +92,31 @@ func (di *DicomFile) WriteImagesToFile(in <-chan DicomMessage, done *sync.WaitGr
 				inImg = true
 
 				switch txUID {
+
 				//JPEG baseline 1
-				case "1.2.840.10008.1.2.4.50":
+				case JPEG_BASELINE_1:
 					fext = "jpg"
+
 				//JPEG 2000 Part 1
-				case "1.2.840.10008.1.2.4.91":
+				case JPEG_2000:
 					fext = "jp2"
+
+				// not implemented
 				default:
 					//panic("Non imlpemented Transfer Syntax: \"" + txUID + "\"")
-
 				}
 
 			case "Item":
 				if inImg == true {
 
-					// skip
-					if idx == 0 {
-						n = int(dcmMsg.msg.Vl/4) - 1
-					}
-
 					if idx > 0 {
 						pb := dcmMsg.msg.Value[0].([]byte)
-						err := ioutil.WriteFile(fileName(folderName, instanceUID, fext, idx, n), pb, 0644)
+						if numberOfFrames == 1 {
+							filename = filePathNameUnique(folder, instanceUID, fext)
+						} else {
+							filename = filePathNameMultiple(folder, instanceUID, idx, fext)
+						}
+						err := ioutil.WriteFile(filename, pb, 0644)
 						if err != nil {
 							panic(err)
 						}
@@ -121,27 +137,38 @@ func (di *DicomFile) WriteImagesToFile(in <-chan DicomMessage, done *sync.WaitGr
 
 }
 
-// Writes dicom elements to file
-func (di *DicomFile) PrintToFile(in <-chan DicomMessage, done *sync.WaitGroup, folderName string) <-chan DicomMessage {
+func removeFile(fn string) {
+	if _, err := os.Stat(fn); os.IsExist(err) {
+		err := os.Remove(fn)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+// Consumer that writes dicom elements to file
+// SOPInstanceUID identifies image with uniqueness
+func (di *DicomFile) WriteLogToFile(in <-chan DicomMessage, done *sync.WaitGroup, folder string) <-chan DicomMessage {
 
 	out := make(chan DicomMessage)
 	waitMsg := make(chan bool)
 	done.Add(1)
 
 	go func() {
-		var f *os.File
+		//var f1 *os.File
 		var instanceUID string
 
-		fn1 := folderName + "/_tmp.txt"
-		if _, err := os.Stat(fn1); os.IsExist(err) {
-			err := os.Remove(fn1)
-			if err != nil {
-				panic(err)
-			}
-		}
+		// Initially writes the log to a temporary file because cannot determine
+		// the filename until SOPInstanceUID is not received from the "in" channel
+
+		// create a randomic name of file to avoid the tentative of use the same
+		// filename due to concurrency
+		fn1 := folder + strconv.Itoa(rand.Int()) + "_tmp.txt"
+
+		// Ensures fn1 does not exist in folder
+		removeFile(fn1)
 
 		f1, err := os.Create(fn1)
-		f = f1
 		if err != nil {
 			panic(err)
 		}
@@ -151,7 +178,7 @@ func (di *DicomFile) PrintToFile(in <-chan DicomMessage, done *sync.WaitGroup, f
 				instanceUID = dcmMsg.msg.Value[0].(string)
 			}
 
-			_, err := f.WriteString(fmt.Sprintln(dcmMsg.msg))
+			_, err := f1.WriteString(fmt.Sprintln(dcmMsg.msg))
 			if err != nil {
 				panic(err)
 			}
@@ -161,11 +188,12 @@ func (di *DicomFile) PrintToFile(in <-chan DicomMessage, done *sync.WaitGroup, f
 			dcmMsg.wait <- true
 
 		}
+		f1.Close()
 
-		f.Close()
-
-		fn2 := folderName + "/" + instanceUID + ".txt"
+		// rename "_tmp.txt" to the definitive filename
+		fn2 := folder + instanceUID + ".txt"
 		os.Rename(fn1, fn2)
+		removeFile(fn1)
 
 		close(out)
 		done.Done()
@@ -174,16 +202,16 @@ func (di *DicomFile) PrintToFile(in <-chan DicomMessage, done *sync.WaitGroup, f
 
 }
 
-// Logs dicom elements
+// Consumer that logs dicom elements
 func (di *DicomFile) Log(in <-chan DicomMessage, done *sync.WaitGroup) <-chan DicomMessage {
-
+	logger := log.New(os.Stdout, "", 0)
 	out := make(chan DicomMessage)
 	waitMsg := make(chan bool)
 
 	done.Add(1)
 	go func() {
 		for dcmMsg := range in {
-			log.Println("->", dcmMsg.msg)
+			logger.Println(dcmMsg.msg)
 			out <- DicomMessage{dcmMsg.msg, waitMsg}
 			<-waitMsg
 			dcmMsg.wait <- true
@@ -192,5 +220,4 @@ func (di *DicomFile) Log(in <-chan DicomMessage, done *sync.WaitGroup) <-chan Di
 		done.Done()
 	}()
 	return out
-
 }
