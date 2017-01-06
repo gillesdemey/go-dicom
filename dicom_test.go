@@ -1,100 +1,126 @@
 package dicom
 
 import (
-	"encoding/binary"
-	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
+	"os"
 	"testing"
 )
 
-func readFile() []byte {
-	file, err := ioutil.ReadFile("examples/IM-0001-0001.dcm")
+func TestRead1(t *testing.T) {
+
+	dcmfile, _ := os.Open("examples/IM-0001-0001.dcm")
+	dr := NewReader(dcmfile)
+
+	for {
+		de, err := dr.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			if de.Name == "SOPInstanceUID" {
+				log.Println("SOPInstanceUID", de)
+				log.Println("SOPInstanceUID", de.Values[0].(string))
+			}
+			if de.Name == "StudyDate" {
+				log.Println("StudyDate", de)
+				log.Println("StudyDate", de.Values[0])
+				log.Println("StudyDate", de.Values[0].(*DcmDA).Date())
+			}
+			if de.Name == "StudyTime" {
+				log.Println("StudyTime", de)
+				log.Println("StudyTime", de.Values[0])
+				log.Println("StudyTime", de.Values[0].(*DcmTM).Time())
+			}
+			if de.Name == "WindowCenter" {
+				log.Println("WindowCenter", de)
+				log.Println("WindowCenter", de.Values[0])
+				log.Println("WindowCenter", de.Values[0].(*DcmDS).Float64())
+			}
+			if de.Name == "GenericGroupLength" {
+				log.Println("GenericGroupLength", de)
+				log.Println("GenericGroupLength", de.Values[0])
+				log.Println("GenericGroupLength", de.Values[0].(*DcmUL).Uint32())
+			}
+		}
+	}
+	dcmfile.Close()
+
+}
+
+func TestRead2(t *testing.T) {
+
+	dcmfile, _ := os.Open("examples/IM-0001-0001.dcm")
+	dr := NewReader(dcmfile)
+
+	for {
+		de, err := dr.Read()
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				log.Fatal(err)
+			}
+		} else {
+			log.Println(de)
+		}
+	}
+	dcmfile.Close()
+
+}
+
+func TestReadAllFiles(t *testing.T) {
+
+	inputFolder := "examples/"
+
+	files, err := ioutil.ReadDir(inputFolder)
 	if err != nil {
-		fmt.Println("failed to read file")
 		panic(err)
 	}
 
-	return file
-}
+	for _, file := range files {
 
-func TestParseFile(t *testing.T) {
+		log.Println("filename " + file.Name())
+		dcmfile, _ := os.Open(inputFolder + file.Name())
+		dr := NewReader(dcmfile)
+		for {
+			de, err := dr.Read()
 
-	file := readFile()
+			if err != nil {
+				if err == io.EOF {
+					break
+				} else {
+					log.Fatal(err)
+				}
+			} else {
+				log.Println(de)
+			}
+		}
+		dcmfile.Close()
 
-	parser, err := NewParser()
-	if err != nil {
-		t.Error(err)
-	}
-
-	data, err := parser.Parse(file)
-	if err != nil {
-		t.Errorf("failed to parse dicom file: %s", err)
-	}
-
-	elem, err := data.LookupElement("PatientName")
-	if err != nil {
-		t.Error(err)
-	}
-
-	pn := elem.Value.([]string)
-
-	if pn[0] != "TOUTATIX" {
-		t.Errorf("Incorrect patient name: %s", pn)
-	}
-
-	if l := len(pn); l != 1 {
-		t.Errorf("Incorrect patient name length: %i", l)
-	}
-
-	elem, err = data.LookupElement("TransferSyntaxUID")
-	if err != nil {
-		t.Error(err)
-	}
-
-	ts := elem.Value.([]string)
-
-	if ts[0] != "1.2.840.10008.1.2.4.91" {
-		t.Errorf("Incorrect TransferSyntaxUID: %s", ts)
-	}
-
-	if l := len(data.Elements); l != 99 {
-		t.Errorf("Error parsing DICOM file, wrong number of elements: %i", l)
-	}
-
-}
-
-func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
-
-	file := &DicomFile{}
-	file.appendDataElement(&DicomElement{0002, 0010, "TransferSyntaxUID", "UI", 0, []string{"1.2.840.10008.1.2"}})
-
-	bo, implicit, err := file.getTransferSyntax()
-	if err != nil {
-		t.Errorf("Could not get TransferSyntaxUID. %s", err)
-	}
-
-	if bo != binary.LittleEndian {
-		t.Errorf("Incorrect ByteOrder %v. Should be LittleEndian.", bo)
-	}
-
-	if implicit != true {
-		t.Errorf("Incorrect implicitness %v. Should be true.", implicit)
 	}
 
 }
 
 func BenchmarkParseSingle(b *testing.B) {
 
-	parser, _ := NewParser()
+	dcmfile, _ := os.Open("examples/IM-0001-0001.dcm")
+	dr := NewReader(dcmfile)
 
-	for i := 0; i < b.N; i++ {
-
-		file := readFile()
-
-		_, err := parser.Parse(file)
+	for {
+		de, err := dr.Read()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			fmt.Println("failed to parse dicom file")
-			panic(err)
+			log.Fatal(err)
+		} else {
+			log.Println(de)
 		}
 	}
+	dcmfile.Close()
 }

@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -49,6 +50,30 @@ func TestSplitTag(t *testing.T) {
 		t.Errorf("Error splitting tag. Wrong element: %#x", element)
 	}
 
+}
+
+func TestConstructor(t *testing.T) {
+	p, err := NewParser()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(p.dictionary) == 0 {
+		t.Error("Error constructing parser. Dictionary can not be of 0 length")
+	}
+
+}
+
+func TestDictionaryOption(t *testing.T) {
+	dict := bytes.NewReader([]byte(dicomDictData))
+	p, err := NewParser(Dictionary(dict))
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(p.dictionary) == 0 {
+		t.Error("Error constructing parser. Dictionary can not be of 0 length")
+	}
 }
 
 func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
