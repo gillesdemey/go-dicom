@@ -84,13 +84,9 @@ func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 }
 
 func BenchmarkParseSingle(b *testing.B) {
-
 	parser, _ := NewParser()
-
 	for i := 0; i < b.N; i++ {
-
 		file := readFile()
-
 		_, err := parser.Parse(file)
 		if err != nil {
 			fmt.Println("failed to parse dicom file")

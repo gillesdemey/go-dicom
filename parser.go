@@ -70,14 +70,14 @@ func NewParser(options ...func(*Parser) error) (*Parser, error) {
 	err := Dictionary(dict)(&p)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// override defaults
 	for _, option := range options {
 		err := option(&p)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
@@ -85,7 +85,7 @@ func NewParser(options ...func(*Parser) error) (*Parser, error) {
 }
 
 // Read a DICOM data element
-func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
+func (buffer *dicomBuffer) readDataElement(p *Parser) (*DicomElement, error) {
 
 	implicit := buffer.implicit
 	inip := buffer.p
@@ -93,7 +93,7 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 
 	var vr string     // Value Representation
 	var vl uint32 = 0 // Value Length
-
+	var err error
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
 	if elem.Group == pixeldata_group {
@@ -101,9 +101,15 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 	}
 
 	if implicit {
-		vr, vl = buffer.readImplicit(elem, p)
+		vr, vl, err = buffer.readImplicit(elem, p)
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		vr, vl = buffer.readExplicit(elem)
+		vr, vl, err = buffer.readExplicit(elem)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	elem.Vr = vr
@@ -166,5 +172,5 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) *DicomElement {
 	elem.Value = data
 	elem.elemLen = buffer.p - inip
 
-	return elem
+	return elem, nil
 }

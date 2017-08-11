@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/gillesdemey/go-dicom"
+	"fmt"
+	"github.com/yasushi-saito/go-dicom"
 	"io/ioutil"
 	"os"
 	fp "path/filepath"
@@ -22,7 +23,6 @@ func init() {
 }
 
 func main() {
-
 	// file input
 	if *file != "" {
 		processFile(*file, silent, out)
@@ -58,7 +58,6 @@ func fileWalker(path string, info os.FileInfo, err error) error {
 }
 
 func processFile(path string, silent *bool, out *string) {
-
 	buff, err := ioutil.ReadFile(path)
 	if err != nil {
 		panic(err)
@@ -67,41 +66,36 @@ func processFile(path string, silent *bool, out *string) {
 	done := new(sync.WaitGroup)
 	done.Add(1)
 
-	go func() {
-		gw := new(sync.WaitGroup)
+	parser, err := dicom.NewParser()
+	if err != nil {
+		panic(err)
+	}
 
-		dcm := &dicom.DicomFile{}
+	dcm, err := parser.Parse(buff)
+	if err != nil {
+		panic(err)
+	}
 
-		// parser
-		ppln := dcm.Parse(buff)
+	if *silent == false {
+		dcm.Log()
+	}
 
-		if *silent == false {
-			ppln = dcm.Log(ppln, gw)
+	if *out != "" {
+		basename := fp.Base(path)
+		filename := strings.TrimSuffix(basename, fp.Ext(basename))
+		outDir := fp.Join(*out, filename)
+
+		// ensure out directory exists
+		err := os.MkdirAll(outDir, 0755)
+		if err != nil {
+			panic(err)
 		}
 
-		if *out != "" {
-			basename := fp.Base(path)
-			filename := strings.TrimSuffix(basename, fp.Ext(basename))
-			outDir := fp.Join(*out, filename)
-
-			// ensure out directory exists
-			err := os.MkdirAll(outDir, 0755)
-			if err != nil {
-				panic(err)
-			}
-
-			elemsFile, err := os.Create(fp.Join(outDir, filename+".txt"))
-			if err != nil {
-				panic(err)
-			}
-
-			ppln = dcm.WriteToFile(ppln, gw, elemsFile)
-			ppln = dcm.WriteImagesToFolder(ppln, gw, outDir)
+		elemsFile, err := os.Create(fp.Join(outDir, filename+".txt"))
+		if err != nil {
+			panic(err)
 		}
-
-		dcm.Discard(ppln, gw)
-		gw.Wait()
-		done.Done()
-	}()
-	done.Wait()
+		dcm.WriteToFile(elemsFile)
+		dcm.WriteImagesToFolder(outDir)
+	}
 }

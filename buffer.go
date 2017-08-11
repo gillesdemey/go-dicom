@@ -26,8 +26,7 @@ func newDicomBuffer(b []byte) *dicomBuffer {
 
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
-func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, uint32) {
-
+func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, uint32, error) {
 	var vr string
 
 	entry, err := p.getDictEntry(elem.Group, elem.Element)
@@ -40,16 +39,15 @@ func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, 
 	vl, ulen, err := decodeValueLength(buffer, vr, false)
 	elem.undefLen = ulen
 	if err == ErrOddLength {
-		fmt.Printf("WARN (implicit): attempted to read odd length VL for %+v\n", elem)
-		panic(ErrOddLength)
+		return "", 0, fmt.Errorf("WARN (implicit): attempted to read odd length VL for %+v\n", elem)
 	}
 
-	return vr, vl
+	return vr, vl, nil
 }
 
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
-func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32) {
+func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32, error) {
 	vr := string(buffer.Next(2))
 	buffer.p += 2
 
@@ -57,11 +55,10 @@ func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32) {
 	elem.undefLen = ulen
 
 	if err == ErrOddLength {
-		fmt.Printf("WARN (explicit): attempted to read odd length VL for %+v\n", elem)
-		panic(ErrOddLength)
+		return "", 0, fmt.Errorf("WARN (explicit): attempted to read odd length VL for %+v\n", elem)
 	}
 
-	return vr, vl
+	return vr, vl, err
 }
 
 func decodeValueLength(buffer *dicomBuffer, vr string, explicit bool) (uint32, bool, error) {
