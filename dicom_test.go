@@ -18,7 +18,6 @@ func readFile() []byte {
 }
 
 func TestParseFile(t *testing.T) {
-
 	file := readFile()
 
 	parser, err := NewParser()
@@ -35,30 +34,26 @@ func TestParseFile(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	pn := elem.Value.([]string)
-
-	if pn[0] != "TOUTATIX" {
+	pn := elem.Value[0].(string)
+	if l := len(elem.Value); l != 1 {
+		t.Errorf("Incorrect patient name length: %d", l)
+	}
+	if pn != "TOUTATIX" {
 		t.Errorf("Incorrect patient name: %s", pn)
 	}
-
-	if l := len(pn); l != 1 {
-		t.Errorf("Incorrect patient name length: %i", l)
-	}
-
 	elem, err = data.LookupElement("TransferSyntaxUID")
 	if err != nil {
 		t.Error(err)
 	}
-
-	ts := elem.Value.([]string)
-
-	if ts[0] != "1.2.840.10008.1.2.4.91" {
+	if len(elem.Value) != 1 {
+		t.Errorf("Wrong value size %s", len(elem.Value))
+	}
+	ts := elem.Value[0].(string)
+	if ts != "1.2.840.10008.1.2.4.91" {
 		t.Errorf("Incorrect TransferSyntaxUID: %s", ts)
 	}
-
-	if l := len(data.Elements); l != 99 {
-		t.Errorf("Error parsing DICOM file, wrong number of elements: %i", l)
+	if l := len(data.Elements); l != 130 {
+		t.Errorf("Error parsing DICOM file, wrong number of elements: %d", l)
 	}
 
 }
@@ -66,7 +61,12 @@ func TestParseFile(t *testing.T) {
 func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 
 	file := &DicomFile{}
-	file.appendDataElement(&DicomElement{0002, 0010, "TransferSyntaxUID", "UI", 0, []string{"1.2.840.10008.1.2"}})
+
+	values2 := make([]interface{}, 1)
+	values2[0] = "1.2.840.10008.1.2"
+	file.Elements = append(
+		file.Elements,
+		DicomElement{0002, 0010, "TransferSyntaxUID", "UI", 0, values2, 0, 0, false, 0})
 
 	bo, implicit, err := file.getTransferSyntax()
 	if err != nil {
