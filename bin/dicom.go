@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/yasushi-saito/go-dicom"
 	"io/ioutil"
 	"os"

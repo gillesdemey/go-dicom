@@ -3,6 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 type DicomFile struct {
@@ -43,17 +44,31 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	metaLength := int(metaElem.Value[0].(uint32))
+	if len(metaElem.Value) < 1 {
+		return nil, fmt.Errorf("No value found in meta element")
+	}
+	metaLength, ok := metaElem.Value[0].(uint32)
+	if !ok {
+		return nil, fmt.Errorf("Expect integer as metaElem.Values[0], but found '%v'", metaElem.Value[0])
+	}
+	if buffer.Len() <= 0 {
+		return nil, fmt.Errorf("No data element found")
+	}
 	p.appendDataElement(file, metaElem)
 
 	// Read meta tags
 	start := buffer.Len()
-	for start-buffer.Len() < metaLength {
+	prevLen := buffer.Len()
+	for start-buffer.Len() < int(metaLength) {
 		elem, err := buffer.readDataElement(p)
 		if err != nil {
 			return nil, err
 		}
 		p.appendDataElement(file, elem)
+		if buffer.Len() >= prevLen {
+			panic("Failed to consume buffer")
+		}
+		prevLen = buffer.Len()
 	}
 
 	// read endianness and explicit VR
