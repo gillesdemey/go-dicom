@@ -1,16 +1,11 @@
 package dicom
 
 import (
-	"bytes"
 	"testing"
 )
 
 func TestConstructor(t *testing.T) {
-	p, err := NewParser()
-	if err != nil {
-		t.Error(err)
-	}
-
+	p := NewParser()
 	if len(p.dictionary) == 0 {
 		t.Error("Error constructing parser. Dictionary can not be of 0 length")
 	}
@@ -18,12 +13,7 @@ func TestConstructor(t *testing.T) {
 }
 
 func TestDictionaryOption(t *testing.T) {
-	dict := bytes.NewReader([]byte(dicomDictData))
-	p, err := NewParser(Dictionary(dict))
-	if err != nil {
-		t.Error(err)
-	}
-
+	p := NewParser()
 	if len(p.dictionary) == 0 {
 		t.Error("Error constructing parser. Dictionary can not be of 0 length")
 	}

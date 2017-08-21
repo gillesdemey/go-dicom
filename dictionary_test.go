@@ -5,46 +5,39 @@ import (
 	"testing"
 )
 
-var parser *Parser
+var dict Dictionary
 
 func init() {
-	parser, _ = NewParser()
-}
-
-func TestDefaultDictionary(t *testing.T) {
-	if _, err := NewParser(); err != nil {
-		t.Error(err)
-	}
+	dict = NewDictionary()
 }
 
 func TestGetDictEntry(t *testing.T) {
-	elem, err := parser.getDictEntry(32736, 16)
+	dict := NewDictionary()
+	elem, err := LookupDictionary(dict, 32736, 16)
 	if err != nil {
 		t.Error(err)
 	}
-
-	if elem.name != "PixelData" {
+	if elem.name != "PixelData" || elem.vr != "OX" {
 		t.Errorf("Wrong element name: %s", elem.name)
 	}
-
-	if elem.vr != "OX" {
-		t.Errorf("Wrong element VR: %s", elem.vr)
+	elem, err = LookupDictionary(dict, 0, 0x1002)
+	if err != nil {
+		t.Error(err)
 	}
-
+	if elem.name != "EventTypeID" || elem.vr != "US" {
+		t.Errorf("Wrong element name: %s", elem.name)
+	}
 }
 
 // TODO: add a test for correctly splitting ranges
 func TestSplitTag(t *testing.T) {
-
 	group, element, err := splitTag("(7FE0,0010)")
 	if err != nil {
 		t.Error(err)
 	}
-
 	if group != 0x7FE0 {
 		t.Errorf("Error splitting tag. Wrong group: %#x", group)
 	}
-
 	if element != 0x0010 {
 		t.Errorf("Error splitting tag. Wrong element: %#x", element)
 	}
@@ -53,8 +46,7 @@ func TestSplitTag(t *testing.T) {
 
 func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-
-		if _, err := parser.getDictEntry(2, 0); err != nil {
+		if _, err := LookupDictionary(dict, 2, 0); err != nil {
 			fmt.Println(err)
 		}
 
@@ -64,7 +56,7 @@ func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 func BenchmarkFindPixelDataTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 
-		if _, err := parser.getDictEntry(32736, 16); err != nil {
+		if _, err := LookupDictionary(dict, 32736, 16); err != nil {
 			fmt.Println(err)
 		}
 

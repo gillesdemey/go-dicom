@@ -29,7 +29,7 @@ func newDicomBuffer(b []byte) *dicomBuffer {
 func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, uint32, error) {
 	var vr string
 
-	entry, err := p.getDictEntry(elem.Group, elem.Element)
+	entry, err := LookupDictionary(p.dictionary, elem.Group, elem.Element)
 	if err != nil {
 		vr = "UN"
 	} else {
@@ -124,7 +124,7 @@ func (buffer *dicomBuffer) readTag(p *Parser) *DicomElement {
 
 	var name string
 	//var name, vm, vr string
-	entry, err := p.getDictEntry(group, element)
+	entry, err := LookupDictionary(p.dictionary, group, element)
 	if err != nil {
 		if group%2 == 0 {
 			name = unknown_group_name

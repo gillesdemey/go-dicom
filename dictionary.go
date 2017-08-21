@@ -1,102 +1,80 @@
 package dicom
 
 import (
+	"bytes"
 	"encoding/csv"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
 )
 
-type dictEntry struct {
-	tag     string
+type DictionaryEntry struct {
+	// group and element are results of parsing the hex-pair tag, such as (1000,10008)
+	group   uint16
+	element uint16
 	vr      string
 	name    string
 	vm      string
 	version string
 }
 
-// Sets the dictionary for the Parser
-func Dictionary(r io.Reader) func(*Parser) error {
+type dictKey uint32
+type Dictionary map[dictKey]DictionaryEntry
 
-	return func(p *Parser) error {
-
-		reader := csv.NewReader(r)
-		reader.Comma = '\t'  // tab separated file
-		reader.Comment = '#' // comments start with #
-
-		dictionary := make([][]*dictEntry, 0xffff+1)
-
-		for {
-
-			row, err := reader.Read()
-
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				return err
-			}
-
-			group, element, err := splitTag(row[0])
-
-			if err != nil {
-				// return err
-				continue // we don't support groups yet
-			}
-
-			if cap(dictionary[group]) == 0 {
-				dictionary[group] = make([]*dictEntry, 0xffff+1)
-			}
-
-			dictionary[group][element] = &dictEntry{
-				row[0],
-				strings.ToUpper(row[1]),
-				row[2],
-				row[3],
-				row[4],
-			}
-		}
-
-		p.dictionary = dictionary
-		return nil
-	}
-
+func makeDictKey(group, element uint16) dictKey {
+	return (dictKey(group) << 16) | dictKey(element)
 }
 
-func (p *Parser) getDictEntry(group, element uint16) (*dictEntry, error) {
+// Sets the dictionary for the Parser
+func NewDictionary() Dictionary {
+	reader := csv.NewReader(bytes.NewReader([]byte(dicomDictData)))
+	reader.Comma = '\t'  // tab separated file
+	reader.Comment = '#' // comments start with #
 
-	var entry *dictEntry
+	dict := make(Dictionary)
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+		group, element, err := splitTag(row[0])
+		if err != nil {
+			continue // we don't support groups yet
+		}
 
-	tag := fmt.Sprintf("(%s,%s)", group, element)
-
-	// does the entry exist?
-	exists := p.dictionary[group] != nil && p.dictionary[group][element] != nil
-
-	if exists {
-		entry = p.dictionary[group][element]
-	}
-
-	if !exists {
-		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
-		if group%2 == 0 && element == 0x0000 {
-			entry = &dictEntry{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
+		dict[makeDictKey(group, element)] = DictionaryEntry{
+			group: group,
+			element: element,
+			vr: strings.ToUpper(row[1]),
+			name: row[2],
+			vm: row[3],
+			version: row[4],
 		}
 	}
+	return dict
+}
 
-	// nope, still nothing
-	if entry == nil {
-		return nil, ErrTagNotFound
+func LookupDictionary(dict Dictionary, group, element uint16) (DictionaryEntry, error) {
+	key := makeDictKey(group, element)
+	entry, ok := dict[key]
+
+	if !ok {
+		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
+		if group%2 == 0 && element == 0x0000 {
+			entry = DictionaryEntry{group, element, "UL", "GenericGroupLength", "1", "GENERIC"}
+		} else {
+			return DictionaryEntry{}, ErrTagNotFound
+		}
 	}
-
 	return entry, nil
 }
 
 // Split a tag into a group and element, represented as a hex value
 // TODO: support group ranges (6000-60FF,0803)
-func splitTag(tag string) (int64, int64, error) {
-
+func splitTag(tag string) (uint16, uint16, error) {
 	parts := strings.Split(strings.Trim(tag, "()"), ",")
-
 	group, err := strconv.ParseInt(parts[0], 16, 0)
 	if err != nil {
 		return 0, 0, err
@@ -105,6 +83,5 @@ func splitTag(tag string) (int64, int64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-
-	return group, elem, nil
+	return uint16(group), uint16(elem), nil
 }

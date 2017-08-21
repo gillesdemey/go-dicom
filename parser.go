@@ -1,7 +1,6 @@
 package dicom
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 )
@@ -36,7 +35,7 @@ type DicomElement struct {
 }
 
 type Parser struct {
-	dictionary [][]*dictEntry
+	dictionary Dictionary
 }
 
 // Stringer
@@ -61,27 +60,10 @@ func (e *DicomElement) getTag() string {
 
 // Create a new parser, with functional options for configuration
 // http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
-func NewParser(options ...func(*Parser) error) (*Parser, error) {
-
+func NewParser() *Parser {
 	p := Parser{}
-
-	// apply defaults
-	dict := bytes.NewReader([]byte(dicomDictData))
-	err := Dictionary(dict)(&p)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// override defaults
-	for _, option := range options {
-		err := option(&p)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &p, nil
+	p.dictionary = NewDictionary()
+	return &p
 }
 
 // Read a DICOM data element
