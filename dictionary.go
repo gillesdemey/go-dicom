@@ -1,5 +1,9 @@
 package dicom
 
+// Dictionary supports looking up DICOM data dictionary as defined in
+//
+// ftp://medical.nema.org/medical/dicom/2011/11_06pu.pdf
+
 import (
 	"bytes"
 	"encoding/csv"
@@ -12,25 +16,30 @@ type DictionaryEntry struct {
 	// group and element are results of parsing the hex-pair tag, such as (1000,10008)
 	group   uint16
 	element uint16
-	vr      string
+
+	// Data encoding
+	vr string
+	// Human-readable name of the tag
 	name    string
 	vm      string
 	version string
 }
 
+// Combination of group and element.
 type dictKey uint32
-type Dictionary map[dictKey]DictionaryEntry
 
 func makeDictKey(group, element uint16) dictKey {
 	return (dictKey(group) << 16) | dictKey(element)
 }
 
-// Sets the dictionary for the Parser
+// (group, element) -> tag information
+type Dictionary map[dictKey]DictionaryEntry
+
+// Create a new, fully filled dictionary.
 func NewDictionary() Dictionary {
 	reader := csv.NewReader(bytes.NewReader([]byte(dicomDictData)))
 	reader.Comma = '\t'  // tab separated file
 	reader.Comment = '#' // comments start with #
-
 	dict := make(Dictionary)
 	for {
 		row, err := reader.Read()
@@ -45,17 +54,19 @@ func NewDictionary() Dictionary {
 		}
 
 		dict[makeDictKey(group, element)] = DictionaryEntry{
-			group: group,
+			group:   group,
 			element: element,
-			vr: strings.ToUpper(row[1]),
-			name: row[2],
-			vm: row[3],
+			vr:      strings.ToUpper(row[1]),
+			name:    row[2],
+			vm:      row[3],
 			version: row[4],
 		}
 	}
 	return dict
 }
 
+// LookupDictionary finds information about tag (group, element). If the given
+// tag is undefined or retired in the standard, it returns an error.
 func LookupDictionary(dict Dictionary, group, element uint16) (DictionaryEntry, error) {
 	key := makeDictKey(group, element)
 	entry, ok := dict[key]
