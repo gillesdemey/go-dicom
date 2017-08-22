@@ -11,12 +11,12 @@ import (
 )
 
 func main() {
-
 	bytes, err := ioutil.ReadFile("myfile.dcm")
-	
-	parser, err := dicom.NewParser()
+	parser := dicom.NewParser()
 	data, err := parser.Parse(bytes)
-
+    if err != nil {
+        panic(err)
+    }
 	for _, elem := range data.Elements {
 		fmt.Printf("%+v\n", &elem)
 	}

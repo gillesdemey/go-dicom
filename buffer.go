@@ -3,7 +3,6 @@ package dicom
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 )
 
 type dicomBuffer struct {
@@ -29,19 +28,23 @@ func newDicomBuffer(b []byte) *dicomBuffer {
 func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, uint32, error) {
 	var vr string
 
-	entry, err := LookupDictionary(p.dictionary, elem.Group, elem.Element)
+	entry, err := LookupDictionary(p.dictionary, Tag{elem.Group, elem.Element})
 	if err != nil {
 		vr = "UN"
 	} else {
 		vr = entry.vr
 	}
 
-	vl, ulen, err := decodeValueLength(buffer, vr, false)
-	elem.undefLen = ulen
-	if err == ErrOddLength {
-		return "", 0, fmt.Errorf("WARN (implicit): attempted to read odd length VL for %+v\n", elem)
+	vl := buffer.readUInt32()
+	// Rectify Undefined Length VL
+	if vl == 0xffffffff {
+		vl = 0
+		elem.undefLen = true
 	}
-
+	// Error when encountering odd length
+	if err == nil && vl > 0 && vl%2 != 0 {
+		err = ErrOddLength
+	}
 	return vr, vl, nil
 }
 
@@ -51,80 +54,55 @@ func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32, err
 	vr := string(buffer.Next(2))
 	buffer.p += 2
 
-	vl, ulen, err := decodeValueLength(buffer, vr, true)
-	elem.undefLen = ulen
+	var vl uint32
+	var err error
 
-	if err == ErrOddLength {
-		return "", 0, fmt.Errorf("WARN (explicit): attempted to read odd length VL for %+v\n", elem)
+	if vr == "US" {
+		vl = 2
 	}
 
-	return vr, vl, err
-}
+	// long value representations
+	switch vr {
+	case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
+		buffer.Next(2) // ignore two bytes for "future use" (0000H)
+		buffer.p += 2
 
-func decodeValueLength(buffer *dicomBuffer, vr string, explicit bool) (uint32, bool, error) {
-
-	var vl uint32
-	ulen := false
-
-	if explicit {
-
-		if vr == "US" {
-			vl = 2
-		}
-
-		// long value representations
-		switch vr {
-		case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
-			buffer.Next(2) // ignore two bytes for "future use" (0000H)
-			buffer.p += 2
-
-			vl = buffer.readUInt32()
-			// Rectify Undefined Length VL
-			if vl == 0xffffffff {
-				switch vr {
-				case "UC", "UR", "UT":
-					return 0, ulen, ErrUndefLengthNotAllowed
-				default:
-					ulen = true
-					vl = 0
-				}
-			}
-		default:
-			vl = uint32(buffer.readUInt16())
-			// Rectify Undefined Length VL
-			if vl == 0xffff {
-				ulen = true
-				vl = 0
-			}
-		}
-
-	} else {
 		vl = buffer.readUInt32()
 		// Rectify Undefined Length VL
 		if vl == 0xffffffff {
-			ulen = true
+			switch vr {
+			case "UC", "UR", "UT":
+				err = ErrUndefLengthNotAllowed
+			default:
+				elem.undefLen = true
+				vl = 0
+			}
+		}
+	default:
+		vl = uint32(buffer.readUInt16())
+		// Rectify Undefined Length VL
+		if vl == 0xffff {
 			vl = 0
+			elem.undefLen = true
 		}
 	}
-
 	// Error when encountering odd length
-	if vl > 0 && vl%2 != 0 {
-		return 0, ulen, ErrOddLength
+	if err == nil && vl > 0 && vl%2 != 0 {
+		err = ErrOddLength
 	}
-
-	return vl, ulen, nil
+	return vr, vl, err
 }
 
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
 // added  Value Multiplicity PS 3.5 6.4
 func (buffer *dicomBuffer) readTag(p *Parser) *DicomElement {
-	group := buffer.readHex()   // group
-	element := buffer.readHex() // element
+	group := buffer.readUInt16()   // group
+	element := buffer.readUInt16() // element
 
 	var name string
 	//var name, vm, vr string
-	entry, err := LookupDictionary(p.dictionary, group, element)
+	entry, err := LookupDictionary(p.dictionary, Tag{group, element})
 	if err != nil {
 		if group%2 == 0 {
 			name = unknown_group_name
@@ -169,9 +147,9 @@ func (buffer *dicomBuffer) readFloat64() (val float64) {
 }
 
 // Read 2 bytes as a hexadecimal value
-func (buffer *dicomBuffer) readHex() uint16 {
-	return buffer.readUInt16()
-}
+//func (buffer *dicomBuffer) readHex() uint16 {
+//	return buffer.readUInt16()
+//}
 
 // Read 4 bytes as an UInt32
 func (buffer *dicomBuffer) readUInt32() (val uint32) {

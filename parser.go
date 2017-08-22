@@ -68,7 +68,6 @@ func NewParser() *Parser {
 
 // Read a DICOM data element
 func (buffer *dicomBuffer) readDataElement(p *Parser) (*DicomElement, error) {
-
 	implicit := buffer.implicit
 	inip := buffer.p
 	elem := buffer.readTag(p)
@@ -106,7 +105,7 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) (*DicomElement, error) {
 		switch vr {
 		case "AT":
 			valLen = 2
-			data = append(data, buffer.readHex())
+			data = append(data, buffer.readUInt16())
 		case "UL":
 			valLen = 4
 			data = append(data, buffer.readUInt32())
