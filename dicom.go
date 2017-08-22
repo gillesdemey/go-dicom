@@ -20,10 +20,7 @@ var (
 )
 
 const (
-	magic_word                = "DICM"
-	implicit_vr_little_endian = "1.2.840.10008.1.2"
-	explicit_vr_little_endian = "1.2.840.10008.1.2.1"
-	explicit_vr_big_endian    = "1.2.840.10008.1.2.2"
+	magicWord                = "DICM"
 )
 
 // Parse a byte array, returns a DICOM file struct
@@ -36,13 +33,13 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	buffer.Skip(128) // skip preamble
 
 	// check for magic word
-	if magicWord := buffer.DecodeString(4); magicWord != magic_word {
+	if s := buffer.DecodeString(4); s != magicWord {
 		return nil, ErrBrokenFile
 	}
 	file := &DicomFile{}
 
 	// (0002,0000) MetaElementGroupLength
-	metaElem, err := readDataElement(buffer)
+	metaElem, err := ReadDataElement(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +59,7 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	start := buffer.Len()
 	prevLen := buffer.Len()
 	for start-buffer.Len() < int64(metaLength) {
-		elem, err := readDataElement(buffer)
+		elem, err := ReadDataElement(buffer)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +81,7 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	buffer.implicit = implicit
 
 	for buffer.Len() != 0 {
-		elem, err := readDataElement(buffer)
+		elem, err := ReadDataElement(buffer)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +114,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 		return 0, nil
 	}
 
-	elem, err := readDataElement(buffer)
+	elem, err := ReadDataElement(buffer)
 	if err != nil {
 		return 0, err
 	}
@@ -140,7 +137,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 				}
 
 				p.appendDataElement(file, elem)
-				elem, err = readDataElement(buffer)
+				elem, err = ReadDataElement(buffer)
 				if err != nil {
 					return 0, err
 				}
@@ -164,7 +161,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 					break
 				}
 
-				elem, err = readDataElement(buffer)
+				elem, err = ReadDataElement(buffer)
 				if err != nil {
 					return 0, err
 				}
@@ -184,7 +181,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 }
 
 func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomElement) error {
-	elem, err := readDataElement(buffer)
+	elem, err := ReadDataElement(buffer)
 	if err != nil {
 		return err
 	}
@@ -193,7 +190,7 @@ func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomEleme
 			elem.Value = append(elem.Value, buffer.DecodeBytes(int(elem.Vl)))
 		}
 		p.appendDataElement(file, elem)
-		elem, err = readDataElement(buffer)
+		elem, err = ReadDataElement(buffer)
 		if err != nil {
 			return err
 		}
@@ -223,15 +220,16 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, bool, error) {
 
 	// defaults are explicit VR, little endian
 	switch ts {
-	case implicit_vr_little_endian:
+	case ImplicitVRLittleEndian:
 		return binary.LittleEndian, true, nil
-	case explicit_vr_little_endian:
+	case ExplicitVRLittleEndian:
 		return binary.LittleEndian, false, nil
-	case explicit_vr_big_endian:
+	case ExplicitVRBigEndian:
 		return binary.BigEndian, false, nil
+	default:
+		panic(fmt.Sprintf("Unknown transfer syntax: %s", ts)) // TODO
+		return binary.LittleEndian, false, nil
 	}
-
-	return binary.LittleEndian, false, nil
 
 }
 

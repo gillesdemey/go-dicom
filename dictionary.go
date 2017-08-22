@@ -19,33 +19,33 @@ type Tag struct {
 	Element uint16
 }
 
-type DictionaryEntry struct {
-	tag Tag
+type TagDictEntry struct {
+	Tag Tag
 
 	// Data encoding
-	vr string
+	VR string
 	// Human-readable name of the tag
-	name    string
-	vm      string
-	version string
+	Name    string
+	VM      string
+	Version string
 }
 
 
 // Combination of group and element.
-type dictKey uint32
+type tagDictKey uint32
 
-func makeDictKey(tag Tag) dictKey {
-	return (dictKey(tag.Group) << 16) | dictKey(tag.Element)
+func makeTagDictKey(tag Tag) tagDictKey {
+	return (tagDictKey(tag.Group) << 16) | tagDictKey(tag.Element)
 }
 
 // (group, element) -> tag information
-type Dictionary map[dictKey]DictionaryEntry
+type Dictionary map[tagDictKey]TagDictEntry
 
 var singletonDict Dictionary
 
 // Create a new, fully filled dictionary.
 func init() {
-	reader := csv.NewReader(bytes.NewReader([]byte(dicomDictData)))
+	reader := csv.NewReader(bytes.NewReader([]byte(tagDictData)))
 	reader.Comma = '\t'  // tab separated file
 	reader.Comment = '#' // comments start with #
 	singletonDict = make(Dictionary)
@@ -60,29 +60,38 @@ func init() {
 		if err != nil {
 			continue // we don't support groups yet
 		}
-		singletonDict[makeDictKey(tag)] = DictionaryEntry{
-			tag: tag,
-			vr:      strings.ToUpper(row[1]),
-			name:    row[2],
-			vm:      row[3],
-			version: row[4],
+		singletonDict[makeTagDictKey(tag)] = TagDictEntry{
+			Tag: tag,
+			VR:      strings.ToUpper(row[1]),
+			Name:    row[2],
+			VM:      row[3],
+			Version: row[4],
 		}
 	}
 }
 
 // LookupDictionary finds information about tag (group, element). If the given
 // tag is undefined or retired in the standard, it returns an error.
-func LookupDictionary(tag Tag) (DictionaryEntry, error) {
-	entry, ok := singletonDict[makeDictKey(tag)]
+func LookupTag(tag Tag) (TagDictEntry, error) {
+	entry, ok := singletonDict[makeTagDictKey(tag)]
 	if !ok {
 		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
 		if tag.Group%2 == 0 && tag.Element == 0x0000 {
-			entry = DictionaryEntry{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
+			entry = TagDictEntry{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
 		} else {
-			return DictionaryEntry{}, fmt.Errorf("Could not find tag (0x%x, 0x%x) in dictionary", tag.Group, tag.Element)
+			return TagDictEntry{}, fmt.Errorf("Could not find tag (0x%x, 0x%x) in dictionary", tag.Group, tag.Element)
 		}
 	}
 	return entry, nil
+}
+
+// TagDebugString returns a human-readable diagnostic string for the tag
+func TagDebugString(tag Tag) string {
+	e, err := LookupTag(tag)
+	if err != nil {
+		return fmt.Sprintf("(%04x,%04x)[??]", tag.Group, tag.Element)
+	}
+	return fmt.Sprintf("(%04x,%04x)[??]", tag.Group, tag.Element, e.Name)
 }
 
 // Split a tag into a group and element, represented as a hex value

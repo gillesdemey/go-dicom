@@ -7,9 +7,9 @@ import (
 
 // Constants
 const (
-	pixeldata_group    = 0xFFFE
-	unknown_group_name = "Unknown Group"
-	private_group_name = "Private Data"
+	pixeldataGroup    = 0xFFFE
+	unknownGroupName = "Unknown Group"
+	privateGroupName = "Private Data"
 )
 
 // A DICOM element
@@ -48,7 +48,7 @@ func NewParser() *Parser {
 }
 
 // Read a DICOM data element
-func readDataElement(buffer *Decoder) (*DicomElement, error) {
+func ReadDataElement(buffer *Decoder) (*DicomElement, error) {
 	implicit := buffer.implicit
 	initialPos := buffer.Pos()
 	tag := readTag(buffer)
@@ -58,7 +58,7 @@ func readDataElement(buffer *Decoder) (*DicomElement, error) {
 	var err error
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
-	if tag.Group == pixeldata_group {
+	if tag.Group == pixeldataGroup {
 		implicit = true
 	}
 
@@ -138,16 +138,16 @@ func readDataElement(buffer *Decoder) (*DicomElement, error) {
 func getTagName(tag Tag) string {
 	var name string
 	//var name, vm, vr string
-	entry, err := LookupDictionary(tag)
+	entry, err := LookupTag(tag)
 	if err != nil {
 		panic(err)
 		if tag.Group%2 == 0 {
-			name = unknown_group_name
+			name = unknownGroupName
 		} else {
-			name = private_group_name
+			name = privateGroupName
 		}
 	} else {
-		name = entry.name
+		name = entry.Name
 	}
 	return name
 }
@@ -171,11 +171,11 @@ func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32, erro
 		Tag:  tag,
 		Name: getTagName(tag),
 	}
-	entry, err := LookupDictionary(tag)
+	entry, err := LookupTag(tag)
 	if err != nil {
 		vr = "UN"
 	} else {
-		vr = entry.vr
+		vr = entry.VR
 	}
 
 	vl := buffer.DecodeUInt32()
