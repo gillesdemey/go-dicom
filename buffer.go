@@ -3,8 +3,58 @@ package dicom
 import (
 	"fmt"
 	"io"
+	"bytes"
 	"encoding/binary"
 )
+
+type Encoder struct {
+	err     error
+	buf     *bytes.Buffer
+	bo  binary.ByteOrder
+}
+
+func NewEncoder(bo binary.ByteOrder) *Encoder {
+	return &Encoder{
+		err: nil,
+		buf : &bytes.Buffer{},
+		bo: bo}
+}
+
+func (e *Encoder) SetError(err error) {
+	if e.err == nil {
+		e.err = err
+	}
+}
+
+func (e *Encoder) Finish() ([]byte, error) {
+	return e.buf.Bytes(), e.err
+}
+
+func (e *Encoder) EncodeByte(v byte) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
+func (e *Encoder) EncodeUint16(v uint16) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
+func (e *Encoder) EncodeUint32(v uint32) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
+func (e *Encoder) EncodeString(v string) {
+	e.buf.Write([]byte(v))
+}
+
+func (e *Encoder) EncodeZeros(len int) {
+	// TODO(saito) reuse the buffer!
+	zeros := make([]byte, len)
+	e.buf.Write(zeros)
+}
+
+func (e *Encoder) EncodeBytes(v []byte) {
+	e.buf.Write(v)
+}
 
 type Decoder struct {
 	in        io.Reader
@@ -35,6 +85,12 @@ func NewDecoder(
 		pos: 0,
 		limits: []int{limit},
 	}
+}
+
+func (d *Decoder) SetError(err error) {
+ 	if d.err == nil {
+ 		d.err = err
+ 	}
 }
 
 func (d *Decoder) PushLimit(limit int) {

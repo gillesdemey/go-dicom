@@ -1,51 +1,100 @@
-package dicom
+package dicom_test
 
 import (
-	// "testing"
+	"encoding/binary"
+	"bytes"
+	"github.com/yasushi-saito/go-dicom"
+	"io"
+	"testing"
 )
 
-// func TestReadString(t *testing.T) {
+func TestBasic(t *testing.T) {
+	e := dicom.NewEncoder(binary.BigEndian)
+	e.EncodeByte(10)
+	e.EncodeByte(11)
+	e.EncodeUint16(0x123)
+	e.EncodeUint32(0x234)
+	e.EncodeZeros(12)
+	e.EncodeString("abcde")
 
-// 	const expect string = "OsiriX"
+	encoded, err := e.Finish()
+	if err != nil {
+		t.Error(encoded)
+	}
+	d := dicom.NewDecoder(
+		bytes.NewBuffer(encoded), len(encoded),
+		binary.BigEndian, true)
+	if v := d.DecodeByte(); v != 10 {
+		t.Errorf("DecodeByte %v", v)
+	}
+	if v := d.DecodeByte(); v != 11 {
+		t.Errorf("DecodeByte %v", v)
+	}
+	if v := d.DecodeUInt16(); v != 0x123 {
+		t.Errorf("DecodeUint16 %v", v)
+	}
+	if v := d.DecodeUInt32(); v != 0x234 {
+		t.Errorf("DecodeUint32 %v", v)
+	}
+	d.Skip(12)
+	if v := d.DecodeString(5); v != "abcde" {
+		t.Errorf("DecodeString %v", v)
+	}
+	if d.Available() != 0 {
+		t.Errorf("Available %d", d.Available())
+	}
+	if d.Error() != nil {
+		t.Errorf("!Error %v", d.Error())
+	}
+	// Read past the buffer. It should flag an error
+	if _ = d.DecodeByte(); d.Error() == nil {
+		t.Errorf("Error %v %v", d.Error())
+	}
+}
 
-// 	// OsiriX
-// 	b := newDicomBuffer([]byte{0x4f, 0x73, 0x69, 0x72, 0x69, 0x58})
-// 	l := uint32(b.Len())
+func TestPartialData(t *testing.T) {
+	e := dicom.NewEncoder(binary.BigEndian)
+	e.EncodeByte(10)
+	encoded, err := e.Finish()
+	if err != nil {
+		t.Error(encoded)
+	}
+	// Read uint16, when there's only one byte in buffer.
+	d := dicom.NewDecoder(bytes.NewBuffer(encoded), len(encoded),
+		binary.BigEndian, true)
+	if _ = d.DecodeUInt16(); d.Error() == nil {
+		t.Errorf("DecodeUint16")
+	}
+}
 
-// 	if s := b.readString(l); s != expect {
-// 		t.Errorf("Incorrect string comparison %#x. Should be %#x.", s, expect)
-// 	}
+func TestLimit(t *testing.T) {
+	e := dicom.NewEncoder(binary.BigEndian)
+	e.EncodeByte(10)
+	e.EncodeByte(11)
+	e.EncodeByte(12)
 
-// }
+	encoded, err := e.Finish()
+	if err != nil {
+		t.Error(encoded)
+	}
 
-// func TestReadStringWithNullBytes(t *testing.T) {
+	// Allow reading only the first two bytes
+	d := dicom.NewDecoder(bytes.NewBuffer(encoded), len(encoded),
+		binary.BigEndian, true)
+	if d.Available() != 3 {
+		t.Errorf("Available %d", d.Available())
+	}
+	d.PushLimit(2)
+	if d.Available() != 2 {
+		t.Errorf("Available %d", d.Available())
+	}
+	v0, v1 := d.DecodeByte(), d.DecodeByte()
+	if d.Available() != 0 {
+		t.Errorf("Available %d", d.Available())
+	}
+	_ = d.DecodeByte()
+	if v0 != 10 || v1 != 11 || d.Error() != io.EOF {
+		t.Error("Limit: %v %v %v", v0, v1, d.Error())
+	}
 
-// 	const expect string = "OsiriX"
-
-// 	// null byte (0x00)
-
-// 	// OsiriX
-// 	b := newDicomBuffer([]byte{0x00, 0x4f, 0x73, 0x69, 0x72, 0x69, 0x58, 0x00})
-// 	l := uint32(b.Len())
-
-// 	if s := b.readString(l); s != expect {
-// 		t.Errorf("Incorrect string comparison %#x. Should be %#x.", s, expect)
-// 	}
-
-// }
-
-// func TestReadStringWithZeroWidthCharacter(t *testing.T) {
-
-// 	const expect string = "OsiriX"
-
-// 	// zero-width character (0xE2, 0x80, 0x8B)
-
-// 	// OsiriX
-// 	b := newDicomBuffer([]byte{0x4f, 0x73, 0x69, 0x72, 0x69, 0x58, 0xE2, 0x80, 0x8B})
-// 	l := uint32(b.Len())
-
-// 	if s := b.readString(l); s != expect {
-// 		t.Errorf("Incorrect string comparison %#x. Should be %#x.", s, expect)
-// 	}
-
-// }
+}
