@@ -1,10 +1,10 @@
 package dicom
 
 import (
-	"io"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 )
 
 type DicomFile struct {
@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	magicWord                = "DICM"
+	magicWord = "DICM"
 )
 
 // Parse a byte array, returns a DICOM file struct

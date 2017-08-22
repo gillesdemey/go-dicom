@@ -1,8 +1,8 @@
 package dicom_test
 
 import (
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
 	"github.com/yasushi-saito/go-dicom"
 	"io"
 	"testing"

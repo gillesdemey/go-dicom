@@ -3,8 +3,8 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
-	"os"
 	"io"
+	"os"
 	"testing"
 )
 
@@ -65,7 +65,7 @@ func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 	values2[0] = "1.2.840.10008.1.2"
 	file.Elements = append(
 		file.Elements,
-		DicomElement{Tag{0002, 0010}, "TransferSyntaxUID", "UI", 0, values2, 0, 0,  0})
+		DicomElement{Tag{0002, 0010}, "TransferSyntaxUID", "UI", 0, values2, 0, 0, 0})
 
 	bo, implicit, err := file.getTransferSyntax()
 	if err != nil {

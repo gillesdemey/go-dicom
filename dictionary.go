@@ -5,9 +5,9 @@ package dicom
 // ftp://medical.nema.org/medical/dicom/2011/11_06pu.pdf
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -15,7 +15,7 @@ import (
 
 type Tag struct {
 	// group and element are results of parsing the hex-pair tag, such as (1000,10008)
-	Group uint16
+	Group   uint16
 	Element uint16
 }
 
@@ -29,7 +29,6 @@ type TagDictEntry struct {
 	VM      string
 	Version string
 }
-
 
 // Combination of group and element.
 type tagDictKey uint32
@@ -61,7 +60,7 @@ func init() {
 			continue // we don't support groups yet
 		}
 		singletonDict[makeTagDictKey(tag)] = TagDictEntry{
-			Tag: tag,
+			Tag:     tag,
 			VR:      strings.ToUpper(row[1]),
 			Name:    row[2],
 			VM:      row[3],

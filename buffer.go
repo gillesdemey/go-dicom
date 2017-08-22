@@ -1,23 +1,23 @@
 package dicom
 
 import (
-	"fmt"
-	"io"
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"io"
 )
 
 type Encoder struct {
-	err     error
-	buf     *bytes.Buffer
+	err error
+	buf *bytes.Buffer
 	bo  binary.ByteOrder
 }
 
 func NewEncoder(bo binary.ByteOrder) *Encoder {
 	return &Encoder{
 		err: nil,
-		buf : &bytes.Buffer{},
-		bo: bo}
+		buf: &bytes.Buffer{},
+		bo:  bo}
 }
 
 func (e *Encoder) SetError(err error) {
@@ -57,14 +57,14 @@ func (e *Encoder) EncodeBytes(v []byte) {
 }
 
 type Decoder struct {
-	in        io.Reader
-	err       error
+	in  io.Reader
+	err error
 
 	bo       binary.ByteOrder
 	implicit bool
 
 	// Cumulative # bytes read.
-	pos    int64
+	pos int64
 	// Max bytes to read. PushLimit() will add a new limit, and PopLimit()
 	// will restore the old limit. The newest limit is at the end.
 	//
@@ -78,23 +78,24 @@ func NewDecoder(
 	bo binary.ByteOrder,
 	implicit bool) *Decoder {
 	return &Decoder{
-		in: in,
-		err: nil,
-		bo: bo,
+		in:       in,
+		err:      nil,
+		bo:       bo,
 		implicit: implicit,
-		pos: 0,
-		limits: []int64{limit},
+		pos:      0,
+		limits:   []int64{limit},
 	}
 }
 
 func (d *Decoder) SetError(err error) {
- 	if d.err == nil {
- 		d.err = err
- 	}
+	if d.err == nil {
+
+		d.err = err
+	}
 }
 
 func (d *Decoder) PushLimit(limit int64) {
-	d.limits = append(d.limits, d.pos + limit)
+	d.limits = append(d.limits, d.pos+limit)
 }
 
 func (d *Decoder) PopLimit() {
@@ -119,7 +120,9 @@ func (d *Decoder) Finish() error {
 func (d *Decoder) Read(p []byte) (int, error) {
 	desired := d.Len()
 	if desired == 0 {
-		if len(p)==0 {return 0, nil}
+		if len(p) == 0 {
+			return 0, nil
+		}
 		return 0, io.EOF
 	}
 	if desired < int64(len(p)) {
@@ -213,7 +216,7 @@ func (d *Decoder) DecodeBytes(length int) []byte {
 	if len(remaining) > 0 {
 		d.err = fmt.Errorf("DecodeBytes: requested %d, remaining %d",
 			length, len(remaining))
-		panic(d.err)  // TODO(saito) remove
+		panic(d.err) // TODO(saito) remove
 	}
 	return v
 }

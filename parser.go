@@ -7,7 +7,7 @@ import (
 
 // Constants
 const (
-	pixeldataGroup    = 0xFFFE
+	pixeldataGroup   = 0xFFFE
 	unknownGroupName = "Unknown Group"
 	privateGroupName = "Private Data"
 )
@@ -21,7 +21,40 @@ type DicomElement struct {
 	Value       []interface{} // Value Multiplicity PS 3.5 6.4
 	IndentLevel uint8
 	elemLen     uint32 // Element length, in bytes.
-	Pos         int64 // The byte position of the start of the element.
+	Pos         int64  // The byte position of the start of the element.
+}
+
+func GetUInt32(e DicomElement) (uint32, error) {
+	if len(e.Value) != 1 {
+		return 0, fmt.Errorf("No value found in %v", e)
+	}
+	v, ok := e.Value[0].(uint32)
+	if !ok {
+		return 0, fmt.Errorf("Uint32 value not found in %v", e)
+	}
+	return v, nil
+}
+
+func GetUInt16(e DicomElement) (uint16, error) {
+	if len(e.Value) != 1 {
+		return 0, fmt.Errorf("No value found in %v", e)
+	}
+	v, ok := e.Value[0].(uint16)
+	if !ok {
+		return 0, fmt.Errorf("Uint16 value not found in %v", e)
+	}
+	return v, nil
+}
+
+func GetString(e DicomElement) (string, error) {
+	if len(e.Value) != 1 {
+		return "", fmt.Errorf("No value found in %v", e)
+	}
+	v, ok := e.Value[0].(string)
+	if !ok {
+		return "", fmt.Errorf("string value not found in %v", e)
+	}
+	return v, nil
 }
 
 type Parser struct {
@@ -132,7 +165,7 @@ func ReadDataElement(buffer *Decoder) (*DicomElement, error) {
 	elem.Value = data
 	elem.Pos = initialPos
 	elem.elemLen = uint32(buffer.Pos() - initialPos)
-	return elem, nil
+	return elem, buffer.Error()
 }
 
 func getTagName(tag Tag) string {
