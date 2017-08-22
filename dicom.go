@@ -1,7 +1,7 @@
 package dicom
 
 import (
-	"bytes"
+	"io"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -27,10 +27,10 @@ const (
 )
 
 // Parse a byte array, returns a DICOM file struct
-func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
+func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	// buffer := newDicomBuffer(buff) //*di.Bytes)
-	buffer := NewDecoder(bytes.NewBuffer(buff),
-		len(buff),
+	buffer := NewDecoder(in,
+		bytes,
 		binary.LittleEndian,
 		false)
 	buffer.Skip(128) // skip preamble
@@ -61,7 +61,7 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 	// Read meta tags
 	start := buffer.Len()
 	prevLen := buffer.Len()
-	for start-buffer.Len() < int(metaLength) {
+	for start-buffer.Len() < int64(metaLength) {
 		elem, err := readDataElement(buffer)
 		if err != nil {
 			return nil, err

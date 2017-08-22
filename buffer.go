@@ -64,17 +64,17 @@ type Decoder struct {
 	implicit bool
 
 	// Cumulative # bytes read.
-	pos    int
+	pos    int64
 	// Max bytes to read. PushLimit() will add a new limit, and PopLimit()
 	// will restore the old limit. The newest limit is at the end.
 	//
 	// INVARIANT: limits[] store values in decreasing order.
-	limits []int
+	limits []int64
 }
 
 func NewDecoder(
 	in io.Reader,
-	limit int,
+	limit int64,
 	bo binary.ByteOrder,
 	implicit bool) *Decoder {
 	return &Decoder{
@@ -83,7 +83,7 @@ func NewDecoder(
 		bo: bo,
 		implicit: implicit,
 		pos: 0,
-		limits: []int{limit},
+		limits: []int64{limit},
 	}
 }
 
@@ -93,7 +93,7 @@ func (d *Decoder) SetError(err error) {
  	}
 }
 
-func (d *Decoder) PushLimit(limit int) {
+func (d *Decoder) PushLimit(limit int64) {
 	d.limits = append(d.limits, d.pos + limit)
 }
 
@@ -101,7 +101,7 @@ func (d *Decoder) PopLimit() {
 	d.limits = d.limits[:len(d.limits)-1]
 }
 
-func (d *Decoder) Pos() int { return d.pos }
+func (d *Decoder) Pos() int64 { return d.pos }
 
 func (d *Decoder) Error() error { return d.err }
 
@@ -109,35 +109,33 @@ func (d *Decoder) Finish() error {
 	if d.err != nil {
 		return d.err
 	}
-	if d.Available() != 0 {
-		return fmt.Errorf("Decoder found junk (%d bytes remaining)", d.Available())
+	if d.Len() != 0 {
+		return fmt.Errorf("Decoder found junk (%d bytes remaining)", d.Len())
 	}
 	return nil
 }
 
 // io.Reader implementation
 func (d *Decoder) Read(p []byte) (int, error) {
-	desired := d.Available()
+	desired := d.Len()
 	if desired == 0 {
 		if len(p)==0 {return 0, nil}
 		return 0, io.EOF
 	}
-	if desired < len(p) {
+	if desired < int64(len(p)) {
 		p = p[:desired]
-		desired = len(p)
+		desired = int64(len(p))
 	}
 	n, err := d.in.Read(p)
 	if err == nil {
-		d.pos += n
+		d.pos += int64(n)
 	}
 	return n, err
 }
 
-func (d *Decoder) Available() int {
+func (d *Decoder) Len() int64 {
 	return d.limits[len(d.limits)-1] - d.pos
 }
-
-func (d *Decoder) Len() int { return d.Available() }
 
 func (d *Decoder) DecodeByte() (v byte) {
 	err := binary.Read(d, d.bo, &v)

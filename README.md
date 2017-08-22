@@ -7,13 +7,14 @@ package main
 import (
 	"fmt"
 	"github.com/gillesdemey/go-dicom"
-	"io/ioutil"
+	"os"
 )
 
 func main() {
-	bytes, err := ioutil.ReadFile("myfile.dcm")
+    in, err := os.Open("myfile.dcm")
+    st, err := in.Stat()
 	parser := dicom.NewParser()
-	data, err := parser.Parse(bytes)
+	data, err := parser.Parse(in, st.Size())
     if err != nil {
         panic(err)
     }

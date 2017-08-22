@@ -3,25 +3,28 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
+	"os"
+	"io"
 	"testing"
 )
 
-func readFile() []byte {
-	file, err := ioutil.ReadFile("examples/IM-0001-0001.dcm")
+func readFile() (io.Reader, int64) {
+	file, err := os.Open("examples/IM-0001-0001.dcm")
 	if err != nil {
-		fmt.Println("failed to read file")
 		panic(err)
 	}
-
-	return file
+	st, err := file.Stat()
+	if err != nil {
+		panic(err)
+	}
+	return file, st.Size()
 }
 
 func TestParseFile(t *testing.T) {
-	file := readFile()
+	file, fileSize := readFile()
 
 	parser := NewParser()
-	data, err := parser.Parse(file)
+	data, err := parser.Parse(file, fileSize)
 	if err != nil {
 		t.Errorf("failed to parse dicom file: %s", err)
 	}
@@ -82,8 +85,8 @@ func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 func BenchmarkParseSingle(b *testing.B) {
 	parser := NewParser()
 	for i := 0; i < b.N; i++ {
-		file := readFile()
-		_, err := parser.Parse(file)
+		file, fileSize := readFile()
+		_, err := parser.Parse(file, fileSize)
 		if err != nil {
 			fmt.Println("failed to parse dicom file")
 			panic(err)

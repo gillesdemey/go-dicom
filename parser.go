@@ -12,14 +12,6 @@ const (
 	private_group_name = "Private Data"
 )
 
-// Value Multiplicity PS 3.5 6.4
-type dcmVM struct {
-	s   string
-	Min uint8
-	Max uint8
-	N   bool
-}
-
 // A DICOM element
 type DicomElement struct {
 	Tag         Tag
@@ -29,7 +21,7 @@ type DicomElement struct {
 	Value       []interface{} // Value Multiplicity PS 3.5 6.4
 	IndentLevel uint8
 	elemLen     uint32 // Element length, in bytes.
-	Pos uint32 // The byte position of the start of the element.
+	Pos         int64 // The byte position of the start of the element.
 }
 
 type Parser struct {
@@ -46,15 +38,13 @@ func (e *DicomElement) String() string {
 	if e.Vl == UndefinedLength {
 		sVl = "UNDEF"
 	}
-
 	return fmt.Sprintf("%08d %s (%04X, %04X) %s %s %d %s %s", e.Pos, s, e.Tag.Group, e.Tag.Element, e.Vr, sVl, e.elemLen, e.Name, sv)
 }
 
 // Create a new parser, with functional options for configuration
 // http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
 func NewParser() *Parser {
-	p := Parser{}
-	return &p
+	return &Parser{}
 }
 
 // Read a DICOM data element
@@ -140,7 +130,7 @@ func readDataElement(buffer *Decoder) (*DicomElement, error) {
 		uvl -= valLen
 	}
 	elem.Value = data
-	elem.Pos = uint32(initialPos)
+	elem.Pos = initialPos
 	elem.elemLen = uint32(buffer.Pos() - initialPos)
 	return elem, nil
 }
@@ -162,12 +152,12 @@ func getTagName(tag Tag) string {
 	return name
 }
 
-const UndefinedLength uint32 = 0xfffffffe  // must be even.
+const UndefinedLength uint32 = 0xfffffffe // must be even.
 
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
 // added  Value Multiplicity PS 3.5 6.4
-func readTag(buffer*Decoder) Tag {
+func readTag(buffer *Decoder) Tag {
 	group := buffer.DecodeUInt16()   // group
 	element := buffer.DecodeUInt16() // element
 	return Tag{group, element}
@@ -175,10 +165,10 @@ func readTag(buffer*Decoder) Tag {
 
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
-func readImplicit(buffer*Decoder, tag Tag) (*DicomElement, string, uint32, error) {
+func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32, error) {
 	var vr string
 	elem := &DicomElement{
-		Tag: tag,
+		Tag:  tag,
 		Name: getTagName(tag),
 	}
 	entry, err := LookupDictionary(tag)
@@ -203,9 +193,9 @@ func readImplicit(buffer*Decoder, tag Tag) (*DicomElement, string, uint32, error
 
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
-func readExplicit(buffer* Decoder, tag Tag) (*DicomElement, string, uint32, error) {
+func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32, error) {
 	elem := &DicomElement{
-		Tag: tag,
+		Tag:  tag,
 		Name: getTagName(tag),
 	}
 	vr := buffer.DecodeString(2)

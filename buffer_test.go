@@ -22,7 +22,7 @@ func TestBasic(t *testing.T) {
 		t.Error(encoded)
 	}
 	d := dicom.NewDecoder(
-		bytes.NewBuffer(encoded), len(encoded),
+		bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, true)
 	if v := d.DecodeByte(); v != 10 {
 		t.Errorf("DecodeByte %v", v)
@@ -40,8 +40,8 @@ func TestBasic(t *testing.T) {
 	if v := d.DecodeString(5); v != "abcde" {
 		t.Errorf("DecodeString %v", v)
 	}
-	if d.Available() != 0 {
-		t.Errorf("Available %d", d.Available())
+	if d.Len() != 0 {
+		t.Errorf("Len %d", d.Len())
 	}
 	if d.Error() != nil {
 		t.Errorf("!Error %v", d.Error())
@@ -60,7 +60,7 @@ func TestPartialData(t *testing.T) {
 		t.Error(encoded)
 	}
 	// Read uint16, when there's only one byte in buffer.
-	d := dicom.NewDecoder(bytes.NewBuffer(encoded), len(encoded),
+	d := dicom.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, true)
 	if _ = d.DecodeUInt16(); d.Error() == nil {
 		t.Errorf("DecodeUint16")
@@ -72,25 +72,23 @@ func TestLimit(t *testing.T) {
 	e.EncodeByte(10)
 	e.EncodeByte(11)
 	e.EncodeByte(12)
-
 	encoded, err := e.Finish()
 	if err != nil {
 		t.Error(encoded)
 	}
-
 	// Allow reading only the first two bytes
-	d := dicom.NewDecoder(bytes.NewBuffer(encoded), len(encoded),
+	d := dicom.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, true)
-	if d.Available() != 3 {
-		t.Errorf("Available %d", d.Available())
+	if d.Len() != 3 {
+		t.Errorf("Len %d", d.Len())
 	}
 	d.PushLimit(2)
-	if d.Available() != 2 {
-		t.Errorf("Available %d", d.Available())
+	if d.Len() != 2 {
+		t.Errorf("Len %d", d.Len())
 	}
 	v0, v1 := d.DecodeByte(), d.DecodeByte()
-	if d.Available() != 0 {
-		t.Errorf("Available %d", d.Available())
+	if d.Len() != 0 {
+		t.Errorf("Len %d", d.Len())
 	}
 	_ = d.DecodeByte()
 	if v0 != 10 || v1 != 11 || d.Error() != io.EOF {
