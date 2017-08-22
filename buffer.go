@@ -34,11 +34,11 @@ func (e *Encoder) EncodeByte(v byte) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeUint16(v uint16) {
+func (e *Encoder) EncodeUInt16(v uint16) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeUint32(v uint32) {
+func (e *Encoder) EncodeUInt32(v uint32) {
 	binary.Write(e.buf, e.bo, &v)
 }
 

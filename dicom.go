@@ -53,7 +53,7 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	if buffer.Len() <= 0 {
 		return nil, fmt.Errorf("No data element found")
 	}
-	p.appendDataElement(file, metaElem)
+	appendDataElement(file, metaElem)
 
 	// Read meta tags
 	start := buffer.Len()
@@ -63,7 +63,7 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.appendDataElement(file, elem)
+		appendDataElement(file, elem)
 		if buffer.Len() >= prevLen {
 			panic("Failed to consume buffer")
 		}
@@ -85,7 +85,7 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.appendDataElement(file, elem)
+		appendDataElement(file, elem)
 		if elem.Vr == "SQ" {
 			_, err = p.readItems(file, buffer, elem)
 			if err != nil {
@@ -104,6 +104,12 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	}
 
 	return file, nil
+}
+
+func doassert(x bool) {
+	if !x {
+		panic("doassert")
+	}
 }
 
 func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (uint32, error) {
@@ -126,6 +132,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 	itemAcum := uint32(0)
 
 	if elem.Name == "Item" {
+		doassert(elem.Tag.Group==0xfffe&&elem.Tag.Element==0xe000)
 		if elem.Vl == UndefinedLength {
 			//log.Println("____ ITEM UNDEF LEN ____")
 			for buffer.Len() != 0 {
@@ -136,7 +143,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 					break
 				}
 
-				p.appendDataElement(file, elem)
+				appendDataElement(file, elem)
 				elem, err = ReadDataElement(buffer)
 				if err != nil {
 					return 0, err
@@ -146,7 +153,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (
 			}
 		} else if elem.Vl > 0 {
 			for buffer.Len() != 0 {
-				p.appendDataElement(file, elem)
+				appendDataElement(file, elem)
 
 				if elem.Vr == "SQ" {
 					l, _ := p.readItems(file, buffer, elem)
@@ -189,19 +196,19 @@ func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomEleme
 		if elem.Name == "Item" {
 			elem.Value = append(elem.Value, buffer.DecodeBytes(int(elem.Vl)))
 		}
-		p.appendDataElement(file, elem)
+		appendDataElement(file, elem)
 		elem, err = ReadDataElement(buffer)
 		if err != nil {
 			return err
 		}
 
 	}
-	p.appendDataElement(file, elem)
+	appendDataElement(file, elem)
 	return nil
 }
 
 // Append a dataElement to the DicomFile
-func (p *Parser) appendDataElement(file *DicomFile, elem *DicomElement) {
+func appendDataElement(file *DicomFile, elem *DicomElement) {
 	file.Elements = append(file.Elements, *elem)
 
 }
@@ -227,7 +234,7 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, bool, error) {
 	case ExplicitVRBigEndian:
 		return binary.BigEndian, false, nil
 	default:
-		panic(fmt.Sprintf("Unknown transfer syntax: %s", ts)) // TODO
+		// panic(fmt.Sprintf("Unknown transfer syntax: %s", ts)) // TODO
 		return binary.LittleEndian, false, nil
 	}
 

@@ -199,15 +199,12 @@ func readTag(buffer *Decoder) Tag {
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
 func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32, error) {
-	var vr string
 	elem := &DicomElement{
 		Tag:  tag,
 		Name: getTagName(tag),
 	}
-	entry, err := LookupTag(tag)
-	if err != nil {
-		vr = "UN"
-	} else {
+	vr := "UN"
+	if entry, err := LookupTag(tag); err == nil {
 		vr = entry.VR
 	}
 
@@ -218,10 +215,11 @@ func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32, erro
 		// elem.undefLen = true
 	}
 	// Error when encountering odd length
-	if err == nil && vl > 0 && vl%2 != 0 {
+	var err error
+	if vl > 0 && vl%2 != 0 {
 		err = ErrOddLength
 	}
-	return elem, vr, vl, nil
+	return elem, vr, vl, err
 }
 
 // The VR is represented by the next two consecutive bytes
@@ -270,3 +268,75 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32, erro
 	}
 	return elem, vr, vl, err
 }
+
+// func EncodeDataElement(e *Encoder, tag Tag, value []interface{}) {
+// 	e.EncodeUInt16(tag.Group)
+// 	e.EncodeUInt16(tag.Element)
+
+// 	// TODO(saito) For now, only implicit encoding is supported.
+// 	vr := "UN"
+// 	if entry, err := LookupTag(tag); err == nil {
+// 		vr = entry.VR
+// 	}
+// 	if vl == UndefinedLength {
+// 		// TODO: set UndefinedLength to this value.
+// 		buffer.EncodeUInt32(0xffffffff)
+// 	} else {
+// 		buffer.EncodeUInt32(vl)
+// 		if vl%2!=0{panic(vl)}
+// 	}
+
+// 	// data
+// 	var data []interface{}
+// 	uvl := vl
+// 	valLen := uint32(vl)
+
+// 	for vl != UndefinedLength && uvl > 0 {
+// 		switch vr {
+// 		case "AT":
+// 			valLen = 2
+// 			data = append(data, buffer.DecodeUInt16())
+// 		case "UL":
+// 			valLen = 4
+// 			data = append(data, buffer.DecodeUInt32())
+// 		case "SL":
+// 			valLen = 4
+// 			data = append(data, buffer.DecodeInt32())
+// 		case "US":
+// 			valLen = 2
+// 			data = append(data, buffer.DecodeUInt16())
+// 		case "SS":
+// 			valLen = 2
+// 			data = append(data, buffer.DecodeInt16())
+// 		case "FL":
+// 			valLen = 4
+// 			data = append(data, buffer.DecodeFloat32())
+// 		case "FD":
+// 			valLen = 8
+// 			data = append(data, buffer.DecodeFloat64())
+// 		case "OW":
+// 			valLen = vl
+// 			data = append(data, buffer.DecodeBytes(int(vl)))
+// 		case "OB":
+// 			valLen = vl
+// 			data = append(data, buffer.DecodeBytes(int(vl)))
+// 		case "NA":
+// 			valLen = vl
+// 		//case "XS": ??
+
+// 		case "SQ":
+// 			valLen = vl
+// 			data = append(data, "")
+// 		default:
+// 			valLen = vl
+// 			str := strings.TrimRight(buffer.DecodeString(int(vl)), " ")
+// 			strs := strings.Split(str, "\\")
+// 			for _, s := range strs {
+// 				data = append(data, s)
+// 			}
+
+// 		}
+// 		uvl -= valLen
+// 	}
+
+// }
