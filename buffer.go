@@ -23,12 +23,17 @@ func newDicomBuffer(b []byte) *dicomBuffer {
 	}
 }
 
+const UndefinedLength uint32 = 0xfffffffe
+
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
-func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, uint32, error) {
+func (buffer *dicomBuffer) readImplicit(tag Tag) (*DicomElement, string, uint32, error) {
 	var vr string
-
-	entry, err := LookupDictionary(p.dictionary, Tag{elem.Group, elem.Element})
+	elem := &DicomElement{
+		Tag: tag,
+		Name: getTagName(tag),
+	}
+	entry, err := LookupDictionary(tag)
 	if err != nil {
 		vr = "UN"
 	} else {
@@ -38,19 +43,40 @@ func (buffer *dicomBuffer) readImplicit(elem *DicomElement, p *Parser) (string, 
 	vl := buffer.readUInt32()
 	// Rectify Undefined Length VL
 	if vl == 0xffffffff {
-		vl = 0
-		elem.undefLen = true
+		vl = UndefinedLength
+		// elem.undefLen = true
 	}
 	// Error when encountering odd length
 	if err == nil && vl > 0 && vl%2 != 0 {
 		err = ErrOddLength
 	}
-	return vr, vl, nil
+	return elem, vr, vl, nil
+}
+
+func getTagName(tag Tag) string {
+	var name string
+	//var name, vm, vr string
+	entry, err := LookupDictionary(tag)
+	if err != nil {
+		panic(err)
+		if tag.Group%2 == 0 {
+			name = unknown_group_name
+		} else {
+			name = private_group_name
+		}
+	} else {
+		name = entry.name
+	}
+	return name
 }
 
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
-func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32, error) {
+func (buffer *dicomBuffer) readExplicit(tag Tag) (*DicomElement, string, uint32, error) {
+	elem := &DicomElement{
+		Tag: tag,
+		Name: getTagName(tag),
+	}
 	vr := string(buffer.Next(2))
 	buffer.p += 2
 
@@ -74,51 +100,30 @@ func (buffer *dicomBuffer) readExplicit(elem *DicomElement) (string, uint32, err
 			case "UC", "UR", "UT":
 				err = ErrUndefLengthNotAllowed
 			default:
-				elem.undefLen = true
-				vl = 0
+				vl = UndefinedLength
 			}
 		}
 	default:
 		vl = uint32(buffer.readUInt16())
 		// Rectify Undefined Length VL
 		if vl == 0xffff {
-			vl = 0
-			elem.undefLen = true
+			vl = UndefinedLength
 		}
 	}
 	// Error when encountering odd length
 	if err == nil && vl > 0 && vl%2 != 0 {
 		err = ErrOddLength
 	}
-	return vr, vl, err
+	return elem, vr, vl, err
 }
 
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
 // added  Value Multiplicity PS 3.5 6.4
-func (buffer *dicomBuffer) readTag(p *Parser) *DicomElement {
+func (buffer *dicomBuffer) readTag() Tag {
 	group := buffer.readUInt16()   // group
 	element := buffer.readUInt16() // element
-
-	var name string
-	//var name, vm, vr string
-	entry, err := LookupDictionary(p.dictionary, Tag{group, element})
-	if err != nil {
-		if group%2 == 0 {
-			name = unknown_group_name
-		} else {
-			name = private_group_name
-		}
-	} else {
-		name = entry.name
-	}
-
-	return &DicomElement{
-		Group:   group,
-		Element: element,
-		Name:    name,
-	}
-
+	return Tag{group, element}
 }
 
 // Read x consecutive bytes as a string

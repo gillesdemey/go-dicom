@@ -5,22 +5,15 @@ import (
 	"testing"
 )
 
-var dict Dictionary
-
-func init() {
-	dict = NewDictionary()
-}
-
 func TestGetDictEntry(t *testing.T) {
-	dict := NewDictionary()
-	elem, err := LookupDictionary(dict, Tag{32736, 16})
+	elem, err := LookupDictionary(Tag{32736, 16})
 	if err != nil {
 		t.Error(err)
 	}
 	if elem.name != "PixelData" || elem.vr != "OX" {
 		t.Errorf("Wrong element name: %s", elem.name)
 	}
-	elem, err = LookupDictionary(dict, Tag{0, 0x1002})
+	elem, err = LookupDictionary(Tag{0, 0x1002})
 	if err != nil {
 		t.Error(err)
 	}
@@ -46,7 +39,7 @@ func TestSplitTag(t *testing.T) {
 
 func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := LookupDictionary(dict, Tag{2, 0}); err != nil {
+		if _, err := LookupDictionary(Tag{2, 0}); err != nil {
 			fmt.Println(err)
 		}
 
@@ -55,7 +48,7 @@ func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 
 func BenchmarkFindPixelDataTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := LookupDictionary(dict, Tag{32736, 16}); err != nil {
+		if _, err := LookupDictionary(Tag{32736, 16}); err != nil {
 			fmt.Println(err)
 		}
 

@@ -22,20 +22,18 @@ type dcmVM struct {
 
 // A DICOM element
 type DicomElement struct {
-	Group       uint16
-	Element     uint16
-	Name        string
-	Vr          string
+	Tag         Tag
+	Name        string // Name of "Tag", as defined in the data dictionary
+	Vr          string // "AE", "UL", etc.
 	Vl          uint32
 	Value       []interface{} // Value Multiplicity PS 3.5 6.4
 	IndentLevel uint8
 	elemLen     uint32
-	undefLen    bool
-	P           uint32
+	// undefLen    bool
+	P uint32
 }
 
 type Parser struct {
-	dictionary Dictionary
 }
 
 // Stringer
@@ -46,48 +44,43 @@ func (e *DicomElement) String() string {
 		sv = sv[1:50] + "(...)"
 	}
 	sVl := fmt.Sprintf("%d", e.Vl)
-	if e.undefLen == true {
+	if e.Vl == UndefinedLength {
 		sVl = "UNDEF"
 	}
 
-	return fmt.Sprintf("%08d %s (%04X, %04X) %s %s %d %s %s", e.P, s, e.Group, e.Element, e.Vr, sVl, e.elemLen, e.Name, sv)
-}
-
-// Return the tag as a string to use in the Dicom dictionary
-func (e *DicomElement) getTag() string {
-	return fmt.Sprintf("(%04X,%04X)", e.Group, e.Element)
+	return fmt.Sprintf("%08d %s (%04X, %04X) %s %s %d %s %s", e.P, s, e.Tag.Group, e.Tag.Element, e.Vr, sVl, e.elemLen, e.Name, sv)
 }
 
 // Create a new parser, with functional options for configuration
 // http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
 func NewParser() *Parser {
 	p := Parser{}
-	p.dictionary = NewDictionary()
 	return &p
 }
 
 // Read a DICOM data element
-func (buffer *dicomBuffer) readDataElement(p *Parser) (*DicomElement, error) {
+func readDataElement(buffer *dicomBuffer) (*DicomElement, error) {
 	implicit := buffer.implicit
 	inip := buffer.p
-	elem := buffer.readTag(p)
+	tag := buffer.readTag()
 
+	var elem *DicomElement
 	var vr string     // Value Representation
 	var vl uint32 = 0 // Value Length
 	var err error
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
-	if elem.Group == pixeldata_group {
+	if tag.Group == pixeldata_group {
 		implicit = true
 	}
 
 	if implicit {
-		vr, vl, err = buffer.readImplicit(elem, p)
+		elem, vr, vl, err = buffer.readImplicit(tag)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		vr, vl, err = buffer.readExplicit(elem)
+		elem, vr, vl, err = buffer.readExplicit(tag)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +94,7 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) (*DicomElement, error) {
 	uvl := vl
 	valLen := uint32(vl)
 
-	for uvl > 0 {
+	for vl != UndefinedLength && uvl > 0 {
 		switch vr {
 		case "AT":
 			valLen = 2
@@ -148,7 +141,6 @@ func (buffer *dicomBuffer) readDataElement(p *Parser) (*DicomElement, error) {
 		}
 		uvl -= valLen
 	}
-
 	elem.P = inip
 	elem.Value = data
 	elem.elemLen = buffer.p - inip

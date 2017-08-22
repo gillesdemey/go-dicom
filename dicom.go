@@ -13,7 +13,7 @@ type DicomFile struct {
 // Errors
 var (
 	ErrIllegalTag            = errors.New("Illegal tag found in PixelData")
-	ErrTagNotFound           = errors.New("Could not find tag in dicom dictionary")
+	// ErrTagNotFound           = errors.New("Could not find tag in dicom dictionary")
 	ErrBrokenFile            = errors.New("Invalid DICOM file")
 	ErrOddLength             = errors.New("Encountered odd length Value Length")
 	ErrUndefLengthNotAllowed = errors.New("UC, UR and UT may not have an Undefined Length, i.e.,a Value Length of FFFFFFFFH.")
@@ -40,7 +40,7 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 	file := &DicomFile{}
 
 	// (0002,0000) MetaElementGroupLength
-	metaElem, err := buffer.readDataElement(p)
+	metaElem, err := readDataElement(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 	start := buffer.Len()
 	prevLen := buffer.Len()
 	for start-buffer.Len() < int(metaLength) {
-		elem, err := buffer.readDataElement(p)
+		elem, err := readDataElement(buffer)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +82,7 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 	buffer.implicit = implicit
 
 	for buffer.Len() != 0 {
-		elem, err := buffer.readDataElement(p)
+		elem, err := readDataElement(buffer)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +116,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElemen
 		return 0, nil
 	}
 
-	elem, err := buffer.readDataElement(p)
+	elem, err := readDataElement(buffer)
 	if err != nil {
 		return 0, err
 	}
@@ -128,7 +128,25 @@ func (p *Parser) readItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElemen
 	itemAcum := uint32(0)
 
 	if elem.Name == "Item" {
-		if elem.Vl > 0 {
+		if elem.Vl == UndefinedLength {
+			//log.Println("____ ITEM UNDEF LEN ____")
+			for buffer.Len() != 0 {
+				if elem.Vr == "SQ" {
+					p.readItems(file, buffer, elem)
+				}
+				if elem.Name == "SequenceDelimitationItem" {
+					break
+				}
+
+				p.appendDataElement(file, elem)
+				elem, err = readDataElement(buffer)
+				if err != nil {
+					return 0, err
+				}
+				elem.IndentLevel = sq.IndentLevel
+
+			}
+		} else if elem.Vl > 0 {
 			for buffer.Len() != 0 {
 				p.appendDataElement(file, elem)
 
@@ -145,7 +163,7 @@ func (p *Parser) readItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElemen
 					break
 				}
 
-				elem, err = buffer.readDataElement(p)
+				elem, err = readDataElement(buffer)
 				if err != nil {
 					return 0, err
 				}
@@ -157,38 +175,15 @@ func (p *Parser) readItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElemen
 				sqAcum += elem.elemLen
 
 			}
-
-		} else if elem.undefLen == true {
-			//log.Println("____ ITEM UNDEF LEN ____")
-			for buffer.Len() != 0 {
-
-				if elem.Vr == "SQ" {
-					p.readItems(file, buffer, elem)
-				}
-
-				if elem.Name == "SequenceDelimitationItem" {
-					break
-				}
-
-				p.appendDataElement(file, elem)
-				elem, err = buffer.readDataElement(p)
-				if err != nil {
-					return 0, err
-				}
-				elem.IndentLevel = sq.IndentLevel
-
-			}
 		} else {
 			// ITEM 0 LEN
 		}
 	}
-
 	return sqAcum, nil
-
 }
 
 func (p *Parser) readPixelItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElement) error {
-	elem, err := buffer.readDataElement(p)
+	elem, err := readDataElement(buffer)
 	if err != nil {
 		return err
 	}
@@ -197,7 +192,7 @@ func (p *Parser) readPixelItems(file *DicomFile, buffer *dicomBuffer, sq *DicomE
 			elem.Value = append(elem.Value, buffer.readUInt8Array(elem.Vl))
 		}
 		p.appendDataElement(file, elem)
-		elem, err = buffer.readDataElement(p)
+		elem, err = readDataElement(buffer)
 		if err != nil {
 			return err
 		}
@@ -247,6 +242,5 @@ func (file *DicomFile) LookupElement(name string) (*DicomElement, error) {
 			return &elem, nil
 		}
 	}
-
-	return nil, ErrTagNotFound
+	return nil, fmt.Errorf("Could not find element '%s' in dicom file", name)
 }

@@ -5,6 +5,7 @@ package dicom
 // ftp://medical.nema.org/medical/dicom/2011/11_06pu.pdf
 
 import (
+	"fmt"
 	"bytes"
 	"encoding/csv"
 	"io"
@@ -40,12 +41,14 @@ func makeDictKey(tag Tag) dictKey {
 // (group, element) -> tag information
 type Dictionary map[dictKey]DictionaryEntry
 
+var singletonDict Dictionary
+
 // Create a new, fully filled dictionary.
-func NewDictionary() Dictionary {
+func init() {
 	reader := csv.NewReader(bytes.NewReader([]byte(dicomDictData)))
 	reader.Comma = '\t'  // tab separated file
 	reader.Comment = '#' // comments start with #
-	dict := make(Dictionary)
+	singletonDict = make(Dictionary)
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -57,8 +60,7 @@ func NewDictionary() Dictionary {
 		if err != nil {
 			continue // we don't support groups yet
 		}
-
-		dict[makeDictKey(tag)] = DictionaryEntry{
+		singletonDict[makeDictKey(tag)] = DictionaryEntry{
 			tag: tag,
 			vr:      strings.ToUpper(row[1]),
 			name:    row[2],
@@ -66,20 +68,18 @@ func NewDictionary() Dictionary {
 			version: row[4],
 		}
 	}
-	return dict
 }
 
 // LookupDictionary finds information about tag (group, element). If the given
 // tag is undefined or retired in the standard, it returns an error.
-func LookupDictionary(dict Dictionary, tag Tag) (DictionaryEntry, error) {
-	entry, ok := dict[makeDictKey(tag)]
-
+func LookupDictionary(tag Tag) (DictionaryEntry, error) {
+	entry, ok := singletonDict[makeDictKey(tag)]
 	if !ok {
 		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
 		if tag.Group%2 == 0 && tag.Element == 0x0000 {
 			entry = DictionaryEntry{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
 		} else {
-			return DictionaryEntry{}, ErrTagNotFound
+			return DictionaryEntry{}, fmt.Errorf("Could not find tag (0x%x, 0x%x) in dictionary", tag.Group, tag.Element)
 		}
 	}
 	return entry, nil
