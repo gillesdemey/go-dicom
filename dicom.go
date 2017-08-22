@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -13,7 +14,6 @@ type DicomFile struct {
 // Errors
 var (
 	ErrIllegalTag            = errors.New("Illegal tag found in PixelData")
-	// ErrTagNotFound           = errors.New("Could not find tag in dicom dictionary")
 	ErrBrokenFile            = errors.New("Invalid DICOM file")
 	ErrOddLength             = errors.New("Encountered odd length Value Length")
 	ErrUndefLengthNotAllowed = errors.New("UC, UR and UT may not have an Undefined Length, i.e.,a Value Length of FFFFFFFFH.")
@@ -28,13 +28,15 @@ const (
 
 // Parse a byte array, returns a DICOM file struct
 func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
-	buffer := newDicomBuffer(buff) //*di.Bytes)
-
-	buffer.Next(128) // skip preamble
-	buffer.p = +128
+	// buffer := newDicomBuffer(buff) //*di.Bytes)
+	buffer := NewDecoder(bytes.NewBuffer(buff),
+		len(buff),
+		binary.LittleEndian,
+		false)
+	buffer.Skip(128) // skip preamble
 
 	// check for magic word
-	if magicWord := string(buffer.Next(4)); magicWord != magic_word {
+	if magicWord := buffer.DecodeString(4); magicWord != magic_word {
 		return nil, ErrBrokenFile
 	}
 	file := &DicomFile{}
@@ -87,7 +89,6 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 			return nil, err
 		}
 		p.appendDataElement(file, elem)
-
 		if elem.Vr == "SQ" {
 			_, err = p.readItems(file, buffer, elem)
 			if err != nil {
@@ -108,7 +109,7 @@ func (p *Parser) Parse(buff []byte) (*DicomFile, error) {
 	return file, nil
 }
 
-func (p *Parser) readItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElement) (uint32, error) {
+func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (uint32, error) {
 	sq.IndentLevel++
 	sqLength := sq.Vl
 
@@ -182,14 +183,14 @@ func (p *Parser) readItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElemen
 	return sqAcum, nil
 }
 
-func (p *Parser) readPixelItems(file *DicomFile, buffer *dicomBuffer, sq *DicomElement) error {
+func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomElement) error {
 	elem, err := readDataElement(buffer)
 	if err != nil {
 		return err
 	}
 	for buffer.Len() != 0 {
 		if elem.Name == "Item" {
-			elem.Value = append(elem.Value, buffer.readUInt8Array(elem.Vl))
+			elem.Value = append(elem.Value, buffer.DecodeBytes(int(elem.Vl)))
 		}
 		p.appendDataElement(file, elem)
 		elem, err = readDataElement(buffer)

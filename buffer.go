@@ -1,207 +1,178 @@
 package dicom
 
 import (
-	"bytes"
+	"fmt"
+	"io"
 	"encoding/binary"
 )
 
-type dicomBuffer struct {
-	*bytes.Buffer
+type Decoder struct {
+	in        io.Reader
+	err       error
+
 	bo       binary.ByteOrder
 	implicit bool
-	p        uint32 // element start position
+
+	// Cumulative # bytes read.
+	pos    int
+	// Max bytes to read. PushLimit() will add a new limit, and PopLimit()
+	// will restore the old limit. The newest limit is at the end.
+	//
+	// INVARIANT: limits[] store values in decreasing order.
+	limits []int
 }
 
-// The default DicomBuffer reads a buffer with Little Endian byteorder
-// and explicit VR
-func newDicomBuffer(b []byte) *dicomBuffer {
-	return &dicomBuffer{
-		bytes.NewBuffer(b),
-		binary.LittleEndian,
-		false,
-		0,
+func NewDecoder(
+	in io.Reader,
+	limit int,
+	bo binary.ByteOrder,
+	implicit bool) *Decoder {
+	return &Decoder{
+		in: in,
+		err: nil,
+		bo: bo,
+		implicit: implicit,
+		pos: 0,
+		limits: []int{limit},
 	}
 }
 
-const UndefinedLength uint32 = 0xfffffffe
+func (d *Decoder) PushLimit(limit int) {
+	d.limits = append(d.limits, d.pos + limit)
+}
 
-// Read the VR from the DICOM ditionary
-// The VL is a 32-bit unsigned integer
-func (buffer *dicomBuffer) readImplicit(tag Tag) (*DicomElement, string, uint32, error) {
-	var vr string
-	elem := &DicomElement{
-		Tag: tag,
-		Name: getTagName(tag),
+func (d *Decoder) PopLimit() {
+	d.limits = d.limits[:len(d.limits)-1]
+}
+
+func (d *Decoder) Pos() int { return d.pos }
+
+func (d *Decoder) Error() error { return d.err }
+
+func (d *Decoder) Finish() error {
+	if d.err != nil {
+		return d.err
 	}
-	entry, err := LookupDictionary(tag)
+	if d.Available() != 0 {
+		return fmt.Errorf("Decoder found junk (%d bytes remaining)", d.Available())
+	}
+	return nil
+}
+
+// io.Reader implementation
+func (d *Decoder) Read(p []byte) (int, error) {
+	desired := d.Available()
+	if desired == 0 {
+		if len(p)==0 {return 0, nil}
+		return 0, io.EOF
+	}
+	if desired < len(p) {
+		p = p[:desired]
+		desired = len(p)
+	}
+	n, err := d.in.Read(p)
+	if err == nil {
+		d.pos += n
+	}
+	return n, err
+}
+
+func (d *Decoder) Available() int {
+	return d.limits[len(d.limits)-1] - d.pos
+}
+
+func (d *Decoder) Len() int { return d.Available() }
+
+func (d *Decoder) DecodeByte() (v byte) {
+	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		vr = "UN"
-	} else {
-		vr = entry.vr
+		d.err = err
+		return 0
 	}
-
-	vl := buffer.readUInt32()
-	// Rectify Undefined Length VL
-	if vl == 0xffffffff {
-		vl = UndefinedLength
-		// elem.undefLen = true
-	}
-	// Error when encountering odd length
-	if err == nil && vl > 0 && vl%2 != 0 {
-		err = ErrOddLength
-	}
-	return elem, vr, vl, nil
+	return v
 }
 
-func getTagName(tag Tag) string {
-	var name string
-	//var name, vm, vr string
-	entry, err := LookupDictionary(tag)
+func (d *Decoder) DecodeUInt32() (v uint32) {
+	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		panic(err)
-		if tag.Group%2 == 0 {
-			name = unknown_group_name
-		} else {
-			name = private_group_name
+		d.err = err
+	}
+	return v
+}
+
+func (d *Decoder) DecodeInt32() (v int32) {
+	err := binary.Read(d, d.bo, &v)
+	if err != nil {
+		d.err = err
+	}
+	return v
+}
+
+func (d *Decoder) DecodeUInt16() (v uint16) {
+	err := binary.Read(d, d.bo, &v)
+	if err != nil {
+		d.err = err
+	}
+	return v
+}
+
+func (d *Decoder) DecodeInt16() (v int16) {
+	err := binary.Read(d, d.bo, &v)
+	if err != nil {
+		d.err = err
+	}
+	return v
+}
+
+func (d *Decoder) DecodeFloat32() (v float32) {
+	err := binary.Read(d, d.bo, &v)
+	if err != nil {
+		d.err = err
+	}
+	return v
+}
+
+func (d *Decoder) DecodeFloat64() (v float64) {
+	err := binary.Read(d, d.bo, &v)
+	if err != nil {
+		d.err = err
+	}
+	return v
+}
+
+func (d *Decoder) DecodeString(length int) string {
+	return string(d.DecodeBytes(length))
+}
+
+func (d *Decoder) DecodeBytes(length int) []byte {
+	v := make([]byte, length)
+	remaining := v
+	for len(remaining) > 0 {
+		n, err := d.Read(v)
+		if err != nil {
+			d.err = err
+			break
 		}
-	} else {
-		name = entry.name
+		remaining = remaining[n:]
 	}
-	return name
-}
-
-// The VR is represented by the next two consecutive bytes
-// The VL depends on the VR value
-func (buffer *dicomBuffer) readExplicit(tag Tag) (*DicomElement, string, uint32, error) {
-	elem := &DicomElement{
-		Tag: tag,
-		Name: getTagName(tag),
+	//doassert(d.err==nil)
+	if len(remaining) > 0 {
+		d.err = fmt.Errorf("DecodeBytes: requested %d, remaining %d",
+			length, len(remaining))
+		panic(d.err)  // TODO(saito) remove
 	}
-	vr := string(buffer.Next(2))
-	buffer.p += 2
+	return v
+}
 
-	var vl uint32
-	var err error
-
-	if vr == "US" {
-		vl = 2
+func (d *Decoder) Skip(bytes int) {
+	junk := make([]byte, bytes)
+	n, err := d.Read(junk)
+	if err != nil {
+		d.err = err
+		return
 	}
-
-	// long value representations
-	switch vr {
-	case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
-		buffer.Next(2) // ignore two bytes for "future use" (0000H)
-		buffer.p += 2
-
-		vl = buffer.readUInt32()
-		// Rectify Undefined Length VL
-		if vl == 0xffffffff {
-			switch vr {
-			case "UC", "UR", "UT":
-				err = ErrUndefLengthNotAllowed
-			default:
-				vl = UndefinedLength
-			}
-		}
-	default:
-		vl = uint32(buffer.readUInt16())
-		// Rectify Undefined Length VL
-		if vl == 0xffff {
-			vl = UndefinedLength
-		}
+	if n != bytes {
+		d.err = fmt.Errorf("Failed to skip %d bytes (read %d bytes instead)", bytes, n)
+		return
 	}
-	// Error when encountering odd length
-	if err == nil && vl > 0 && vl%2 != 0 {
-		err = ErrOddLength
-	}
-	return elem, vr, vl, err
-}
-
-// Read a DICOM data element's tag value
-// ie. (0002,0000)
-// added  Value Multiplicity PS 3.5 6.4
-func (buffer *dicomBuffer) readTag() Tag {
-	group := buffer.readUInt16()   // group
-	element := buffer.readUInt16() // element
-	return Tag{group, element}
-}
-
-// Read x consecutive bytes as a string
-func (buffer *dicomBuffer) readString(vl uint32) string {
-	chunk := buffer.Next(int(vl))
-	chunk = bytes.Trim(chunk, "\x00")   // trim those pesky null bytes
-	chunk = bytes.Trim(chunk, "\u200B") // trim zero-width characters
-	buffer.p += vl
-	return string(chunk)
-}
-
-// Read 4 consecutive bytes as a float32
-func (buffer *dicomBuffer) readFloat() (val float32) {
-	buf := bytes.NewBuffer(buffer.Next(4))
-	binary.Read(buf, buffer.bo, &val)
-	buffer.p += 4
-	return
-}
-
-// Read 8 consecutive bytes as a float64
-func (buffer *dicomBuffer) readFloat64() (val float64) {
-	buf := bytes.NewBuffer(buffer.Next(8))
-	binary.Read(buf, buffer.bo, &val)
-	buffer.p += 8
-	return
-}
-
-// Read 2 bytes as a hexadecimal value
-//func (buffer *dicomBuffer) readHex() uint16 {
-//	return buffer.readUInt16()
-//}
-
-// Read 4 bytes as an UInt32
-func (buffer *dicomBuffer) readUInt32() (val uint32) {
-	buf := bytes.NewBuffer(buffer.Next(4))
-	binary.Read(buf, buffer.bo, &val)
-	buffer.p += 4
-	return
-}
-
-// Read 4 bytes as an int32
-func (buffer *dicomBuffer) readInt32() (val int32) {
-	buf := bytes.NewBuffer(buffer.Next(4))
-	binary.Read(buf, buffer.bo, &val)
-	buffer.p += 4
-	return
-}
-
-// Read 2 bytes as an UInt16
-func (buffer *dicomBuffer) readUInt16() (val uint16) {
-	buf := bytes.NewBuffer(buffer.Next(2))
-	binary.Read(buf, buffer.bo, &val)
-	buffer.p += 2
-	return
-}
-
-// Read 2 bytes as an int16
-func (buffer *dicomBuffer) readInt16() (val int16) {
-	buf := bytes.NewBuffer(buffer.Next(2))
-	binary.Read(buf, buffer.bo, &val)
-	buffer.p += 2
-	return
-}
-
-// Read x number of bytes as an array of UInt16 values
-func (buffer *dicomBuffer) readUInt16Array(vl uint32) []uint16 {
-	slice := make([]uint16, int(vl)/2)
-
-	for i := 0; i < len(slice); i++ {
-		slice[i] = buffer.readUInt16()
-	}
-	buffer.p += vl
-	return slice
-}
-
-// Read x number of bytes as an array of UInt8 values
-func (buffer *dicomBuffer) readUInt8Array(vl uint32) []byte {
-	chunk := buffer.Next(int(vl))
-	buffer.p += vl
-	return chunk
 }
