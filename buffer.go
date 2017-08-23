@@ -46,12 +46,14 @@ func (e *Encoder) EncodeString(v string) {
 	e.buf.Write([]byte(v))
 }
 
+// Encode an array of zero bytes.
 func (e *Encoder) EncodeZeros(len int) {
 	// TODO(saito) reuse the buffer!
 	zeros := make([]byte, len)
 	e.buf.Write(zeros)
 }
 
+// Copy the given data to the output.
 func (e *Encoder) EncodeBytes(v []byte) {
 	e.buf.Write(v)
 }
@@ -72,6 +74,9 @@ type Decoder struct {
 	limits []int64
 }
 
+// limit is the maximum number of read from "in". Don't pass just an arbitrary
+// large number as the limit. The underlying code assumes that "limit"
+// accurately bounds the end of the data.
 func NewDecoder(
 	in io.Reader,
 	limit int64,
@@ -93,18 +98,25 @@ func (d *Decoder) SetError(err error) {
  	}
 }
 
+// Temporarily override the end of the buffer.
+//
+// REQUIRES: limit must be smaller than the current limit
 func (d *Decoder) PushLimit(limit int64) {
 	d.limits = append(d.limits, d.pos + limit)
 }
 
+// Restore the old limit overridden by PushLimit.
 func (d *Decoder) PopLimit() {
 	d.limits = d.limits[:len(d.limits)-1]
 }
 
+// Pos() returns the cumulative number of bytes read so far.
 func (d *Decoder) Pos() int64 { return d.pos }
 
 func (d *Decoder) Error() error { return d.err }
 
+// Finish() must be called after using the decoder. It returns any error
+// encountered during decoding.
 func (d *Decoder) Finish() error {
 	if d.err != nil {
 		return d.err
@@ -133,10 +145,13 @@ func (d *Decoder) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Len() returns the number of bytes yet unread.
 func (d *Decoder) Len() int64 {
 	return d.limits[len(d.limits)-1] - d.pos
 }
 
+// DecodeByte() reads a single byte from the buffer. On EOF, it returns a junk
+// value, and sets an error to be returned by Error() or Finish().
 func (d *Decoder) DecodeByte() (v byte) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
