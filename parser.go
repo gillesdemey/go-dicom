@@ -207,6 +207,10 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		// TODO(saito) handle multi-frame image.
 	} else if vr == "SQ" {
 		if vl == UndefinedLength {
+			// Format:
+			//  Sequence := ItemSet* SequenceDelimitationItem
+			//  ItemSet := Item Any* ItemDelimitationItem (when Item.VL is undefined) or
+			//             Item Any*N                     (when Item.VL has a defined value)
 			for d.Len() > 0 && d.Error() == nil {
 				item := ReadDataElement(d)
 				if item.Tag != tagItem.Tag {
@@ -215,6 +219,9 @@ func ReadDataElement(d *Decoder) *DicomElement {
 				data = append(data, item)
 			}
 		} else {
+			// Format:
+			//  Sequence := ItemSet*VL
+			// See the above comment for the definition of ItemSet.
 			d.PushLimit(int64(vl))
 			defer d.PopLimit()
 			xxxx = true
@@ -227,13 +234,15 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			}
 		}
 	} else if vr == "NA" {
-		// parse a list of Items
+		// Parse Item.
 		if vl == UndefinedLength {
+			// Format: Item Any* ItemDelimitationItem
 			for d.Len() > 0 && d.Error() == nil && elem.Tag != tagItemDelimitationItem.Tag {
 				subelem := ReadDataElement(d)
 				data = append(data, subelem)
 			}
 		} else {
+			// Sequence of arbitary elements, for the  total of "vl" bytes.
 			d.PushLimit(int64(vl))
 			for d.Len() > 0 && d.Error() == nil {
 				subelem := ReadDataElement(d)
