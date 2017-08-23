@@ -19,6 +19,10 @@ type Tag struct {
 	Element uint16
 }
 
+func (t *Tag) String() string {
+	return fmt.Sprintf("(%04x,%04x)", t.Group, t.Element)
+}
+
 type TagDictEntry struct {
 	Tag Tag
 
@@ -29,6 +33,12 @@ type TagDictEntry struct {
 	VM      string
 	Version string
 }
+
+var tagItem TagDictEntry
+var tagItemDelimitationItem TagDictEntry
+var tagSequenceDelimitationItem TagDictEntry
+
+var TagPixelData TagDictEntry
 
 // Combination of group and element.
 type tagDictKey uint32
@@ -67,6 +77,10 @@ func init() {
 			Version: row[4],
 		}
 	}
+	tagItem = MustLookupTag(Tag{0xfffe, 0xe000})
+	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d})
+	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd})
+	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010})
 }
 
 // LookupDictionary finds information about tag (group, element). If the given
@@ -84,13 +98,21 @@ func LookupTag(tag Tag) (TagDictEntry, error) {
 	return entry, nil
 }
 
+func MustLookupTag(tag Tag) TagDictEntry {
+	e, err := LookupTag(tag)
+	if err != nil {
+		panic(err)
+	}
+	return e
+}
+
 // TagDebugString returns a human-readable diagnostic string for the tag
 func TagDebugString(tag Tag) string {
 	e, err := LookupTag(tag)
 	if err != nil {
 		return fmt.Sprintf("(%04x,%04x)[??]", tag.Group, tag.Element)
 	}
-	return fmt.Sprintf("(%04x,%04x)[??]", tag.Group, tag.Element, e.Name)
+	return fmt.Sprintf("(%04x,%04x)[%s]", tag.Group, tag.Element, e.Name)
 }
 
 // Split a tag into a group and element, represented as a hex value

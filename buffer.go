@@ -62,6 +62,11 @@ type Decoder struct {
 
 	bo       binary.ByteOrder
 	implicit bool
+	limit    int64
+
+	oldBos       []binary.ByteOrder
+	oldImplicits []bool
+	oldLimits    []int64
 
 	// Cumulative # bytes read.
 	pos int64
@@ -69,7 +74,7 @@ type Decoder struct {
 	// will restore the old limit. The newest limit is at the end.
 	//
 	// INVARIANT: limits[] store values in decreasing order.
-	limits []int64
+	// limits []int64
 }
 
 func NewDecoder(
@@ -83,8 +88,12 @@ func NewDecoder(
 		bo:       bo,
 		implicit: implicit,
 		pos:      0,
-		limits:   []int64{limit},
+		limit:    limit,
 	}
+}
+
+func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit bool) *Decoder {
+	return NewDecoder(bytes.NewBuffer(data), int64(len(data)), bo, implicit)
 }
 
 func (d *Decoder) SetError(err error) {
@@ -94,12 +103,31 @@ func (d *Decoder) SetError(err error) {
 	}
 }
 
-func (d *Decoder) PushLimit(limit int64) {
-	d.limits = append(d.limits, d.pos+limit)
+func (d *Decoder) PushTranslationSyntax(bo binary.ByteOrder, implicit bool) {
+	d.oldBos = append(d.oldBos, d.bo)
+	d.oldImplicits = append(d.oldImplicits, d.implicit)
+
+	d.bo = bo
+	d.implicit = implicit
+}
+
+func (d *Decoder) PopTranslationSyntax() {
+	d.implicit = d.oldImplicits[len(d.oldImplicits)-1]
+	d.bo = d.oldBos[len(d.oldBos)-1]
+
+	d.oldImplicits = d.oldImplicits[:len(d.oldImplicits)-1]
+	d.oldBos = d.oldBos[:len(d.oldBos)-1]
+}
+
+func (d *Decoder) PushLimit(bytes int64) {
+	doassert(bytes >= 0)
+	d.oldLimits = append(d.oldLimits, d.limit)
+	d.limit = d.pos + bytes
 }
 
 func (d *Decoder) PopLimit() {
-	d.limits = d.limits[:len(d.limits)-1]
+	d.limit = d.oldLimits[len(d.oldLimits)-1]
+	d.oldLimits = d.oldLimits[:len(d.oldLimits)-1]
 }
 
 func (d *Decoder) Pos() int64 { return d.pos }
@@ -137,7 +165,7 @@ func (d *Decoder) Read(p []byte) (int, error) {
 }
 
 func (d *Decoder) Len() int64 {
-	return d.limits[len(d.limits)-1] - d.pos
+	return d.limit - d.pos
 }
 
 func (d *Decoder) DecodeByte() (v byte) {
