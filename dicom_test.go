@@ -2,8 +2,8 @@ package dicom
 
 import (
 	"encoding/binary"
-	"log"
 	"fmt"
+	"log"
 	"os"
 	"testing"
 )
@@ -34,7 +34,7 @@ func TestAllFiles(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	for _, name := range(names) {
+	for _, name := range names {
 		log.Printf("Reading %s", name)
 		_ = mustReadFile("examples/" + name)
 	}

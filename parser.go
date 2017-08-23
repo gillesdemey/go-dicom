@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -100,8 +101,6 @@ func NewParser() *Parser {
 	return &Parser{}
 }
 
-var xxxx bool
-
 // Read an Item object as raw bytes, w/o parsing them into DataElement. Used to
 // parse pixel data.
 func readRawItem(d *Decoder) ([]byte, bool) {
@@ -169,11 +168,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 
 	elem.Vr = vr
 	elem.Vl = vl
-	// log.Printf("READTAG: pos:%d, %s %s %v", d.Pos(), tag.String(), vr, vl)
-	if d.Pos() == 2806 {
-		xxxx = true
-	}
-	// data
 	var data []interface{}
 
 	if tag == TagPixelData.Tag {
@@ -195,7 +189,9 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		// the bytesizes found in BasicOffsetTable.
 		if vl == UndefinedLength {
 			offsets := readBasicOffsetTable(d) // TODO(saito) Use the offset table.
-			log.Printf("Offsets: %v", offsets)
+			if len(offsets) > 1 {
+				log.Printf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", offsets)
+			}
 			var bytes []byte
 			for d.Len() > 0 && d.Error() == nil {
 				chunk, endOfItems := readRawItem(d)
@@ -229,7 +225,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			// See the above comment for the definition of ItemSet.
 			d.PushLimit(int64(vl))
 			defer d.PopLimit()
-			xxxx = true
 			for d.Len() > 0 && d.Error() == nil {
 				item := ReadDataElement(d)
 				if item.Tag != tagItem.Tag {
@@ -341,7 +336,6 @@ func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	// Rectify Undefined Length VL
 	if vl == 0xffffffff {
 		vl = UndefinedLength
-		// elem.undefLen = true
 	}
 	// Error when encountering odd length
 	if vl > 0 && vl%2 != 0 {
@@ -376,7 +370,7 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 		if vl == 0xffffffff {
 			switch vr {
 			case "UC", "UR", "UT":
-				buffer.SetError(ErrUndefLengthNotAllowed)
+				buffer.SetError(errors.New("UC, UR and UT may not have an Undefined Length, i.e.,a Value Length of FFFFFFFFH."))
 			default:
 				vl = UndefinedLength
 			}
