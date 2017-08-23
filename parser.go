@@ -214,6 +214,9 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			//             Item Any*N                     (when Item.VL has a defined value)
 			for d.Len() > 0 && d.Error() == nil {
 				item := ReadDataElement(d)
+				if item.Tag == tagSequenceDelimitationItem {
+					break
+				}
 				if item.Tag != tagItem {
 					log.Panicf("Unknown item in seq(unlimited): %v", TagDebugString(item.Tag))
 				}
@@ -277,7 +280,8 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			case "OB":
 				data = append(data, d.DecodeBytes(int(vl)))
 			default:
-				str := strings.TrimRight(d.DecodeString(int(vl)), " ")
+				// String may have '\0' suffix if its length is odd.
+				str := strings.TrimRight(d.DecodeString(int(vl)), " \000")
 				strs := strings.Split(str, "\\")
 				for _, s := range strs {
 					data = append(data, s)
@@ -428,12 +432,14 @@ func EncodeDataElement(e *Encoder, tag Tag, values []interface{}) {
 			fallthrough
 		case "SQ":
 			sube.SetError(fmt.Errorf("NA and SQ encoding not supported yet"))
-		default: {
-			s := value.(string)
-			sube.EncodeString(s)
-			if len(s) % 2 == 1 {
-				sube.EncodeByte(0)
-			}}
+		default:
+			{
+				s := value.(string)
+				sube.EncodeString(s)
+				if len(s)%2 == 1 {
+					sube.EncodeByte(0)
+				}
+			}
 		}
 	}
 	bytes, err := sube.Finish()
