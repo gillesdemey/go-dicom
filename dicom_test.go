@@ -2,14 +2,14 @@ package dicom
 
 import (
 	"encoding/binary"
+	"log"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 )
 
-func readFile() (io.Reader, int64) {
-	file, err := os.Open("examples/IM-0001-0001.dcm")
+func mustReadFile(path string) *DicomFile {
+	file, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
@@ -17,18 +17,31 @@ func readFile() (io.Reader, int64) {
 	if err != nil {
 		panic(err)
 	}
-	return file, st.Size()
+	parser := NewParser()
+	data, err := parser.Parse(file, st.Size())
+	if err != nil {
+		panic(fmt.Sprintf("%s: failed to read: %v", path, err))
+	}
+	return data
+}
+
+func TestAllFiles(t *testing.T) {
+	dir, err := os.Open("examples")
+	if err != nil {
+		panic(err)
+	}
+	names, err := dir.Readdirnames(0)
+	if err != nil {
+		panic(err)
+	}
+	for _, name := range(names) {
+		log.Printf("Reading %s", name)
+		_ = mustReadFile("examples/" + name)
+	}
 }
 
 func TestParseFile(t *testing.T) {
-	file, fileSize := readFile()
-
-	parser := NewParser()
-	data, err := parser.Parse(file, fileSize)
-	if err != nil {
-		t.Errorf("failed to parse dicom file: %s", err)
-	}
-
+	data := mustReadFile("examples/IM-0001-0001.dcm")
 	elem, err := data.LookupElement("PatientName")
 	if err != nil {
 		t.Error(err)
@@ -81,13 +94,7 @@ func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 }
 
 func BenchmarkParseSingle(b *testing.B) {
-	parser := NewParser()
 	for i := 0; i < b.N; i++ {
-		file, fileSize := readFile()
-		_, err := parser.Parse(file, fileSize)
-		if err != nil {
-			fmt.Println("failed to parse dicom file")
-			panic(err)
-		}
+		_ = mustReadFile("examples/IM-0001-0001.dcm")
 	}
 }

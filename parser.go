@@ -193,17 +193,22 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		//
 		// The total byte size of Item(ImageData*) equal the total of
 		// the bytesizes found in BasicOffsetTable.
-		doassert(vl == UndefinedLength)
-		_ = readBasicOffsetTable(d) // TODO(saito) Use the offset table.
-		var bytes []byte
-		for d.Len() > 0 && d.Error() == nil {
-			chunk, endOfItems := readRawItem(d)
-			if endOfItems {
-				break
+		if vl == UndefinedLength {
+			offsets := readBasicOffsetTable(d) // TODO(saito) Use the offset table.
+			log.Printf("Offsets: %v", offsets)
+			var bytes []byte
+			for d.Len() > 0 && d.Error() == nil {
+				chunk, endOfItems := readRawItem(d)
+				if endOfItems {
+					break
+				}
+				bytes = append(bytes, chunk...)
 			}
-			bytes = append(bytes, chunk...)
+			data = append(data, bytes)
+		} else {
+			log.Printf("Warning: defined-length pixel data not supported: tag %v, VR=%v, VL=%v", tag.String(), vr, vl)
+			data = append(data, d.DecodeBytes(int(vl)))
 		}
-		data = append(data, bytes)
 		// TODO(saito) handle multi-frame image.
 	} else if vr == "SQ" {
 		if vl == UndefinedLength {
@@ -298,7 +303,6 @@ func getTagName(tag Tag) string {
 	//var name, vm, vr string
 	entry, err := LookupTag(tag)
 	if err != nil {
-		panic(err)
 		if tag.Group%2 == 0 {
 			name = unknownGroupName
 		} else {

@@ -54,13 +54,14 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	if buffer.Len() <= 0 {
 		return nil, fmt.Errorf("No data element found")
 	}
-	appendDataElement(file, metaElem)
+	file.Elements = append(file.Elements, *metaElem)
 
 	// Read meta tags
 	start := buffer.Len()
 	prevLen := buffer.Len()
 	for start-buffer.Len() < int64(metaLength) && buffer.Error() == nil {
 		elem := ReadDataElement(buffer)
+		file.Elements = append(file.Elements, *elem)
 		appendDataElement(file, elem)
 		if buffer.Len() >= prevLen {
 			panic("Failed to consume buffer")
@@ -86,22 +87,8 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 			break
 		}
 		appendDataElement(file, elem)
-		// if elem.Vr == "SQ" {
-		// 	_, err = p.readItems(file, buffer, elem)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// }
-		// if elem.Name == "PixelData" {
-		// 	err = p.readPixelItems(file, buffer, elem)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// 	break
-		// }
-
 	}
-	return file, buffer.Error()
+	return file, buffer.Finish()
 }
 
 func doassert(x bool) {
@@ -176,21 +163,21 @@ func doassert(x bool) {
 // 	return sqAcum, nil
 // }
 
-func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomElement) error {
-	elem := ReadDataElement(buffer)
-	if buffer.Error() != nil {
-		return buffer.Error()
-	}
-	for buffer.Len() != 0 && buffer.Error() == nil {
-		if elem.Name == "Item" {
-			elem.Value = append(elem.Value, buffer.DecodeBytes(int(elem.Vl)))
-		}
-		appendDataElement(file, elem)
-		elem = ReadDataElement(buffer)
-	}
-	appendDataElement(file, elem)
-	return buffer.Error()
-}
+// func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomElement) error {
+// 	elem := ReadDataElement(buffer)
+// 	if buffer.Error() != nil {
+// 		return buffer.Error()
+// 	}
+// 	for buffer.Len() != 0 && buffer.Error() == nil {
+// 		if elem.Name == "Item" {
+// 			elem.Value = append(elem.Value, buffer.DecodeBytes(int(elem.Vl)))
+// 		}
+// 		appendDataElement(file, elem)
+// 		elem = ReadDataElement(buffer)
+// 	}
+// 	appendDataElement(file, elem)
+// 	return buffer.Error()
+// }
 
 // Append a dataElement to the DicomFile
 func appendDataElement(file *DicomFile, elem *DicomElement) {
