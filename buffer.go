@@ -42,6 +42,22 @@ func (e *Encoder) EncodeUInt32(v uint32) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
+func (e *Encoder) EncodeInt16(v int16) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
+func (e *Encoder) EncodeInt32(v int32) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
+func (e *Encoder) EncodeFloat32(v float32) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
+func (e *Encoder) EncodeFloat64(v float64) {
+	binary.Write(e.buf, e.bo, &v)
+}
+
 func (e *Encoder) EncodeString(v string) {
 	e.buf.Write([]byte(v))
 }

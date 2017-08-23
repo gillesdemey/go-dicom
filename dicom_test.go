@@ -64,7 +64,7 @@ func TestParseFile(t *testing.T) {
 	if ts != "1.2.840.10008.1.2.4.91" {
 		t.Errorf("Incorrect TransferSyntaxUID: %s", ts)
 	}
-	if l := len(data.Elements); l != 98 {
+	if l := len(data.Elements); l != 105 {
 		t.Errorf("Error parsing DICOM file, wrong number of elements: %d", l)
 	}
 

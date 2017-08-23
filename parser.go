@@ -16,19 +16,24 @@ const (
 
 // A DICOM element
 type DicomElement struct {
-	Tag   Tag
-	Name  string // Name of "Tag", as defined in the data dictionary
-	Vr    string // "AE", "UL", etc.
-	Vl    uint32
+	Tag  Tag
+	Name string // Name of "Tag", as defined in the data dictionary
+	Vr   string // "AE", "UL", etc.
+	Vl   uint32
+
+	// Value encoding:
+	//
+	// If Vr is "SQ", Value[i] is a *DicomElement of type tagItem.
+	// If Vr is "OW" or "OB", then Value[i] is raw []byte.
+	// If Vr is "NA" (i.e., Tag=tagItem), each Value[i] is a *DicomElement.
+	//
+	// Else, Value[i] is a scalar value as defined by Vr. E.g., if Vr==UL, then each value is uint32.
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
+
 	// IndentLevel uint8
 	elemLen uint32 // Element length, in bytes.
 	Pos     int64  // The byte position of the start of the element.
 }
-
-// P3.5 7.5
-// Sequence of element.
-type DicomItem []*DicomElement
 
 func GetUInt32(e DicomElement) (uint32, error) {
 	if len(e.Value) != 1 {
@@ -258,12 +263,12 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		d.PushLimit(int64(vl))
 		for d.Len() > 0 && d.Error() == nil {
 			switch vr {
-			case "AT":
-				data = append(data, d.DecodeUInt16())
 			case "UL":
 				data = append(data, d.DecodeUInt32())
 			case "SL":
 				data = append(data, d.DecodeInt32())
+			case "AT":
+				fallthrough
 			case "US":
 				data = append(data, d.DecodeUInt16())
 			case "SS":
@@ -273,7 +278,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			case "FD":
 				data = append(data, d.DecodeFloat64())
 			case "OW":
-				data = append(data, d.DecodeBytes(int(vl)))
+				fallthrough // TODO(saito) Check that size is even. Byte swap??
 			case "OB":
 				data = append(data, d.DecodeBytes(int(vl)))
 			default:
@@ -389,74 +394,48 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	return elem, vr, vl
 }
 
-// func EncodeDataElement(e *Encoder, tag Tag, value []interface{}) {
-// 	e.EncodeUInt16(tag.Group)
-// 	e.EncodeUInt16(tag.Element)
+func EncodeDataElement(e *Encoder, tag Tag, values []interface{}) {
+	// TODO(saito) For now, only implicit encoding is supported.
+	e.EncodeUInt16(tag.Group)
+	e.EncodeUInt16(tag.Element)
+	vr := "UN"
+	if entry, err := LookupTag(tag); err == nil {
+		vr = entry.VR
+	}
 
-// 	// TODO(saito) For now, only implicit encoding is supported.
-// 	vr := "UN"
-// 	if entry, err := LookupTag(tag); err == nil {
-// 		vr = entry.VR
-// 	}
-// 	if vl == UndefinedLength {
-// 		// TODO: set UndefinedLength to this value.
-// 		buffer.EncodeUInt32(0xffffffff)
-// 	} else {
-// 		buffer.EncodeUInt32(vl)
-// 		if vl%2!=0{panic(vl)}
-// 	}
-
-// 	// data
-// 	var data []interface{}
-// 	uvl := vl
-// 	valLen := uint32(vl)
-
-// 	for vl != UndefinedLength && uvl > 0 {
-// 		switch vr {
-// 		case "AT":
-// 			valLen = 2
-// 			data = append(data, buffer.DecodeUInt16())
-// 		case "UL":
-// 			valLen = 4
-// 			data = append(data, buffer.DecodeUInt32())
-// 		case "SL":
-// 			valLen = 4
-// 			data = append(data, buffer.DecodeInt32())
-// 		case "US":
-// 			valLen = 2
-// 			data = append(data, buffer.DecodeUInt16())
-// 		case "SS":
-// 			valLen = 2
-// 			data = append(data, buffer.DecodeInt16())
-// 		case "FL":
-// 			valLen = 4
-// 			data = append(data, buffer.DecodeFloat32())
-// 		case "FD":
-// 			valLen = 8
-// 			data = append(data, buffer.DecodeFloat64())
-// 		case "OW":
-// 			valLen = vl
-// 			data = append(data, buffer.DecodeBytes(int(vl)))
-// 		case "OB":
-// 			valLen = vl
-// 			data = append(data, buffer.DecodeBytes(int(vl)))
-// 		case "NA":
-// 			valLen = vl
-// 		//case "XS": ??
-
-// 		case "SQ":
-// 			valLen = vl
-// 			data = append(data, "")
-// 		default:
-// 			valLen = vl
-// 			str := strings.TrimRight(buffer.DecodeString(int(vl)), " ")
-// 			strs := strings.Split(str, "\\")
-// 			for _, s := range strs {
-// 				data = append(data, s)
-// 			}
-
-// 		}
-// 		uvl -= valLen
-// 	}
-
-// }
+	sube := NewEncoder(e.bo)
+	for _, value := range values {
+		switch vr {
+		case "AT":
+			fallthrough
+		case "US":
+			sube.EncodeUInt16(value.(uint16))
+		case "UL":
+			sube.EncodeUInt32(value.(uint32))
+		case "SL":
+			sube.EncodeInt32(value.(int32))
+		case "SS":
+			sube.EncodeInt16(value.(int16))
+		case "FL":
+			sube.EncodeFloat32(value.(float32))
+		case "FD":
+			sube.EncodeFloat64(value.(float64))
+		case "OW":
+			fallthrough // TODO(saito) Check that size is even. Byte swap??
+		case "OB":
+			sube.EncodeBytes(value.([]byte))
+		case "NA":
+			fallthrough
+		case "SQ":
+			sube.SetError(fmt.Errorf("NA and SQ encoding not supported yet"))
+		default:
+			sube.EncodeString(value.(string))
+		}
+	}
+	bytes, err := sube.Finish()
+	if err != nil {
+		e.SetError(err)
+	} else {
+		e.EncodeBytes(bytes)
+	}
+}
