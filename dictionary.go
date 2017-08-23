@@ -39,12 +39,13 @@ type TagDictEntry struct {
 	Version string
 }
 
-var tagItem TagDictEntry
-var tagItemDelimitationItem TagDictEntry
-var tagSequenceDelimitationItem TagDictEntry
+var tagItem Tag
+var tagItemDelimitationItem Tag
+var tagSequenceDelimitationItem Tag
 
 // For "PixelData" tag.
-var TagPixelData TagDictEntry
+var TagPixelData Tag
+
 
 // Combination of group and element.
 type tagDictKey uint32
@@ -83,10 +84,10 @@ func init() {
 			Version: row[4],
 		}
 	}
-	tagItem = MustLookupTag(Tag{0xfffe, 0xe000})
-	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d})
-	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd})
-	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010})
+	tagItem = MustLookupTag(Tag{0xfffe, 0xe000}).Tag
+	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d}).Tag
+	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd}).Tag
+	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
 }
 
 // LookupTag finds information about the given tag. If the tag is undefined or

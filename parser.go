@@ -106,11 +106,11 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 	tag := readTag(d)
 	// Item is always encoded implicit. PS3.6 7.5
 	_, vr, vl := readImplicit(d, tag)
-	if tag == tagSequenceDelimitationItem.Tag {
+	if tag == tagSequenceDelimitationItem {
 		doassert(vl == 0)
 		return nil, true
 	}
-	if tag != tagItem.Tag {
+	if tag != tagItem {
 		d.SetError(fmt.Errorf("Expect item in pixeldata but found %v", tag))
 		return nil, false
 	}
@@ -170,7 +170,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 	elem.Vl = vl
 	var data []interface{}
 
-	if tag == TagPixelData.Tag {
+	if tag == TagPixelData {
 		// P3.5, A.4 describes the format. Currently we only support an encapsulated image format.
 		//
 		// PixelData is usually the last element in a DICOM file. When
@@ -214,7 +214,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			//             Item Any*N                     (when Item.VL has a defined value)
 			for d.Len() > 0 && d.Error() == nil {
 				item := ReadDataElement(d)
-				if item.Tag != tagItem.Tag {
+				if item.Tag != tagItem {
 					log.Panicf("Unknown item in seq(unlimited): %v", TagDebugString(item.Tag))
 				}
 				data = append(data, item)
@@ -227,7 +227,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			defer d.PopLimit()
 			for d.Len() > 0 && d.Error() == nil {
 				item := ReadDataElement(d)
-				if item.Tag != tagItem.Tag {
+				if item.Tag != tagItem {
 					log.Panicf("Unknown item in seq: %v", TagDebugString(item.Tag))
 				}
 				data = append(data, item)
@@ -237,7 +237,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		// Parse Item.
 		if vl == UndefinedLength {
 			// Format: Item Any* ItemDelimitationItem
-			for d.Len() > 0 && d.Error() == nil && elem.Tag != tagItemDelimitationItem.Tag {
+			for d.Len() > 0 && d.Error() == nil && elem.Tag != tagItemDelimitationItem {
 				subelem := ReadDataElement(d)
 				data = append(data, subelem)
 			}

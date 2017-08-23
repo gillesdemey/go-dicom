@@ -20,6 +20,8 @@ func NewEncoder(bo binary.ByteOrder) *Encoder {
 		bo:  bo}
 }
 
+func (e *Encoder) ByteOrder() binary.ByteOrder { return e.bo }
+
 // Set the error to be reported by future Error() or Finish() calls.
 //
 // REQUIRES: err != nil
