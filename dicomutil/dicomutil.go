@@ -28,8 +28,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	parser := dicom.NewParser()
-	data, err := parser.Parse(file, st.Size())
+	data, err := dicom.Parse(file, st.Size())
 	if err != nil {
 		panic(err)
 	}
@@ -41,7 +40,7 @@ func main() {
 	if *extractImages {
 		n := 0
 		for _, elem := range data.Elements {
-			if elem.Tag == dicom.TagPixelData.Tag {
+			if elem.Tag == dicom.TagPixelData {
 				data := elem.Value[0].([]byte)
 				path := fmt.Sprintf("image.%d.jpg", n) // TODO: figure out the image format
 				n++

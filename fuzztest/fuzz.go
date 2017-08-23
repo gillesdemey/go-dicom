@@ -1,14 +1,11 @@
 package fuzz
 
 import (
+	"bytes"
 	"github.com/yasushi-saito/go-dicom"
 )
 
 func Fuzz(data []byte) int {
-	parser, err := dicom.NewParser()
-	if err != nil {
-		panic(err)
-	}
-	_, err = parser.Parse(data)
+	_, _ = dicom.Parse(bytes.NewBuffer(data), int64(len(data)))
 	return 1
 }
