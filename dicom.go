@@ -1,10 +1,11 @@
 package dicom
 
 import (
-	"io"
+	//"log"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 )
 
 type DicomFile struct {
@@ -20,10 +21,7 @@ var (
 )
 
 const (
-	magic_word                = "DICM"
-	implicit_vr_little_endian = "1.2.840.10008.1.2"
-	explicit_vr_little_endian = "1.2.840.10008.1.2.1"
-	explicit_vr_big_endian    = "1.2.840.10008.1.2.2"
+	magicWord = "DICM"
 )
 
 // Parse a byte array, returns a DICOM file struct
@@ -36,15 +34,15 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	buffer.Skip(128) // skip preamble
 
 	// check for magic word
-	if magicWord := buffer.DecodeString(4); magicWord != magic_word {
+	if s := buffer.DecodeString(4); s != magicWord {
 		return nil, ErrBrokenFile
 	}
 	file := &DicomFile{}
 
 	// (0002,0000) MetaElementGroupLength
-	metaElem, err := readDataElement(buffer)
-	if err != nil {
-		return nil, err
+	metaElem := ReadDataElement(buffer)
+	if buffer.Error() != nil {
+		return nil, buffer.Error()
 	}
 	if len(metaElem.Value) < 1 {
 		return nil, fmt.Errorf("No value found in meta element")
@@ -56,23 +54,22 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	if buffer.Len() <= 0 {
 		return nil, fmt.Errorf("No data element found")
 	}
-	p.appendDataElement(file, metaElem)
+	appendDataElement(file, metaElem)
 
 	// Read meta tags
 	start := buffer.Len()
 	prevLen := buffer.Len()
-	for start-buffer.Len() < int64(metaLength) {
-		elem, err := readDataElement(buffer)
-		if err != nil {
-			return nil, err
-		}
-		p.appendDataElement(file, elem)
+	for start-buffer.Len() < int64(metaLength) && buffer.Error() == nil {
+		elem := ReadDataElement(buffer)
+		appendDataElement(file, elem)
 		if buffer.Len() >= prevLen {
 			panic("Failed to consume buffer")
 		}
 		prevLen = buffer.Len()
 	}
-
+	if buffer.Error() != nil {
+		return nil, buffer.Error()
+	}
 	// read endianness and explicit VR
 	endianess, implicit, err := file.getTransferSyntax()
 	if err != nil {
@@ -83,128 +80,120 @@ func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	buffer.bo = endianess
 	buffer.implicit = implicit
 
-	for buffer.Len() != 0 {
-		elem, err := readDataElement(buffer)
-		if err != nil {
-			return nil, err
-		}
-		p.appendDataElement(file, elem)
-		if elem.Vr == "SQ" {
-			_, err = p.readItems(file, buffer, elem)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if elem.Name == "PixelData" {
-			err = p.readPixelItems(file, buffer, elem)
-			if err != nil {
-				return nil, err
-			}
+	for buffer.Len() != 0 && buffer.Error() == nil {
+		elem := ReadDataElement(buffer)
+		if buffer.Error() != nil {
 			break
 		}
+		appendDataElement(file, elem)
+		// if elem.Vr == "SQ" {
+		// 	_, err = p.readItems(file, buffer, elem)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// }
+		// if elem.Name == "PixelData" {
+		// 	err = p.readPixelItems(file, buffer, elem)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// 	break
+		// }
 
 	}
-
-	return file, nil
+	return file, buffer.Error()
 }
 
-func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (uint32, error) {
-	sq.IndentLevel++
-	sqLength := sq.Vl
-
-	if sqLength == 0 {
-		return 0, nil
+func doassert(x bool) {
+	if !x {
+		panic("doassert")
 	}
-
-	elem, err := readDataElement(buffer)
-	if err != nil {
-		return 0, err
-	}
-
-	elem.IndentLevel = sq.IndentLevel
-
-	sqAcum := elem.elemLen
-	itemLength := elem.Vl
-	itemAcum := uint32(0)
-
-	if elem.Name == "Item" {
-		if elem.Vl == UndefinedLength {
-			//log.Println("____ ITEM UNDEF LEN ____")
-			for buffer.Len() != 0 {
-				if elem.Vr == "SQ" {
-					p.readItems(file, buffer, elem)
-				}
-				if elem.Name == "SequenceDelimitationItem" {
-					break
-				}
-
-				p.appendDataElement(file, elem)
-				elem, err = readDataElement(buffer)
-				if err != nil {
-					return 0, err
-				}
-				elem.IndentLevel = sq.IndentLevel
-
-			}
-		} else if elem.Vl > 0 {
-			for buffer.Len() != 0 {
-				p.appendDataElement(file, elem)
-
-				if elem.Vr == "SQ" {
-					l, _ := p.readItems(file, buffer, elem)
-					sqAcum += l
-				}
-
-				if itemAcum == itemLength {
-					break
-				}
-
-				if sqAcum == sqLength {
-					break
-				}
-
-				elem, err = readDataElement(buffer)
-				if err != nil {
-					return 0, err
-				}
-				elem.IndentLevel = sq.IndentLevel
-				if elem.Name == "Item" {
-					itemLength = elem.Vl
-				}
-				itemAcum += elem.elemLen
-				sqAcum += elem.elemLen
-
-			}
-		} else {
-			// ITEM 0 LEN
-		}
-	}
-	return sqAcum, nil
 }
+
+// func (p *Parser) readItems(file *DicomFile, buffer *Decoder, sq *DicomElement) (uint32, error) {
+// 	sq.IndentLevel++
+// 	sqLength := sq.Vl
+// 	elem, err := ReadDataElement(buffer)
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	log.Printf("READING ELEM: %v %v", sq, elem)
+// 	// The SQ element must contain one Item element.
+// 	if elem.Tag != tagItem.Tag {
+// 		return 0, fmt.Errorf("Expect an Item element for SQ %v, but found %v",sq, elem)
+// 	}
+// 	elem.IndentLevel = sq.IndentLevel
+
+// 	sqAcum := elem.elemLen
+// 	itemLength := elem.Vl
+// 	itemAcum := uint32(0)
+
+// 	if elem.Vl == UndefinedLength {
+// 		for buffer.Len() != 0 && buffer.Error() == nil {
+// 			if elem.Tag == tagSequenceDelimitationItem.Tag {
+// 				break
+// 			}
+// 			elem, err = ReadDataElement(buffer)
+// 			appendDataElement(file, elem)
+// 			if err != nil {
+// 				return 0, err
+// 			}
+// 			elem.IndentLevel = sq.IndentLevel
+
+// 		}
+// 	} else if elem.Vl > 0 {
+// 		for buffer.Len() != 0 {
+// 			appendDataElement(file, elem)
+
+// 			if elem.Vr == "SQ" {
+// 				l, _ := p.readItems(file, buffer, elem)
+// 				sqAcum += l
+// 			}
+
+// 			if itemAcum == itemLength {
+// 				break
+// 			}
+
+// 			if sqAcum == sqLength {
+// 				break
+// 			}
+
+// 			elem, err = ReadDataElement(buffer)
+// 			if err != nil {
+// 				return 0, err
+// 			}
+// 			elem.IndentLevel = sq.IndentLevel
+// 			if elem.Name == "Item" {
+// 				itemLength = elem.Vl
+// 			}
+// 			itemAcum += elem.elemLen
+// 			sqAcum += elem.elemLen
+
+// 		}
+// 	} else {
+// 		// ITEM 0 LEN
+// 	}
+// 	return sqAcum, nil
+// }
 
 func (p *Parser) readPixelItems(file *DicomFile, buffer *Decoder, sq *DicomElement) error {
-	elem, err := readDataElement(buffer)
-	if err != nil {
-		return err
+	elem := ReadDataElement(buffer)
+	if buffer.Error() != nil {
+		return buffer.Error()
 	}
-	for buffer.Len() != 0 {
+	for buffer.Len() != 0 && buffer.Error() == nil {
 		if elem.Name == "Item" {
 			elem.Value = append(elem.Value, buffer.DecodeBytes(int(elem.Vl)))
 		}
-		p.appendDataElement(file, elem)
-		elem, err = readDataElement(buffer)
-		if err != nil {
-			return err
-		}
-
+		appendDataElement(file, elem)
+		elem = ReadDataElement(buffer)
 	}
-	p.appendDataElement(file, elem)
-	return nil
+	appendDataElement(file, elem)
+	return buffer.Error()
 }
 
 // Append a dataElement to the DicomFile
-func (p *Parser) appendDataElement(file *DicomFile, elem *DicomElement) {
+func appendDataElement(file *DicomFile, elem *DicomElement) {
 	file.Elements = append(file.Elements, *elem)
 
 }
@@ -223,15 +212,16 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, bool, error) {
 
 	// defaults are explicit VR, little endian
 	switch ts {
-	case implicit_vr_little_endian:
+	case ImplicitVRLittleEndian:
 		return binary.LittleEndian, true, nil
-	case explicit_vr_little_endian:
+	case ExplicitVRLittleEndian:
 		return binary.LittleEndian, false, nil
-	case explicit_vr_big_endian:
+	case ExplicitVRBigEndian:
 		return binary.BigEndian, false, nil
+	default:
+		// panic(fmt.Sprintf("Unknown transfer syntax: %s", ts)) // TODO
+		return binary.LittleEndian, false, nil
 	}
-
-	return binary.LittleEndian, false, nil
 
 }
 

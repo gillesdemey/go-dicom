@@ -1,23 +1,23 @@
 package dicom
 
 import (
-	"fmt"
-	"io"
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"io"
 )
 
 type Encoder struct {
-	err     error
-	buf     *bytes.Buffer
+	err error
+	buf *bytes.Buffer
 	bo  binary.ByteOrder
 }
 
 func NewEncoder(bo binary.ByteOrder) *Encoder {
 	return &Encoder{
 		err: nil,
-		buf : &bytes.Buffer{},
-		bo: bo}
+		buf: &bytes.Buffer{},
+		bo:  bo}
 }
 
 func (e *Encoder) SetError(err error) {
@@ -34,11 +34,11 @@ func (e *Encoder) EncodeByte(v byte) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeUint16(v uint16) {
+func (e *Encoder) EncodeUInt16(v uint16) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeUint32(v uint32) {
+func (e *Encoder) EncodeUInt32(v uint32) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
@@ -59,19 +59,24 @@ func (e *Encoder) EncodeBytes(v []byte) {
 }
 
 type Decoder struct {
-	in        io.Reader
-	err       error
+	in  io.Reader
+	err error
 
 	bo       binary.ByteOrder
 	implicit bool
+	limit    int64
+
+	oldBos       []binary.ByteOrder
+	oldImplicits []bool
+	oldLimits    []int64
 
 	// Cumulative # bytes read.
-	pos    int64
+	pos int64
 	// Max bytes to read. PushLimit() will add a new limit, and PopLimit()
 	// will restore the old limit. The newest limit is at the end.
 	//
 	// INVARIANT: limits[] store values in decreasing order.
-	limits []int64
+	// limits []int64
 }
 
 // limit is the maximum number of read from "in". Don't pass just an arbitrary
@@ -83,31 +88,55 @@ func NewDecoder(
 	bo binary.ByteOrder,
 	implicit bool) *Decoder {
 	return &Decoder{
-		in: in,
-		err: nil,
-		bo: bo,
+		in:       in,
+		err:      nil,
+		bo:       bo,
 		implicit: implicit,
-		pos: 0,
-		limits: []int64{limit},
+		pos:      0,
+		limit:    limit,
 	}
 }
 
+func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit bool) *Decoder {
+	return NewDecoder(bytes.NewBuffer(data), int64(len(data)), bo, implicit)
+}
+
 func (d *Decoder) SetError(err error) {
- 	if d.err == nil {
- 		d.err = err
- 	}
+	if d.err == nil {
+
+		d.err = err
+	}
+}
+
+func (d *Decoder) PushTranslationSyntax(bo binary.ByteOrder, implicit bool) {
+	d.oldBos = append(d.oldBos, d.bo)
+	d.oldImplicits = append(d.oldImplicits, d.implicit)
+
+	d.bo = bo
+	d.implicit = implicit
+}
+
+func (d *Decoder) PopTranslationSyntax() {
+	d.implicit = d.oldImplicits[len(d.oldImplicits)-1]
+	d.bo = d.oldBos[len(d.oldBos)-1]
+
+	d.oldImplicits = d.oldImplicits[:len(d.oldImplicits)-1]
+	d.oldBos = d.oldBos[:len(d.oldBos)-1]
 }
 
 // Temporarily override the end of the buffer.
 //
 // REQUIRES: limit must be smaller than the current limit
-func (d *Decoder) PushLimit(limit int64) {
-	d.limits = append(d.limits, d.pos + limit)
+func (d *Decoder) PushLimit(bytes int64) {
+	doassert(bytes >= 0)
+	d.oldLimits = append(d.oldLimits, d.limit)
+	d.limit = d.pos + bytes
 }
 
 // Restore the old limit overridden by PushLimit.
 func (d *Decoder) PopLimit() {
-	d.limits = d.limits[:len(d.limits)-1]
+	d.limit = d.oldLimits[len(d.oldLimits)-1]
+	d.oldLimits = d.oldLimits[:len(d.oldLimits)-1]
 }
 
 // Pos() returns the cumulative number of bytes read so far.
@@ -131,7 +160,9 @@ func (d *Decoder) Finish() error {
 func (d *Decoder) Read(p []byte) (int, error) {
 	desired := d.Len()
 	if desired == 0 {
-		if len(p)==0 {return 0, nil}
+		if len(p) == 0 {
+			return 0, nil
+		}
 		return 0, io.EOF
 	}
 	if desired < int64(len(p)) {
@@ -147,7 +178,7 @@ func (d *Decoder) Read(p []byte) (int, error) {
 
 // Len() returns the number of bytes yet unread.
 func (d *Decoder) Len() int64 {
-	return d.limits[len(d.limits)-1] - d.pos
+	return d.limit - d.pos
 }
 
 // DecodeByte() reads a single byte from the buffer. On EOF, it returns a junk
@@ -228,7 +259,7 @@ func (d *Decoder) DecodeBytes(length int) []byte {
 	if len(remaining) > 0 {
 		d.err = fmt.Errorf("DecodeBytes: requested %d, remaining %d",
 			length, len(remaining))
-		panic(d.err)  // TODO(saito) remove
+		panic(d.err) // TODO(saito) remove
 	}
 	return v
 }

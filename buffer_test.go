@@ -1,8 +1,8 @@
 package dicom_test
 
 import (
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
 	"github.com/yasushi-saito/go-dicom"
 	"io"
 	"testing"
@@ -12,8 +12,8 @@ func TestBasic(t *testing.T) {
 	e := dicom.NewEncoder(binary.BigEndian)
 	e.EncodeByte(10)
 	e.EncodeByte(11)
-	e.EncodeUint16(0x123)
-	e.EncodeUint32(0x234)
+	e.EncodeUInt16(0x123)
+	e.EncodeUInt32(0x234)
 	e.EncodeZeros(12)
 	e.EncodeString("abcde")
 

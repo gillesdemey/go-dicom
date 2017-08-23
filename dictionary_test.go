@@ -6,19 +6,19 @@ import (
 )
 
 func TestGetDictEntry(t *testing.T) {
-	elem, err := LookupDictionary(Tag{32736, 16})
+	elem, err := LookupTag(Tag{32736, 16})
 	if err != nil {
 		t.Error(err)
 	}
-	if elem.name != "PixelData" || elem.vr != "OX" {
-		t.Errorf("Wrong element name: %s", elem.name)
+	if elem.Name != "PixelData" || elem.VR != "OX" {
+		t.Errorf("Wrong element name: %s", elem.Name)
 	}
-	elem, err = LookupDictionary(Tag{0, 0x1002})
+	elem, err = LookupTag(Tag{0, 0x1002})
 	if err != nil {
 		t.Error(err)
 	}
-	if elem.name != "EventTypeID" || elem.vr != "US" {
-		t.Errorf("Wrong element name: %s", elem.name)
+	if elem.Name != "EventTypeID" || elem.VR != "US" {
+		t.Errorf("Wrong element name: %s", elem.Name)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestSplitTag(t *testing.T) {
 
 func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := LookupDictionary(Tag{2, 0}); err != nil {
+		if _, err := LookupTag(Tag{2, 0}); err != nil {
 			fmt.Println(err)
 		}
 
@@ -48,7 +48,7 @@ func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 
 func BenchmarkFindPixelDataTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := LookupDictionary(Tag{32736, 16}); err != nil {
+		if _, err := LookupTag(Tag{32736, 16}); err != nil {
 			fmt.Println(err)
 		}
 

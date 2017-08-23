@@ -1,6 +1,6 @@
 package dicom
 
-const dicomDictData = `#
+const tagDictData = `#
 #  Copyright (C) 1994-2012, OFFIS e.V.
 #  All rights reserved.  See COPYRIGHT file for details.
 #
