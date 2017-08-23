@@ -9,6 +9,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -33,7 +34,7 @@ type TagDictEntry struct {
 	// Data encoding "UL", "CS", etc.
 	VR string
 	// Human-readable name of the tag
-	Name    string
+	Name string
 	// Cardinality.
 	VM      string
 	Version string
@@ -45,7 +46,6 @@ var tagSequenceDelimitationItem Tag
 
 // For "PixelData" tag.
 var TagPixelData Tag
-
 
 // Combination of group and element.
 type tagDictKey uint32
@@ -109,7 +109,7 @@ func LookupTag(tag Tag) (TagDictEntry, error) {
 func MustLookupTag(tag Tag) TagDictEntry {
 	e, err := LookupTag(tag)
 	if err != nil {
-		panic(err)
+		log.Panicf("tag %s not found: %s", tag, err)
 	}
 	return e
 }

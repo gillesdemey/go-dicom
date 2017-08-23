@@ -2,7 +2,6 @@ package dicom
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -11,15 +10,15 @@ import (
 func mustReadFile(path string) *DicomFile {
 	file, err := os.Open(path)
 	if err != nil {
-		panic(err)
+		log.Panicf("%s: failed to open", path, err)
 	}
 	st, err := file.Stat()
 	if err != nil {
-		panic(err)
+		log.Panicf("%s: failed to stat", path, err)
 	}
 	data, err := Parse(file, st.Size())
 	if err != nil {
-		panic(fmt.Sprintf("%s: failed to read: %v", path, err))
+		log.Panicf("%s: failed to read: %v", path, err)
 	}
 	return data
 }

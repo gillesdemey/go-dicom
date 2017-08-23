@@ -115,7 +115,6 @@ func appendDataElement(file *DicomFile, elem *DicomElement) {
 
 // Finds the SyntaxTrasnferUID and returns the endianess and implicit VR for the file
 func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, bool, error) {
-
 	var err error
 
 	elem, err := file.LookupElement("TransferSyntaxUID")
@@ -134,7 +133,6 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, bool, error) {
 	case ExplicitVRBigEndian:
 		return binary.BigEndian, false, nil
 	default:
-		// panic(fmt.Sprintf("Unknown transfer syntax: %s", ts)) // TODO
 		return binary.LittleEndian, false, nil
 	}
 
