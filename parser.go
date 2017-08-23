@@ -102,7 +102,8 @@ func NewParser() *Parser {
 
 var xxxx bool
 
-// Read Item object as raw bytes. Used to parse pixel data.
+// Read an Item object as raw bytes, w/o parsing them into DataElement. Used to
+// parse pixel data.
 func readRawItem(d *Decoder) ([]byte, bool) {
 	tag := readTag(d)
 	// Item is always encoded implicit. PS3.6 7.5
@@ -123,6 +124,8 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 	return d.DecodeBytes(int(vl)), false
 }
 
+// Read the basic offset table. This is the first Item object embedded inside
+// PixelData element. P3.5 8.2. P3.5, A4 has a better example.
 func readBasicOffsetTable(d *Decoder) []uint32 {
 	data, endOfData := readRawItem(d)
 	if endOfData {
@@ -131,6 +134,8 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 	if len(data) == 0 {
 		return []uint32{0}
 	}
+	// The payload of the item is sequence of uint32s, each representing the
+	// byte size of an image that follows.
 	subdecoder := NewBytesDecoder(data, d.bo, true)
 	var offsets []uint32
 	for subdecoder.Len() > 0 && subdecoder.Error() == nil {
@@ -172,6 +177,22 @@ func ReadDataElement(d *Decoder) *DicomElement {
 	var data []interface{}
 
 	if tag == TagPixelData.Tag {
+		// P3.5, A.4 describes the format. Currently we only support an encapsulated image format.
+		//
+		// PixelData is usually the last element in a DICOM file. When
+		// the file stores N images, the elements that follow PixelData
+		// are laid out in the following way:
+		//
+		// Item(BasicOffsetTable) Item(ImageData0) ... Item(ImageDataM) SequenceDelimiterItem
+		//
+		// Item(BasicOffsetTable) is an Item element whose payload
+		// encodes N uint32 values. Kth uint32 is the bytesize of the
+		// Kth image. Item(ImageData*) are chunked sequences of bytes. I
+		// presume that single ImageData item doesn't cross a image
+		// boundary, but the spec isn't clear.
+		//
+		// The total byte size of Item(ImageData*) equal the total of
+		// the bytesizes found in BasicOffsetTable.
 		doassert(vl == UndefinedLength)
 		_ = readBasicOffsetTable(d) // TODO(saito) Use the offset table.
 		var bytes []byte
@@ -431,97 +452,4 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 // 		uvl -= valLen
 // 	}
 
-// }
-
-// func readSequence(d*Decoder, length uint32) []DicomItem {
-// 	var items []DicomItem
-// 	if length == UndefinedLength {
-// 		for d.Len() != 0 && d.Error() == nil {
-// 			item, endOfSequence := readOneItem(d)
-// 			if endOfSequence {
-// 				break
-// 			}
-// 			items = append(items, item)
-// 		}
-// 	} else {
-// 		d.PushLimit(int64(length))
-// 		defer d.PopLimit()
-// 		for d.Len() != 0 && d.Error() == nil {
-// 			item, endOfSequence := readOneItem(d)
-// 			if endOfSequence {
-// 				d.SetError(fmt.Errorf("Unexpected end of sequence marker found"))
-// 				break
-// 			}
-// 			items = append(items, item)
-// 		}
-// 	}
-// 	return items
-// }
-
-// func oldreadOneItem(d*Decoder) (DicomItem, bool) {
-// 	var elems DicomItem
-// 	// An item must start with an "Item" element.
-// 	elem, err := ReadDataElement(d)
-// 	if err != nil {
-// 		d.SetError(err)
-// 		return nil, false
-// 	}
-// 	// The SQ element must contain one Item element.
-// 	if elem.Tag == tagSequenceDelimitationItem.Tag {
-// 		return nil, true
-// 	}
-// 	if elem.Tag != tagItem.Tag {
-// 		d.SetError( fmt.Errorf("Expect an Item element but found %v", elem))
-// 		return nil, false
-// 	}
-// 	length := elem.Vl
-// 	doassert(len(elem.Value)==1)
-// 	itemData := elem.Value[0].([]byte)
-// 	itemDecoder = NewDecoder(
-// 		bytes.NewBuffer(itemData), len(itemData),
-// 		d.bo, d.implicit)
-
-// 	if length == UndefinedLength {
-// 		for itemDecoder.Len() != 0 && d.Error() == nil && elem.Tag != tagItemDelimitationItem.Tag {
-// 			elem, err = ReadDataElement(itemDecoder)
-// 			if err != nil {
-// 				d.SetError(err)
-// 				break
-// 			}
-// 			elems = append(elems, elem)
-// 		}
-// 	} else {
-// 		d.PushLimit(int64(length))
-// 		defer d.PopLimit()
-// 		for d.Len() != 0 && d.Error() == nil {
-// 			elem, err = ReadDataElement(d)
-// 			if err != nil {
-// 				d.SetError(err)
-// 				break
-// 			}
-// 			elems = append(elems, elem)
-// 			length--
-// 		}
-// 	}
-// 	return elems, false
-// }
-
-// func readOneItem(d*Decoder, length uint32) DicomItem {
-// 	var elems DicomItem
-// 	// An item must start with an "Item" element.
-// 	//elem, err := ReadDataElement(d)
-// 	//if err != nil {
-// 	//d.SetError(err)
-// 	//return nil, false
-// 	//}
-
-// 	// The SQ element must contain one Item element.
-// 	//if elem.Tag == tagSequenceDelimitationItem.Tag {
-// 	//return nil, true
-// //}
-// 	//if elem.Tag != tagItem.Tag {
-// 	//d.SetError( fmt.Errorf("Expect an Item element but found %v", elem))
-// 	//return nil, false
-// //}
-// 	return elems, false
 // }
