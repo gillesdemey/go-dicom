@@ -13,6 +13,10 @@ import (
 	"strings"
 )
 
+// Tag is a <group, element> tuple that identifies an element type in a DICOM
+// file. List of standard tags are defined in tagdict.go. See also:
+//
+// ftp://medical.nema.org/medical/dicom/2011/11_06pu.pdf
 type Tag struct {
 	// group and element are results of parsing the hex-pair tag, such as (1000,10008)
 	Group   uint16
@@ -26,10 +30,11 @@ func (t *Tag) String() string {
 type TagDictEntry struct {
 	Tag Tag
 
-	// Data encoding
+	// Data encoding "UL", "CS", etc.
 	VR string
 	// Human-readable name of the tag
 	Name    string
+	// Cardinality.
 	VM      string
 	Version string
 }
@@ -38,6 +43,7 @@ var tagItem TagDictEntry
 var tagItemDelimitationItem TagDictEntry
 var tagSequenceDelimitationItem TagDictEntry
 
+// For "PixelData" tag.
 var TagPixelData TagDictEntry
 
 // Combination of group and element.
@@ -48,16 +54,16 @@ func makeTagDictKey(tag Tag) tagDictKey {
 }
 
 // (group, element) -> tag information
-type Dictionary map[tagDictKey]TagDictEntry
+type tagDict map[tagDictKey]TagDictEntry
 
-var singletonDict Dictionary
+var singletonDict tagDict
 
 // Create a new, fully filled dictionary.
 func init() {
 	reader := csv.NewReader(bytes.NewReader([]byte(tagDictData)))
 	reader.Comma = '\t'  // tab separated file
 	reader.Comment = '#' // comments start with #
-	singletonDict = make(Dictionary)
+	singletonDict = make(tagDict)
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -83,8 +89,8 @@ func init() {
 	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010})
 }
 
-// LookupDictionary finds information about tag (group, element). If the given
-// tag is undefined or retired in the standard, it returns an error.
+// LookupTag finds information about the given tag. If the tag is undefined or
+// is retired in the standard, it returns an error.
 func LookupTag(tag Tag) (TagDictEntry, error) {
 	entry, ok := singletonDict[makeTagDictKey(tag)]
 	if !ok {
@@ -98,6 +104,7 @@ func LookupTag(tag Tag) (TagDictEntry, error) {
 	return entry, nil
 }
 
+// Like LookupTag, but panics on error.
 func MustLookupTag(tag Tag) TagDictEntry {
 	e, err := LookupTag(tag)
 	if err != nil {

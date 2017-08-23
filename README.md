@@ -13,8 +13,7 @@ import (
 func main() {
     in, err := os.Open("myfile.dcm")
     st, err := in.Stat()
-	parser := dicom.NewParser()
-	data, err := parser.Parse(in, st.Size())
+	data, err := dicom.Parse(in, st.Size())
     if err != nil {
         panic(err)
     }

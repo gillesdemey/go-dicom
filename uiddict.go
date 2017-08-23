@@ -1,9 +1,10 @@
+package dicom
+
 // List of UIDs, as defined in P3.6.
 //
 // http://dicom.nema.org/medical/dicom/current/output/pdf/part06.pdf
 //
 // Translated from pynetdict, _uid_dict.py
-package dicom
 
 import (
 	"fmt"

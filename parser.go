@@ -57,6 +57,9 @@ func GetUInt16(e DicomElement) (uint16, error) {
 	return v, nil
 }
 
+// GetString() is a convenience function for getting a string value from an
+// element.  It returns an error the element contains more than one value, or
+// the value is not a string.
 func GetString(e DicomElement) (string, error) {
 	if len(e.Value) != 1 {
 		return "", fmt.Errorf("No value found in %v", e)
@@ -66,9 +69,6 @@ func GetString(e DicomElement) (string, error) {
 		return "", fmt.Errorf("string value not found in %v", e)
 	}
 	return v, nil
-}
-
-type Parser struct {
 }
 
 func elementDebugString(e *DicomElement, nestLevel int) string {
@@ -98,12 +98,6 @@ func elementDebugString(e *DicomElement, nestLevel int) string {
 // Stringer
 func (e *DicomElement) String() string {
 	return elementDebugString(e, 0)
-}
-
-// Create a new parser, with functional options for configuration
-// http://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
-func NewParser() *Parser {
-	return &Parser{}
 }
 
 // Read an Item object as raw bytes, w/o parsing them into DataElement. Used to
@@ -148,7 +142,8 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 	return offsets
 }
 
-// Read a DICOM data element
+// Read a DICOM data element. Errors are reported through d.Error(). The caller
+// must check d.Error() before using the returned value.
 func ReadDataElement(d *Decoder) *DicomElement {
 	initialPos := d.Pos()
 	tag := readTag(d)
@@ -394,10 +389,15 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	return elem, vr, vl
 }
 
+// EncodeDataElement encodes one data element. "tag" must be for a scalar
+// value. That is, SQ elements are not supported yet. Errors are reported
+// through e.Error() and/or E.Finish().
+//
+// REQUIRES: Each value in values[] must match the VR of the tag. E.g., if tag
+// is for UL, then each value must be uint32.
 func EncodeDataElement(e *Encoder, tag Tag, values []interface{}) {
 	// TODO(saito) For now, only implicit encoding is supported.
-	e.EncodeUInt16(tag.Group)
-	e.EncodeUInt16(tag.Element)
+	//  First encode the payload
 	vr := "UN"
 	if entry, err := LookupTag(tag); err == nil {
 		vr = entry.VR
@@ -428,14 +428,21 @@ func EncodeDataElement(e *Encoder, tag Tag, values []interface{}) {
 			fallthrough
 		case "SQ":
 			sube.SetError(fmt.Errorf("NA and SQ encoding not supported yet"))
-		default:
-			sube.EncodeString(value.(string))
+		default: {
+			s := value.(string)
+			sube.EncodeString(s)
+			if len(s) % 2 == 1 {
+				sube.EncodeByte(0)
+			}}
 		}
 	}
 	bytes, err := sube.Finish()
 	if err != nil {
 		e.SetError(err)
-	} else {
-		e.EncodeBytes(bytes)
+		return
 	}
+	e.EncodeUInt16(tag.Group)
+	e.EncodeUInt16(tag.Element)
+	e.EncodeUInt32(uint32(len(bytes)))
+	e.EncodeBytes(bytes)
 }

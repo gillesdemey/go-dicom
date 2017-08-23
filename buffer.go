@@ -20,12 +20,17 @@ func NewEncoder(bo binary.ByteOrder) *Encoder {
 		bo:  bo}
 }
 
+// Set the error to be reported by future Error() or Finish() calls.
+//
+// REQUIRES: err != nil
 func (e *Encoder) SetError(err error) {
 	if e.err == nil {
 		e.err = err
 	}
 }
 
+// Finish() must be called after all the data are encoded.  It returns the
+// serialized payload, or error if any.
 func (e *Encoder) Finish() ([]byte, error) {
 	return e.buf.Bytes(), e.err
 }
@@ -95,9 +100,9 @@ type Decoder struct {
 	// limits []int64
 }
 
-// limit is the maximum number of read from "in". Don't pass just an arbitrary
-// large number as the limit. The underlying code assumes that "limit"
-// accurately bounds the end of the data.
+// NewDecoder creates a decoder object that reads up to "limit" bytes from "in".
+// Don't pass just an arbitrary large number as the "limit". The underlying code
+// assumes that "limit" accurately bounds the end of the data.
 func NewDecoder(
 	in io.Reader,
 	limit int64,
@@ -113,6 +118,8 @@ func NewDecoder(
 	}
 }
 
+// Create a decoder that reads from a sequence of bytes. See NewDecoder() for
+// explanation of other parameters.
 func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit bool) *Decoder {
 	return NewDecoder(bytes.NewBuffer(data), int64(len(data)), bo, implicit)
 }
@@ -158,10 +165,12 @@ func (d *Decoder) PopLimit() {
 // Pos() returns the cumulative number of bytes read so far.
 func (d *Decoder) Pos() int64 { return d.pos }
 
+// Returns an error encountered so far.
 func (d *Decoder) Error() error { return d.err }
 
 // Finish() must be called after using the decoder. It returns any error
-// encountered during decoding.
+// encountered during decoding. It also returns an error if some data is left
+// unconsumed.
 func (d *Decoder) Finish() error {
 	if d.err != nil {
 		return d.err
@@ -192,7 +201,7 @@ func (d *Decoder) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Len() returns the number of bytes yet unread.
+// Len() returns the number of bytes yet consumed.
 func (d *Decoder) Len() int64 {
 	return d.limit - d.pos
 }

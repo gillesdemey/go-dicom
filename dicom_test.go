@@ -17,8 +17,7 @@ func mustReadFile(path string) *DicomFile {
 	if err != nil {
 		panic(err)
 	}
-	parser := NewParser()
-	data, err := parser.Parse(file, st.Size())
+	data, err := Parse(file, st.Size())
 	if err != nil {
 		panic(fmt.Sprintf("%s: failed to read: %v", path, err))
 	}

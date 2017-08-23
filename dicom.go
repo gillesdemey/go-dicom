@@ -1,19 +1,41 @@
+// DICOM file parser. Example:
+//
+//   package main
+//
+//   import (
+// 	"fmt"
+// 	"github.com/gillesdemey/go-dicom"
+// 	"os"
+//   )
+//
+//   func main() {
+//     in, err := os.Open("myfile.dcm")
+//     st, err := in.Stat()
+//     data, err := dicom.Parse(in, st.Size())
+//     if err != nil {
+//         panic(err)
+//     }
+//     for _, elem := range(data.Elements) {
+//         fmt.Printf("%+v\n", elem)
+//     }
+//   }
 package dicom
 
+
 import (
-	//"log"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 )
 
+// DicomFile represents result of parsing one DICOM file.
 type DicomFile struct {
 	Elements []DicomElement
 }
 
-// Parse a byte array, returns a DICOM file struct
-func (p *Parser) Parse(in io.Reader, bytes int64) (*DicomFile, error) {
+// Parse up to "bytes" from "io" as DICOM file. Returns a DICOM file struct
+func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	// buffer := newDicomBuffer(buff) //*di.Bytes)
 	buffer := NewDecoder(in,
 		bytes,
