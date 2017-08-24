@@ -43,6 +43,7 @@ type TagDictEntry struct {
 var tagItem Tag
 var tagItemDelimitationItem Tag
 var tagSequenceDelimitationItem Tag
+var tagMetaElementGroupLength Tag
 
 // For "PixelData" tag.
 var TagPixelData Tag
@@ -88,6 +89,7 @@ func init() {
 	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d}).Tag
 	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd}).Tag
 	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
+	tagMetaElementGroupLength = MustLookupTag(Tag{2, 0}).Tag
 }
 
 // LookupTag finds information about the given tag. If the tag is undefined or

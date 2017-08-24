@@ -54,7 +54,7 @@ func CanonicalTransferSyntaxUID(uid string) (string, error) {
 	}
 }
 
-func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit bool, err error) {
+func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplicitVR, err error) {
 	canonical, err := CanonicalTransferSyntaxUID(uid)
 	if err != nil {
 		return nil, false, err

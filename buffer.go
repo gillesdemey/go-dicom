@@ -81,16 +81,23 @@ func (e *Encoder) EncodeBytes(v []byte) {
 	e.buf.Write(v)
 }
 
+type IsImplicitVR bool
+
+const (
+	ImplicitVR = IsImplicitVR(true)
+	ExplicitVR = IsImplicitVR(false)
+)
+
 type Decoder struct {
 	in  io.Reader
 	err error
 
 	bo       binary.ByteOrder
-	implicit bool
+	implicit IsImplicitVR
 	limit    int64
 
 	oldBos       []binary.ByteOrder
-	oldImplicits []bool
+	oldImplicits []IsImplicitVR
 	oldLimits    []int64
 
 	// Cumulative # bytes read.
@@ -109,7 +116,7 @@ func NewDecoder(
 	in io.Reader,
 	limit int64,
 	bo binary.ByteOrder,
-	implicit bool) *Decoder {
+	implicit IsImplicitVR) *Decoder {
 	return &Decoder{
 		in:       in,
 		err:      nil,
@@ -122,7 +129,7 @@ func NewDecoder(
 
 // Create a decoder that reads from a sequence of bytes. See NewDecoder() for
 // explanation of other parameters.
-func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit bool) *Decoder {
+func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit IsImplicitVR) *Decoder {
 	return NewDecoder(bytes.NewBuffer(data), int64(len(data)), bo, implicit)
 }
 
@@ -133,7 +140,7 @@ func (d *Decoder) SetError(err error) {
 	}
 }
 
-func (d *Decoder) PushTranslationSyntax(bo binary.ByteOrder, implicit bool) {
+func (d *Decoder) PushTranslationSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {
 	d.oldBos = append(d.oldBos, d.bo)
 	d.oldImplicits = append(d.oldImplicits, d.implicit)
 
