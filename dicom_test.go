@@ -12,6 +12,7 @@ func mustReadFile(path string) *DicomFile {
 	if err != nil {
 		log.Panicf("%s: failed to open", path, err)
 	}
+	defer file.Close()
 	st, err := file.Stat()
 	if err != nil {
 		log.Panicf("%s: failed to stat", path, err)

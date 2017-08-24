@@ -21,8 +21,8 @@
 //   }
 package dicom
 
-
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -34,7 +34,14 @@ type DicomFile struct {
 	Elements []DicomElement
 }
 
+// ParseBytes(buf) is shorthand for Parse(bytes.NewBuffer(buf), len(buf)).
+func ParseBytes(data []byte) (*DicomFile, error) {
+	return Parse(bytes.NewBuffer(data), int64(len(data)))
+}
+
 // Parse up to "bytes" from "io" as DICOM file. Returns a DICOM file struct
+//
+// TODO(saito) Get rid of the "bytes" argument. Detect io.EOF instead.
 func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	// buffer := newDicomBuffer(buff) //*di.Bytes)
 	buffer := NewDecoder(in,

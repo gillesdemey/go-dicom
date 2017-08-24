@@ -71,6 +71,17 @@ func GetString(e DicomElement) (string, error) {
 	return v, nil
 }
 
+// MustGetString() is similar to GetString(), but panics on error.
+//
+// TODO(saito): Add other variants of MustGet<type>.
+func MustGetString(e DicomElement) string {
+	v, err := GetString(e)
+	if err != nil {
+		log.Panicf("Failed to extract string in %v", e.String())
+	}
+	return v
+}
+
 func elementDebugString(e *DicomElement, nestLevel int) string {
 	doassert(nestLevel < 10)
 	s := strings.Repeat(" ", nestLevel)

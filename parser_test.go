@@ -1,8 +1,8 @@
 package dicom_test
 
 import (
-	"github.com/yasushi-saito/go-dicom"
 	"encoding/binary"
+	"github.com/yasushi-saito/go-dicom"
 	"testing"
 )
 
@@ -25,7 +25,7 @@ func TestEncodeDataElement(t *testing.T) {
 	// Read them back.
 	d := dicom.NewBytesDecoder(data, binary.LittleEndian, true)
 	elem0 := dicom.ReadDataElement(d)
-	tag := dicom.Tag{Group:0x18, Element:0x9755}
+	tag := dicom.Tag{Group: 0x18, Element: 0x9755}
 	if elem0.Tag != tag {
 		t.Error("Bad tag", elem0)
 	}
@@ -36,7 +36,7 @@ func TestEncodeDataElement(t *testing.T) {
 		t.Error("Bad value", elem0)
 	}
 
-	tag = dicom.Tag{Group:0x20, Element:0x9057}
+	tag = dicom.Tag{Group: 0x20, Element: 0x9057}
 	elem1 := dicom.ReadDataElement(d)
 	if elem1.Tag != tag {
 		t.Error("Bad tag")
