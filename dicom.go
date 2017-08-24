@@ -88,8 +88,17 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	if buffer.Error() != nil {
 		return nil, buffer.Error()
 	}
+	elem, err := file.LookupElement("TransferSyntaxUID")
+	if err != nil {
+		return nil, err
+	}
+	transferSyntaxUID, err := GetString(*elem)
+	if err != nil {
+		return nil, err
+	}
+
 	// read endianness and explicit VR
-	endianess, implicit, err := file.getTransferSyntax()
+	endianess, implicit, err := ParseTransferSyntaxUID(transferSyntaxUID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,21 +137,11 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, bool, error) {
 	if err != nil {
 		return nil, true, err
 	}
-
-	ts := elem.Value[0].(string)
-
-	// defaults are explicit VR, little endian
-	switch ts {
-	case ImplicitVRLittleEndian:
-		return binary.LittleEndian, true, nil
-	case ExplicitVRLittleEndian:
-		return binary.LittleEndian, false, nil
-	case ExplicitVRBigEndian:
-		return binary.BigEndian, false, nil
-	default:
-		return binary.LittleEndian, false, nil
+	ts, err := GetString(*elem)
+	if err != nil {
+		return nil, true, err
 	}
-
+	return ParseTransferSyntaxUID(ts)
 }
 
 // Lookup a tag by name
