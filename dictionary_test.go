@@ -20,6 +20,14 @@ func TestGetDictEntry(t *testing.T) {
 	if elem.Name != "EventTypeID" || elem.VR != "US" {
 		t.Errorf("Wrong element name: %s", elem.Name)
 	}
+
+	elem, err = LookupTagByName("TransferSyntaxUID")
+	if err != nil {
+		t.Error(err)
+	}
+	if (elem.Tag != Tag{2,0x10}) {
+		t.Errorf("Wrong element: %v", elem)
+	}
 }
 
 // TODO: add a test for correctly splitting ranges

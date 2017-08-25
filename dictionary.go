@@ -103,6 +103,8 @@ func init() {
 
 // LookupTag finds information about the given tag. If the tag is undefined or
 // is retired in the standard, it returns an error.
+//
+// Example: LookupTagByName(Tag{2,0x10})
 func LookupTag(tag Tag) (TagDictEntry, error) {
 	entry, ok := singletonDict[tag]
 	if !ok {
@@ -114,6 +116,19 @@ func LookupTag(tag Tag) (TagDictEntry, error) {
 		}
 	}
 	return entry, nil
+}
+
+// LookupTag finds information about the tag with the given name. If the tag is undefined or
+// is retired in the standard, it returns an error.
+//
+// Example: LookupTagByName("TransferSyntaxUID")
+func LookupTagByName(name string) (TagDictEntry, error) {
+	for _, ent := range singletonDict {
+		if ent.Name == name {
+			return ent, nil
+		}
+	}
+	return TagDictEntry{}, fmt.Errorf("Could not find tag with name %s", name)
 }
 
 // Like LookupTag, but panics on error.

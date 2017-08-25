@@ -17,8 +17,7 @@ const (
 // A DICOM element
 type DicomElement struct {
 	Tag  Tag
-	Name string // Name of "Tag", as defined in the data dictionary
-	Vr   string // "AE", "UL", etc.
+	Vr   string // Encoding of Value. "AE", "UL", etc.
 	Vl   uint32
 
 	// Value encoding:
@@ -31,7 +30,7 @@ type DicomElement struct {
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
 
 	// IndentLevel uint8
-	elemLen uint32 // Element length, in bytes.
+	// elemLen uint32 // Element length, in bytes.
 	Pos     int64  // The byte position of the start of the element.
 }
 
@@ -89,7 +88,7 @@ func elementDebugString(e *DicomElement, nestLevel int) string {
 	if e.Vl == UndefinedLength {
 		sVl = "UNDEF"
 	}
-	s = fmt.Sprintf("%08d %s (%04X, %04X) %s %s %d %s ", e.Pos, s, e.Tag.Group, e.Tag.Element, e.Vr, sVl, e.elemLen, e.Name)
+	s = fmt.Sprintf("%08d %s %s %s %s ", e.Pos, s, TagDebugString(e.Tag), e.Vr, sVl)
 	if e.Vr != "SQ" {
 		sv := fmt.Sprintf("%v", e.Value)
 		if len(sv) > 50 {
@@ -304,24 +303,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 	}
 	elem.Value = data
 	elem.Pos = initialPos
-	elem.elemLen = uint32(d.Pos() - initialPos)
 	return elem
-}
-
-func getTagName(tag Tag) string {
-	var name string
-	//var name, vm, vr string
-	entry, err := LookupTag(tag)
-	if err != nil {
-		if tag.Group%2 == 0 {
-			name = unknownGroupName
-		} else {
-			name = privateGroupName
-		}
-	} else {
-		name = entry.Name
-	}
-	return name
 }
 
 const UndefinedLength uint32 = 0xfffffffe // must be even.
@@ -340,7 +322,6 @@ func readTag(buffer *Decoder) Tag {
 func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	elem := &DicomElement{
 		Tag:  tag,
-		Name: getTagName(tag),
 	}
 	vr := "UN"
 	if entry, err := LookupTag(tag); err == nil {
@@ -364,7 +345,6 @@ func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	elem := &DicomElement{
 		Tag:  tag,
-		Name: getTagName(tag),
 	}
 	vr := buffer.DecodeString(2)
 	// buffer.p += 2

@@ -145,12 +145,16 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, IsImplicitVR, erro
 // LookupElementByName finds an element with the given DicomElement.Name in
 // "elems" If not found, returns an error.
 func LookupElementByName(elems []DicomElement, name string) (*DicomElement, error) {
+	t, err := LookupTagByName(name)
+	if err != nil {
+		return nil, err
+	}
 	for _, elem := range elems {
-		if elem.Name == name {
+		if elem.Tag == t.Tag {
 			return &elem, nil
 		}
 	}
-	return nil, fmt.Errorf("Could not find element '%s' in dicom file", name)
+	return nil, fmt.Errorf("Could not find element named '%s' in dicom file", name)
 }
 
 // LookupElementByTag finds an element with the given DicomElement.Tag in
@@ -161,7 +165,7 @@ func LookupElementByTag(elems []DicomElement, tag Tag) (*DicomElement, error) {
 			return &elem, nil
 		}
 	}
-	return nil, fmt.Errorf("Could not find element '%s' in dicom file",
+	return nil, fmt.Errorf("Could not find element with tag %s in dicom file",
 		tag.String())
 }
 
@@ -169,10 +173,5 @@ func LookupElementByTag(elems []DicomElement, tag Tag) (*DicomElement, error) {
 // LookupElementByName(file.Elemements, name) or
 // LookupElementByTag(file.Elemements, tag) instead
 func (file *DicomFile) LookupElement(name string) (*DicomElement, error) {
-	for _, elem := range file.Elements {
-		if elem.Name == name {
-			return &elem, nil
-		}
-	}
-	return nil, fmt.Errorf("Could not find element '%s' in dicom file", name)
+	return LookupElementByName(file.Elements, name)
 }
