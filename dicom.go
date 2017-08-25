@@ -53,7 +53,7 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	if buffer.Error() != nil {
 		return nil, buffer.Error()
 	}
-	file := &DicomFile {Elements: metaElems}
+	file := &DicomFile{Elements: metaElems}
 	elem, err := file.LookupElement("TransferSyntaxUID")
 	if err != nil {
 		return nil, err
@@ -81,7 +81,9 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	return file, buffer.Finish()
 }
 
-func ParseFileHeader(d*Decoder) []DicomElement {
+// Consume the DICOM magic header and metadata elements from a Dicom
+// file. Errors are reported through d.Error().
+func ParseFileHeader(d *Decoder) []DicomElement {
 	d.Skip(128) // skip preamble
 
 	// check for magic word
@@ -89,8 +91,6 @@ func ParseFileHeader(d*Decoder) []DicomElement {
 		d.SetError(errors.New("Keyword 'DICM' not found in the header"))
 		return nil
 	}
-
-	var metaElems []DicomElement
 
 	// (0002,0000) MetaElementGroupLength
 	metaElem := ReadDataElement(d)
@@ -109,11 +109,12 @@ func ParseFileHeader(d*Decoder) []DicomElement {
 		d.SetError(fmt.Errorf("No data element found"))
 		return nil
 	}
-	metaElems = append(metaElems, *metaElem)
+	metaElems := []DicomElement{*metaElem}
 
 	// Read meta tags
-	start := d.Len()
-	for start-d.Len() < int64(metaLength) && d.Error() == nil {
+	d.PushLimit(int64(metaLength))
+	defer d.PopLimit()
+	for d.Len() > 0 && d.Error() == nil {
 		elem := ReadDataElement(d)
 		metaElems = append(metaElems, *elem)
 	}
@@ -141,7 +142,9 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, IsImplicitVR, erro
 	return ParseTransferSyntaxUID(ts)
 }
 
-func LookupElement(elems []DicomElement, name string) (*DicomElement, error) {
+// LookupElementByName finds an element with the given DicomElement.Name in
+// "elems" If not found, returns an error.
+func LookupElementByName(elems []DicomElement, name string) (*DicomElement, error) {
 	for _, elem := range elems {
 		if elem.Name == name {
 			return &elem, nil
@@ -150,7 +153,21 @@ func LookupElement(elems []DicomElement, name string) (*DicomElement, error) {
 	return nil, fmt.Errorf("Could not find element '%s' in dicom file", name)
 }
 
-// Lookup a tag by name
+// LookupElementByTag finds an element with the given DicomElement.Tag in
+// "elems" If not found, returns an error.
+func LookupElementByTag(elems []DicomElement, tag Tag) (*DicomElement, error) {
+	for _, elem := range elems {
+		if elem.Tag == tag {
+			return &elem, nil
+		}
+	}
+	return nil, fmt.Errorf("Could not find element '%s' in dicom file",
+		tag.String())
+}
+
+// Lookup a tag by name. Depraceted. Use
+// LookupElementByName(file.Elemements, name) or
+// LookupElementByTag(file.Elemements, tag) instead
 func (file *DicomFile) LookupElement(name string) (*DicomElement, error) {
 	for _, elem := range file.Elements {
 		if elem.Name == name {

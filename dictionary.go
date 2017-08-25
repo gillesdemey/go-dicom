@@ -40,23 +40,25 @@ type TagDictEntry struct {
 	Version string
 }
 
-var tagItem Tag
-var tagItemDelimitationItem Tag
-var tagSequenceDelimitationItem Tag
-var tagMetaElementGroupLength Tag
+var (
+	tagItem Tag
+	tagItemDelimitationItem Tag
+	tagSequenceDelimitationItem Tag
+	tagMetaElementGroupLength Tag
 
-// For "PixelData" tag.
-var TagPixelData Tag
+	// Standard file metadata tags, with group=2
+	TagFileMetaInformationGroupLength Tag
+	TagFileMetaInformationVersion Tag
+	TagMediaStorageSOPClassUID Tag
+	TagMediaStorageSOPInstanceUID Tag
+	TagTransferSyntaxUID Tag
 
-// Combination of group and element.
-type tagDictKey uint32
+	TagPixelData Tag
+)
 
-func makeTagDictKey(tag Tag) tagDictKey {
-	return (tagDictKey(tag.Group) << 16) | tagDictKey(tag.Element)
-}
 
 // (group, element) -> tag information
-type tagDict map[tagDictKey]TagDictEntry
+type tagDict map[Tag]TagDictEntry
 
 var singletonDict tagDict
 
@@ -77,7 +79,7 @@ func init() {
 		if err != nil {
 			continue // we don't support groups yet
 		}
-		singletonDict[makeTagDictKey(tag)] = TagDictEntry{
+		singletonDict[tag] = TagDictEntry{
 			Tag:     tag,
 			VR:      strings.ToUpper(row[1]),
 			Name:    row[2],
@@ -88,14 +90,21 @@ func init() {
 	tagItem = MustLookupTag(Tag{0xfffe, 0xe000}).Tag
 	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d}).Tag
 	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd}).Tag
-	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
 	tagMetaElementGroupLength = MustLookupTag(Tag{2, 0}).Tag
+
+	TagFileMetaInformationGroupLength = MustLookupTag(Tag{2,0}).Tag
+	TagFileMetaInformationVersion = MustLookupTag(Tag{2,1}).Tag
+	TagMediaStorageSOPClassUID  = MustLookupTag(Tag{2,2}).Tag
+	TagMediaStorageSOPInstanceUID  = MustLookupTag(Tag{2,3}).Tag
+	TagTransferSyntaxUID  = MustLookupTag(Tag{2,0x10}).Tag
+
+	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
 }
 
 // LookupTag finds information about the given tag. If the tag is undefined or
 // is retired in the standard, it returns an error.
 func LookupTag(tag Tag) (TagDictEntry, error) {
-	entry, ok := singletonDict[makeTagDictKey(tag)]
+	entry, ok := singletonDict[tag]
 	if !ok {
 		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
 		if tag.Group%2 == 0 && tag.Element == 0x0000 {
