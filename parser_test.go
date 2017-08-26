@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestEncodeDataElement(t *testing.T) {
+func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsImplicitVR) {
 	// Encode two scalar elements.
-	e := dicom.NewEncoder(binary.LittleEndian, dicom.UnknownVR)
+	e := dicom.NewEncoder(bo, implicit)
 	var values []interface{}
 	values = append(values, string("FooHah"))
 	dicom.EncodeDataElement(e, &dicom.DicomElement{
@@ -27,9 +27,12 @@ func TestEncodeDataElement(t *testing.T) {
 	}
 
 	// Read them back.
-	d := dicom.NewBytesDecoder(data, binary.LittleEndian, dicom.ImplicitVR)
+	d := dicom.NewBytesDecoder(data, bo, implicit)
 	elem0 := dicom.ReadDataElement(d)
-	tag := dicom.Tag{Group: 0x18, Element: 0x9755}
+	if d.Error()!=nil{
+		t.Fatal(d.Error())
+	}
+	tag := dicom.Tag{0x18, 0x9755}
 	if elem0.Tag != tag {
 		t.Error("Bad tag", elem0)
 	}
@@ -42,6 +45,9 @@ func TestEncodeDataElement(t *testing.T) {
 
 	tag = dicom.Tag{Group: 0x20, Element: 0x9057}
 	elem1 := dicom.ReadDataElement(d)
+	if d.Error()!=nil{
+		t.Fatal(d.Error())
+	}
 	if elem1.Tag != tag {
 		t.Error("Bad tag")
 	}
@@ -57,5 +63,16 @@ func TestEncodeDataElement(t *testing.T) {
 	if err := d.Finish(); err != nil {
 		t.Error(err)
 	}
+}
 
+func TestEncodeDataElementImplicit(t *testing.T) {
+	// testEncodeDataElement(t, binary.LittleEndian, dicom.ImplicitVR)
+}
+
+func TestEncodeDataElementExplicit(t *testing.T) {
+	testEncodeDataElement(t, binary.LittleEndian, dicom.ExplicitVR)
+}
+
+func TestEncodeDataElementBigEndianExplicit(t *testing.T) {
+	testEncodeDataElement(t, binary.BigEndian, dicom.ExplicitVR)
 }

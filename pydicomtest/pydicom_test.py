@@ -1,14 +1,21 @@
 #!/usr/bin/env python3.6
 
-import pydicom
 import sys
+import os
 
-def recurse_tree(dataset: pydicom.Dataset, nest_level: int):
+sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
+sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
+import pydicom
+
+
+def recurse_tree(dataset, nest_level: int):
     # order the dicom tags
     for data_element in dataset:
         indent = "  " * nest_level
         print(f"{indent}{data_element.tag} {data_element.VR}: ", end="")
-        if data_element.VR != "SQ":   # not a sequence
+        if data_element.VR in ("OW", "OB", "OD", "OF", "LT", "LO"): # long text
+            print(f"{len(data_element.value)}bytes")
+        elif data_element.VR != "SQ":   # not a sequence
             print(str(data_element.value))
         else:   # a sequence
             print("")

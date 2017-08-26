@@ -7,23 +7,45 @@ import (
 	"io"
 )
 
+type transferSyntaxStackEntry struct {
+	bo binary.ByteOrder
+	implicit  IsImplicitVR
+}
+
 type Encoder struct {
-	err      error
-	buf      *bytes.Buffer
-	bo       binary.ByteOrder
-	implicit IsImplicitVR
+	err                 error
+	buf                 *bytes.Buffer
+	bo                  binary.ByteOrder
+	implicit            IsImplicitVR
+	oldTransferSyntaxes []transferSyntaxStackEntry
 }
 
 func NewEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
-		err:      nil,
-		buf:      &bytes.Buffer{},
-		bo:       bo,
-		implicit: implicit,
+		err:            nil,
+		buf:            &bytes.Buffer{},
+		bo: bo,
+		implicit:implicit,
 	}
 }
 
-func (e *Encoder) TransferSyntax() (binary.ByteOrder, IsImplicitVR) { return e.bo, e.implicit }
+func (e *Encoder) TransferSyntax() (binary.ByteOrder, IsImplicitVR) {
+	return e.bo, e.implicit
+}
+
+func (d *Encoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {
+	d.oldTransferSyntaxes = append(d.oldTransferSyntaxes,
+		transferSyntaxStackEntry{d.bo, d.implicit})
+	d.bo = bo
+	d.implicit = implicit
+}
+
+func (d *Encoder) PopTransferSyntax() {
+	e := d.oldTransferSyntaxes[len(d.oldTransferSyntaxes)-1]
+	d.bo=e.bo
+	d.implicit=e.implicit
+	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
+}
 
 // Set the error to be reported by future Error() or Finish() calls.
 //
@@ -102,9 +124,8 @@ type Decoder struct {
 	implicit IsImplicitVR
 	limit    int64
 
-	oldBos       []binary.ByteOrder
-	oldImplicits []IsImplicitVR
-	oldLimits    []int64
+	oldTransferSyntaxes []transferSyntaxStackEntry
+	oldLimits []int64
 
 	// Cumulative # bytes read.
 	pos int64
@@ -150,20 +171,17 @@ func (d *Decoder) TransferSyntax() (bo binary.ByteOrder, implicit IsImplicitVR) 
 	return d.bo, d.implicit
 }
 
-func (d *Decoder) PushTranslationSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {
-	d.oldBos = append(d.oldBos, d.bo)
-	d.oldImplicits = append(d.oldImplicits, d.implicit)
-
+func (d *Decoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {
+	d.oldTransferSyntaxes = append(d.oldTransferSyntaxes, transferSyntaxStackEntry{d.bo, d.implicit})
 	d.bo = bo
 	d.implicit = implicit
 }
 
-func (d *Decoder) PopTranslationSyntax() {
-	d.implicit = d.oldImplicits[len(d.oldImplicits)-1]
-	d.bo = d.oldBos[len(d.oldBos)-1]
-
-	d.oldImplicits = d.oldImplicits[:len(d.oldImplicits)-1]
-	d.oldBos = d.oldBos[:len(d.oldBos)-1]
+func (d *Decoder) PopTransferSyntax() {
+	e := d.oldTransferSyntaxes[len(d.oldTransferSyntaxes)-1]
+	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
+	d.bo = e.bo
+	d.implicit = e.implicit
 }
 
 // Temporarily override the end of the buffer.

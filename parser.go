@@ -17,6 +17,7 @@ const (
 // A DICOM element
 type DicomElement struct {
 	Tag  Tag
+	// TODO(saito) Rename to VR, VL.
 	Vr   string // Encoding of Value. "AE", "UL", etc.
 	Vl   uint32
 
@@ -359,8 +360,6 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	switch vr {
 	case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
 		buffer.Skip(2) // ignore two bytes for "future use" (0000H)
-		// buffer.p += 2
-
 		vl = buffer.DecodeUInt32()
 		// Rectify Undefined Length VL
 		if vl == 0xffffffff {
@@ -393,6 +392,9 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 // is for UL, then each value must be uint32.
 func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	vr := elem.Vr
+	if (elem.Vl == UndefinedLength) {
+		log.Panicf("Encoding undefined-length element not yet supported: %v", elem)
+	}
 	entry, err := LookupTag(elem.Tag)
 	if vr == "" {
 		if err == nil {
@@ -408,7 +410,7 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		}
 	}
 	doassert(vr != "")
-	sube := NewEncoder(e.bo, UnknownVR)
+	sube := NewEncoder(e.TransferSyntax())
 	for _, value := range elem.Value {
 		switch vr {
 		case "AT":
@@ -450,6 +452,22 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	}
 	e.EncodeUInt16(elem.Tag.Group)
 	e.EncodeUInt16(elem.Tag.Element)
-	e.EncodeUInt32(uint32(len(bytes)))
+	if _, implicit := e.TransferSyntax(); implicit == ExplicitVR {
+		doassert(len(vr)==2)
+		e.EncodeString(vr)
+		switch vr {
+		case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
+			e.EncodeZeros(2) // two bytes for "future use" (0000H)
+			e.EncodeUInt32(uint32(len(bytes)))
+		default:
+			e.EncodeUInt16(uint16(len(bytes)))
+		}
+
+	} else {
+		if _, implicit := e.TransferSyntax(); implicit != ImplicitVR {
+			log.Panicf("Unknown VR: %v", e)
+		}
+		e.EncodeUInt32(uint32(len(bytes)))
+	}
 	e.EncodeBytes(bytes)
 }
