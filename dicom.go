@@ -111,7 +111,7 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 	}
 	metaLength, err := GetUInt32(*metaElem)
 	if err != nil {
-		d.SetError(fmt.Errorf("Failed to read uint32 in MetaElementGroupLength"))
+		d.SetError(fmt.Errorf("Failed to read uint32 in MetaElementGroupLength: %v", err))
 		return nil
 	}
 	if d.Len() <= 0 {
@@ -123,8 +123,11 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 	// Read meta tags
 	d.PushLimit(int64(metaLength))
 	defer d.PopLimit()
-	for d.Len() > 0 && d.Error() == nil {
+	for d.Len() > 0 {
 		elem := ReadDataElement(d)
+		if d.Error() != nil {
+			break
+		}
 		metaElems = append(metaElems, *elem)
 	}
 	return metaElems

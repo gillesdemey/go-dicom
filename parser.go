@@ -16,10 +16,10 @@ const (
 
 // A DICOM element
 type DicomElement struct {
-	Tag  Tag
+	Tag Tag
 	// TODO(saito) Rename to VR, VL.
-	Vr   string // Encoding of Value. "AE", "UL", etc.
-	Vl   uint32
+	Vr string // Encoding of Value. "AE", "UL", etc.
+	Vl uint32
 
 	// Value encoding:
 	//
@@ -32,12 +32,12 @@ type DicomElement struct {
 
 	// IndentLevel uint8
 	// elemLen uint32 // Element length, in bytes.
-	Pos     int64  // The byte position of the start of the element.
+	Pos int64 // The byte position of the start of the element.
 }
 
 func GetUInt32(e DicomElement) (uint32, error) {
 	if len(e.Value) != 1 {
-		return 0, fmt.Errorf("No value found in %v", e)
+		return 0, fmt.Errorf("Found %d value(s) in getuint32 (expect 1): %v", len(e.Value), e)
 	}
 	v, ok := e.Value[0].(uint32)
 	if !ok {
@@ -48,7 +48,7 @@ func GetUInt32(e DicomElement) (uint32, error) {
 
 func GetUInt16(e DicomElement) (uint16, error) {
 	if len(e.Value) != 1 {
-		return 0, fmt.Errorf("No value found in %v", e)
+		return 0, fmt.Errorf("Found %d value(s) in getuint16 (expect 1): %v", len(e.Value), e)
 	}
 	v, ok := e.Value[0].(uint16)
 	if !ok {
@@ -62,7 +62,7 @@ func GetUInt16(e DicomElement) (uint16, error) {
 // the value is not a string.
 func GetString(e DicomElement) (string, error) {
 	if len(e.Value) != 1 {
-		return "", fmt.Errorf("No value found in %v", e)
+		return "", fmt.Errorf("Found %d value(s) in getstring (expect 1): %v", len(e.Value), e)
 	}
 	v, ok := e.Value[0].(string)
 	if !ok {
@@ -77,7 +77,7 @@ func GetString(e DicomElement) (string, error) {
 func MustGetString(e DicomElement) string {
 	v, err := GetString(e)
 	if err != nil {
-		log.Panicf("Failed to extract string in %v", e.String())
+		panic(err)
 	}
 	return v
 }
@@ -290,6 +290,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			case "OW":
 				fallthrough // TODO(saito) Check that size is even. Byte swap??
 			case "OB":
+				// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
 				data = append(data, d.DecodeBytes(int(vl)))
 			default:
 				// String may have '\0' suffix if its length is odd.
@@ -323,7 +324,7 @@ func readTag(buffer *Decoder) Tag {
 // The VL is a 32-bit unsigned integer
 func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	elem := &DicomElement{
-		Tag:  tag,
+		Tag: tag,
 	}
 	vr := "UN"
 	if entry, err := LookupTag(tag); err == nil {
@@ -346,7 +347,7 @@ func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 // The VL depends on the VR value
 func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	elem := &DicomElement{
-		Tag:  tag,
+		Tag: tag,
 	}
 	vr := buffer.DecodeString(2)
 	// buffer.p += 2
@@ -392,7 +393,7 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 // is for UL, then each value must be uint32.
 func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	vr := elem.Vr
-	if (elem.Vl == UndefinedLength) {
+	if elem.Vl == UndefinedLength {
 		log.Panicf("Encoding undefined-length element not yet supported: %v", elem)
 	}
 	entry, err := LookupTag(elem.Tag)
@@ -430,7 +431,11 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		case "OW":
 			fallthrough // TODO(saito) Check that size is even. Byte swap??
 		case "OB":
-			sube.EncodeBytes(value.([]byte))
+			bytes := value.([]byte)
+			sube.EncodeBytes(bytes)
+			if len(bytes)%2 == 1 {
+				sube.EncodeByte(0)
+			}
 		case "NA":
 			fallthrough
 		case "SQ":
@@ -450,10 +455,11 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		e.SetError(err)
 		return
 	}
+	doassert(len(bytes)%2 == 0)
 	e.EncodeUInt16(elem.Tag.Group)
 	e.EncodeUInt16(elem.Tag.Element)
 	if _, implicit := e.TransferSyntax(); implicit == ExplicitVR {
-		doassert(len(vr)==2)
+		doassert(len(vr) == 2)
 		e.EncodeString(vr)
 		switch vr {
 		case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":

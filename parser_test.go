@@ -29,7 +29,7 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsI
 	// Read them back.
 	d := dicom.NewBytesDecoder(data, bo, implicit)
 	elem0 := dicom.ReadDataElement(d)
-	if d.Error()!=nil{
+	if d.Error() != nil {
 		t.Fatal(d.Error())
 	}
 	tag := dicom.Tag{0x18, 0x9755}
@@ -45,7 +45,7 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsI
 
 	tag = dicom.Tag{Group: 0x20, Element: 0x9057}
 	elem1 := dicom.ReadDataElement(d)
-	if d.Error()!=nil{
+	if d.Error() != nil {
 		t.Fatal(d.Error())
 	}
 	if elem1.Tag != tag {
@@ -75,4 +75,42 @@ func TestEncodeDataElementExplicit(t *testing.T) {
 
 func TestEncodeDataElementBigEndianExplicit(t *testing.T) {
 	testEncodeDataElement(t, binary.BigEndian, dicom.ExplicitVR)
+}
+
+func TestReadWriteFileHeader(t *testing.T) {
+	e := dicom.NewEncoder(binary.LittleEndian, dicom.ImplicitVR)
+	dicom.WriteFileHeader(
+		e, dicom.ImplicitVRLittleEndian,
+		"1.2.840.10008.5.1.4.1.1.1.2",
+		"1.2.3.4.5.6.7")
+	bytes, err := e.Finish()
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := dicom.NewBytesDecoder(bytes, binary.LittleEndian, dicom.ImplicitVR)
+	elems := dicom.ParseFileHeader(d)
+	if err := d.Finish(); err !=nil {
+		t.Fatal(err)
+	}
+	elem, err := dicom.LookupElementByTag(elems, dicom.TagTransferSyntaxUID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dicom.MustGetString(*elem) != dicom.ImplicitVRLittleEndian {
+		t.Error(elem)
+	}
+	elem, err = dicom.LookupElementByTag(elems, dicom.TagMediaStorageSOPClassUID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dicom.MustGetString(*elem) != "1.2.840.10008.5.1.4.1.1.1.2" {
+		t.Error(elem)
+	}
+	elem, err = dicom.LookupElementByTag(elems, dicom.TagMediaStorageSOPInstanceUID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dicom.MustGetString(*elem) != "1.2.3.4.5.6.7" {
+		t.Error(elem)
+	}
 }
