@@ -34,7 +34,7 @@ func main() {
 	}
 	if *printMetadata {
 		for i, elem := range data.Elements {
-			fmt.Printf("Element %d: %v\n", i, elem.String())
+			fmt.Printf("%v\n", i, elem.String())
 		}
 	}
 	if *extractImages {
