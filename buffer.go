@@ -81,11 +81,12 @@ func (e *Encoder) EncodeBytes(v []byte) {
 	e.buf.Write(v)
 }
 
-type IsImplicitVR bool
+type IsImplicitVR int
 
 const (
-	ImplicitVR = IsImplicitVR(true)
-	ExplicitVR = IsImplicitVR(false)
+	ImplicitVR IsImplicitVR = iota
+	ExplicitVR
+	UnknownVR
 )
 
 type Decoder struct {

@@ -47,7 +47,7 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	buffer := NewDecoder(in,
 		bytes,
 		binary.LittleEndian,
-		false)
+		ExplicitVR)
 
 	metaElems := ParseFileHeader(buffer)
 	if buffer.Error() != nil {
@@ -133,11 +133,11 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, IsImplicitVR, erro
 
 	elem, err := file.LookupElement("TransferSyntaxUID")
 	if err != nil {
-		return nil, true, err
+		return nil, UnknownVR, err
 	}
 	ts, err := GetString(*elem)
 	if err != nil {
-		return nil, true, err
+		return nil, UnknownVR, err
 	}
 	return ParseTransferSyntaxUID(ts)
 }

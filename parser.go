@@ -144,7 +144,7 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 	}
 	// The payload of the item is sequence of uint32s, each representing the
 	// byte size of an image that follows.
-	subdecoder := NewBytesDecoder(data, d.bo, true)
+	subdecoder := NewBytesDecoder(data, d.bo, ImplicitVR)
 	var offsets []uint32
 	for subdecoder.Len() > 0 && subdecoder.Error() == nil {
 		offsets = append(offsets, subdecoder.DecodeUInt32())
@@ -165,11 +165,12 @@ func ReadDataElement(d *Decoder) *DicomElement {
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
 	implicit := d.implicit
 	if tag.Group == pixeldataGroup {
-		implicit = true
+		implicit = ImplicitVR
 	}
-	if implicit {
+	if implicit == ImplicitVR {
 		elem, vr, vl = readImplicit(d, tag)
 	} else {
+		doassert(implicit == ExplicitVR)
 		elem, vr, vl = readExplicit(d, tag)
 	}
 	if d.Error() != nil {
@@ -390,16 +391,25 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 //
 // REQUIRES: Each value in values[] must match the VR of the tag. E.g., if tag
 // is for UL, then each value must be uint32.
-func EncodeDataElement(e *Encoder, tag Tag, values []interface{}) {
-	// TODO(saito) For now, only implicit encoding is supported.
-	//  First encode the payload
-	vr := "UN"
-	if entry, err := LookupTag(tag); err == nil {
-		vr = entry.VR
+func EncodeDataElement(e *Encoder, elem *DicomElement) {
+	vr := elem.Vr
+	entry, err := LookupTag(elem.Tag)
+	if vr == "" {
+		if err == nil {
+			vr = entry.VR
+		} else {
+			vr = "UN"
+		}
+	} else {
+		if err == nil && entry.VR != vr {
+			e.SetError(fmt.Errorf("VR value mismatch. DicomElement.Vr=%v, but tag is for %v",
+				vr, entry.VR))
+			return
+		}
 	}
-
+	doassert(vr != "")
 	sube := NewEncoder(e.bo)
-	for _, value := range values {
+	for _, value := range elem.Value {
 		switch vr {
 		case "AT":
 			fallthrough
@@ -438,8 +448,8 @@ func EncodeDataElement(e *Encoder, tag Tag, values []interface{}) {
 		e.SetError(err)
 		return
 	}
-	e.EncodeUInt16(tag.Group)
-	e.EncodeUInt16(tag.Element)
+	e.EncodeUInt16(elem.Tag.Group)
+	e.EncodeUInt16(elem.Tag.Element)
 	e.EncodeUInt32(uint32(len(bytes)))
 	e.EncodeBytes(bytes)
 }

@@ -23,7 +23,7 @@ func TestBasic(t *testing.T) {
 	}
 	d := dicom.NewDecoder(
 		bytes.NewBuffer(encoded), int64(len(encoded)),
-		binary.BigEndian, true)
+		binary.BigEndian, dicom.ImplicitVR)
 	if v := d.DecodeByte(); v != 10 {
 		t.Errorf("DecodeByte %v", v)
 	}
@@ -61,7 +61,7 @@ func TestPartialData(t *testing.T) {
 	}
 	// Read uint16, when there's only one byte in buffer.
 	d := dicom.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
-		binary.BigEndian, true)
+		binary.BigEndian, dicom.ImplicitVR)
 	if _ = d.DecodeUInt16(); d.Error() == nil {
 		t.Errorf("DecodeUint16")
 	}
@@ -78,7 +78,7 @@ func TestLimit(t *testing.T) {
 	}
 	// Allow reading only the first two bytes
 	d := dicom.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
-		binary.BigEndian, true)
+		binary.BigEndian, dicom.ImplicitVR)
 	if d.Len() != 3 {
 		t.Errorf("Len %d", d.Len())
 	}

@@ -85,7 +85,7 @@ func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
 		t.Errorf("Incorrect ByteOrder %v. Should be LittleEndian.", bo)
 	}
 
-	if implicit != true {
+	if implicit != ImplicitVR {
 		t.Errorf("Incorrect implicitness %v. Should be true.", implicit)
 	}
 

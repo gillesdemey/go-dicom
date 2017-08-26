@@ -57,17 +57,17 @@ func CanonicalTransferSyntaxUID(uid string) (string, error) {
 func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplicitVR, err error) {
 	canonical, err := CanonicalTransferSyntaxUID(uid)
 	if err != nil {
-		return nil, false, err
+		return nil, UnknownVR, err
 	}
 	switch canonical {
 	case ImplicitVRLittleEndian:
-		return binary.LittleEndian, true, nil
+		return binary.LittleEndian, ImplicitVR, nil
 	case ExplicitVRLittleEndian:
-		return binary.LittleEndian, false, nil
+		return binary.LittleEndian, ExplicitVR, nil
 	case ExplicitVRBigEndian:
-		return binary.BigEndian, false, nil
+		return binary.BigEndian, ExplicitVR, nil
 	default:
 		log.Panic(canonical, uid)
-		return binary.BigEndian, false, nil
+		return binary.BigEndian, ExplicitVR, nil
 	}
 }
