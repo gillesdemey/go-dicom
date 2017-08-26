@@ -129,7 +129,10 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 		d.SetError(fmt.Errorf("Expect defined-length item in pixeldata"))
 		return nil, false
 	}
-	doassert(vr == "NA")
+	if vr != "NA" {
+		d.SetError(fmt.Errorf("Expect NA item, but found %s", vr))
+		return nil, true
+	}
 	return d.DecodeBytes(int(vl)), false
 }
 
@@ -205,8 +208,9 @@ func ReadDataElement(d *Decoder) *DicomElement {
 				log.Printf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", offsets)
 			}
 			var bytes []byte
-			for d.Len() > 0 && d.Error() == nil {
+			for d.Len() > 0 {
 				chunk, endOfItems := readRawItem(d)
+				if d.Error() != nil {break}
 				if endOfItems {
 					break
 				}
@@ -224,8 +228,11 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			//  Sequence := ItemSet* SequenceDelimitationItem
 			//  ItemSet := Item Any* ItemDelimitationItem (when Item.VL is undefined) or
 			//             Item Any*N                     (when Item.VL has a defined value)
-			for d.Len() > 0 && d.Error() == nil {
+			for d.Len() > 0 {
 				item := ReadDataElement(d)
+				if d.Error() != nil {
+					break
+				}
 				if item.Tag == tagSequenceDelimitationItem {
 					break
 				}
@@ -240,10 +247,14 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			// See the above comment for the definition of ItemSet.
 			d.PushLimit(int64(vl))
 			defer d.PopLimit()
-			for d.Len() > 0 && d.Error() == nil {
+			for d.Len() > 0 {
 				item := ReadDataElement(d)
+				if d.Error() != nil {
+					break
+				}
 				if item.Tag != tagItem {
-					log.Panicf("Unknown item in seq: %v", TagDebugString(item.Tag))
+					d.SetError(fmt.Errorf("Unknown item in seq: %v", TagDebugString(item.Tag)))
+					log.Panic(d.Error()) // TODO: remove
 				}
 				data = append(data, item)
 			}
@@ -252,15 +263,21 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		// Parse Item.
 		if vl == UndefinedLength {
 			// Format: Item Any* ItemDelimitationItem
-			for d.Len() > 0 && d.Error() == nil && elem.Tag != tagItemDelimitationItem {
+			for d.Len() > 0 && elem.Tag != tagItemDelimitationItem {
 				subelem := ReadDataElement(d)
+				if d.Error() != nil {
+					break
+				}
 				data = append(data, subelem)
 			}
 		} else {
 			// Sequence of arbitary elements, for the  total of "vl" bytes.
 			d.PushLimit(int64(vl))
-			for d.Len() > 0 && d.Error() == nil {
+			for d.Len() > 0 {
 				subelem := ReadDataElement(d)
+				if d.Error() != nil {
+					break
+				}
 				data = append(data, subelem)
 			}
 			d.PopLimit()

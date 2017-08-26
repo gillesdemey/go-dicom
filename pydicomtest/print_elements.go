@@ -62,11 +62,12 @@ func main() {
 func printElements(elems []dicom.DicomElement, indent int) {
 	sort.Sort(&elemSorter{elems: elems})
 	for _, elem := range elems {
-		fmt.Printf("%s%s %s", strings.Repeat(" ", indent), elem.Tag, elem.Vr)
+		fmt.Printf("%s%s %s: ", strings.Repeat(" ", indent), elem.Tag.String(), elem.Vr)
 		if elem.Vr == "OW" || elem.Vr == "OB" || elem.Vr == "OD" || elem.Vr == "OF" || elem.Vr == "LT" || elem.Vr == "LO" {
 			fmt.Printf("%dbytes\n", len(elem.Value))
 		} else if elem.Vr != "SQ" { // not a sequence
-			if len(elem.Value) == 1 {
+			if len(elem.Value) == 0 {
+			} else if len(elem.Value) == 1 {
 				fmt.Print(elem.Value[0])
 			} else {
 				fmt.Print("[")
@@ -76,6 +77,7 @@ func printElements(elems []dicom.DicomElement, indent int) {
 					}
 					fmt.Print(value)
 				}
+				fmt.Print("]")
 			}
 			fmt.Print("\n")
 		} else {
