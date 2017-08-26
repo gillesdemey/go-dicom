@@ -408,7 +408,7 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		}
 	}
 	doassert(vr != "")
-	sube := NewEncoder(e.bo)
+	sube := NewEncoder(e.bo, UnknownVR)
 	for _, value := range elem.Value {
 		switch vr {
 		case "AT":

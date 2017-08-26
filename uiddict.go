@@ -7,6 +7,7 @@ package dicom
 // Translated from pynetdict, _uid_dict.py
 
 import (
+	"log"
 	"fmt"
 )
 
@@ -428,12 +429,23 @@ var uidDict = map[string]UIDDictEntry{
 	"1.2.840.10008.15.1.1":             UIDDictEntry{"Universal Coordinated Time", "Synchronization Frame of Reference", "", ""},
 }
 
+// Find information about the given uid (string starting with 1.2.840).  Returns
+// an error unless uid is the one defined in the DICOM standard, P3.6.
 func LookupUID(uid string) (UIDDictEntry, error) {
 	e, ok := uidDict[uid]
 	if !ok {
 		return UIDDictEntry{}, fmt.Errorf("UID '%s' not found in dictionary", uid)
 	}
 	return e, nil
+}
+
+// Similar to LookupUID, but crashes the process on error.
+func MustLookupUID(uid string) UIDDictEntry {
+	e, err := LookupUID(uid)
+	if err != nil {
+		log.Panicf("Failed to lookup uid %s: %v", uid, err)
+	}
+	return e
 }
 
 // UidDebugString returns a human-readable diagnostic string for a DICOM UID.

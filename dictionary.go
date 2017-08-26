@@ -41,21 +41,22 @@ type TagDictEntry struct {
 }
 
 var (
-	tagItem Tag
-	tagItemDelimitationItem Tag
+	tagItem                     Tag
+	tagItemDelimitationItem     Tag
 	tagSequenceDelimitationItem Tag
-	tagMetaElementGroupLength Tag
 
 	// Standard file metadata tags, with group=2
+	TagMetaElementGroupLength         Tag // Always the first element in a file
 	TagFileMetaInformationGroupLength Tag
-	TagFileMetaInformationVersion Tag
-	TagMediaStorageSOPClassUID Tag
-	TagMediaStorageSOPInstanceUID Tag
-	TagTransferSyntaxUID Tag
+	TagFileMetaInformationVersion     Tag
+	TagMediaStorageSOPClassUID        Tag
+	TagMediaStorageSOPInstanceUID     Tag
+	TagImplementationClassUID         Tag
+	TagImplementationVersionName      Tag
+	TagTransferSyntaxUID              Tag
 
 	TagPixelData Tag
 )
-
 
 // (group, element) -> tag information
 type tagDict map[Tag]TagDictEntry
@@ -90,13 +91,15 @@ func init() {
 	tagItem = MustLookupTag(Tag{0xfffe, 0xe000}).Tag
 	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d}).Tag
 	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd}).Tag
-	tagMetaElementGroupLength = MustLookupTag(Tag{2, 0}).Tag
+	TagMetaElementGroupLength = MustLookupTag(Tag{2, 0}).Tag
 
-	TagFileMetaInformationGroupLength = MustLookupTag(Tag{2,0}).Tag
-	TagFileMetaInformationVersion = MustLookupTag(Tag{2,1}).Tag
-	TagMediaStorageSOPClassUID  = MustLookupTag(Tag{2,2}).Tag
-	TagMediaStorageSOPInstanceUID  = MustLookupTag(Tag{2,3}).Tag
-	TagTransferSyntaxUID  = MustLookupTag(Tag{2,0x10}).Tag
+	TagFileMetaInformationGroupLength = MustLookupTag(Tag{2, 0}).Tag
+	TagFileMetaInformationVersion = MustLookupTag(Tag{2, 1}).Tag
+	TagMediaStorageSOPClassUID = MustLookupTag(Tag{2, 2}).Tag
+	TagMediaStorageSOPInstanceUID = MustLookupTag(Tag{2, 3}).Tag
+	TagTransferSyntaxUID = MustLookupTag(Tag{2, 0x10}).Tag
+	TagImplementationClassUID = MustLookupTag(Tag{2, 0x12}).Tag
+	TagImplementationVersionName = MustLookupTag(Tag{2, 0x13}).Tag
 
 	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
 }

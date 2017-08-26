@@ -8,19 +8,22 @@ import (
 )
 
 type Encoder struct {
-	err error
-	buf *bytes.Buffer
-	bo  binary.ByteOrder
+	err      error
+	buf      *bytes.Buffer
+	bo       binary.ByteOrder
+	implicit IsImplicitVR
 }
 
-func NewEncoder(bo binary.ByteOrder) *Encoder {
+func NewEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
-		err: nil,
-		buf: &bytes.Buffer{},
-		bo:  bo}
+		err:      nil,
+		buf:      &bytes.Buffer{},
+		bo:       bo,
+		implicit: implicit,
+	}
 }
 
-func (e *Encoder) ByteOrder() binary.ByteOrder { return e.bo }
+func (e *Encoder) TransferSyntax() (binary.ByteOrder, IsImplicitVR) { return e.bo, e.implicit }
 
 // Set the error to be reported by future Error() or Finish() calls.
 //
@@ -86,6 +89,8 @@ type IsImplicitVR int
 const (
 	ImplicitVR IsImplicitVR = iota
 	ExplicitVR
+
+	// UnknownVR is to be used when you never encode or decode DataElement.
 	UnknownVR
 )
 
@@ -139,6 +144,10 @@ func (d *Decoder) SetError(err error) {
 
 		d.err = err
 	}
+}
+
+func (d *Decoder) TransferSyntax() (bo binary.ByteOrder, implicit IsImplicitVR) {
+	return d.bo, d.implicit
 }
 
 func (d *Decoder) PushTranslationSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {

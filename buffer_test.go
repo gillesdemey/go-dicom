@@ -9,7 +9,7 @@ import (
 )
 
 func TestBasic(t *testing.T) {
-	e := dicom.NewEncoder(binary.BigEndian)
+	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
 	e.EncodeByte(10)
 	e.EncodeByte(11)
 	e.EncodeUInt16(0x123)
@@ -53,7 +53,7 @@ func TestBasic(t *testing.T) {
 }
 
 func TestPartialData(t *testing.T) {
-	e := dicom.NewEncoder(binary.BigEndian)
+	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
 	e.EncodeByte(10)
 	encoded, err := e.Finish()
 	if err != nil {
@@ -68,7 +68,7 @@ func TestPartialData(t *testing.T) {
 }
 
 func TestLimit(t *testing.T) {
-	e := dicom.NewEncoder(binary.BigEndian)
+	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
 	e.EncodeByte(10)
 	e.EncodeByte(11)
 	e.EncodeByte(12)

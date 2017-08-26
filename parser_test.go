@@ -8,7 +8,7 @@ import (
 
 func TestEncodeDataElement(t *testing.T) {
 	// Encode two scalar elements.
-	e := dicom.NewEncoder(binary.LittleEndian)
+	e := dicom.NewEncoder(binary.LittleEndian, dicom.UnknownVR)
 	var values []interface{}
 	values = append(values, string("FooHah"))
 	dicom.EncodeDataElement(e, &dicom.DicomElement{

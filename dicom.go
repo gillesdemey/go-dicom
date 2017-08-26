@@ -29,6 +29,12 @@ import (
 	"io"
 )
 
+// UID prefix provided by https://www.medicalconnections.co.uk/Free_UID
+const DefaultImplementationClassUIDPrefix = "1.2.826.0.1.3680043.9.7133"
+
+var DefaultImplementationClassUID = DefaultImplementationClassUIDPrefix + ".1.1"
+const DefaultImplementationVersionName = "GODICOM_1_1"
+
 // DicomFile represents result of parsing one DICOM file.
 type DicomFile struct {
 	Elements []DicomElement
@@ -84,6 +90,11 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 // Consume the DICOM magic header and metadata elements from a Dicom
 // file. Errors are reported through d.Error().
 func ParseFileHeader(d *Decoder) []DicomElement {
+	bo, implicit := d.TransferSyntax()
+	if bo != binary.LittleEndian || implicit != ExplicitVR {
+		d.SetError(fmt.Errorf("FileHeader must be decoded using ExplicitLE"))
+		return nil
+	}
 	d.Skip(128) // skip preamble
 
 	// check for magic word
@@ -97,7 +108,7 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 	if d.Error() != nil {
 		return nil
 	}
-	if metaElem.Tag != tagMetaElementGroupLength {
+	if metaElem.Tag != TagMetaElementGroupLength {
 		d.SetError(fmt.Errorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String()))
 	}
 	metaLength, err := GetUInt32(*metaElem)
@@ -119,6 +130,48 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 		metaElems = append(metaElems, *elem)
 	}
 	return metaElems
+}
+
+// Inverse of ParseFileHeader. Errors are reported via e.Error()
+func WriteFileHeader(e *Encoder,
+	transferSyntaxUID string,
+	sopClassUID string,
+	sopInstanceUID string) {
+	bo, implicit := e.TransferSyntax()
+	if bo != binary.LittleEndian || implicit != ExplicitVR {
+		e.SetError(fmt.Errorf("FileHeader must be decoded using ExplicitLE"))
+		return
+	}
+	e.EncodeZeros(128)
+	e.EncodeString("DICM")
+
+	encodeSingleValue := func(encoder *Encoder, tag Tag, v interface{}) {
+		elem := DicomElement{
+			Tag:   tag,
+			Vr:    "", // autodetect
+			Vl:    1,
+			Value: []interface{}{v},
+		}
+		EncodeDataElement(encoder, &elem)
+	}
+
+	// Encode the meta info first.
+	subEncoder := NewEncoder(bo, implicit)
+	encodeSingleValue(subEncoder, TagFileMetaInformationVersion, []byte("0 1"))
+	encodeSingleValue(subEncoder, TagTransferSyntaxUID, transferSyntaxUID)
+	encodeSingleValue(subEncoder, TagMediaStorageSOPClassUID, sopClassUID)
+	encodeSingleValue(subEncoder, TagMediaStorageSOPInstanceUID, sopInstanceUID)
+	encodeSingleValue(subEncoder, TagImplementationClassUID, DefaultImplementationClassUID)
+	encodeSingleValue(subEncoder, TagImplementationVersionName, DefaultImplementationVersionName)
+	// TODO(saito) add more
+	metaBytes, err := subEncoder.Finish()
+	if err != nil {
+		e.SetError(err)
+		return
+	}
+
+	encodeSingleValue(e, TagMetaElementGroupLength, uint32(len(metaBytes)))
+	e.EncodeBytes(metaBytes)
 }
 
 func doassert(x bool) {
