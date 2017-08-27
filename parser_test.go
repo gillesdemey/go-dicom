@@ -66,7 +66,7 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsI
 }
 
 func TestEncodeDataElementImplicit(t *testing.T) {
-	// testEncodeDataElement(t, binary.LittleEndian, dicom.ImplicitVR)
+	testEncodeDataElement(t, binary.LittleEndian, dicom.ImplicitVR)
 }
 
 func TestEncodeDataElementExplicit(t *testing.T) {

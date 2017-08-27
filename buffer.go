@@ -13,10 +13,17 @@ type transferSyntaxStackEntry struct {
 }
 
 type Encoder struct {
-	err                 error
-	buf                 *bytes.Buffer
-	bo                  binary.ByteOrder
-	implicit            IsImplicitVR
+	err error
+
+	// TODO(saito) Change to take the io.Writer instead of bytes.Buffer.
+	buf *bytes.Buffer
+	bo  binary.ByteOrder
+
+	// "implicit" isn't used by Encoder internally. It's there for the user
+	// of Encoder to see the current transfer syntax.
+	implicit IsImplicitVR
+
+	// Stack of old transfer syntaxes. Used by {Push,Pop}TransferSyntax.
 	oldTransferSyntaxes []transferSyntaxStackEntry
 }
 
@@ -29,10 +36,13 @@ func NewEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	}
 }
 
+// Get the current transfer syntax.
 func (e *Encoder) TransferSyntax() (binary.ByteOrder, IsImplicitVR) {
 	return e.bo, e.implicit
 }
 
+// Temporarily change the encoding format. PopTrasnferSyntax() will restore the
+// old format.
 func (d *Encoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {
 	d.oldTransferSyntaxes = append(d.oldTransferSyntaxes,
 		transferSyntaxStackEntry{d.bo, d.implicit})
@@ -40,6 +50,8 @@ func (d *Encoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR)
 	d.implicit = implicit
 }
 
+// Restore the encoding format active before the last call to
+// PushTransferSyntax().
 func (d *Encoder) PopTransferSyntax() {
 	e := d.oldTransferSyntaxes[len(d.oldTransferSyntaxes)-1]
 	d.bo = e.bo
@@ -119,21 +131,19 @@ const (
 type Decoder struct {
 	in  io.Reader
 	err error
-
-	bo       binary.ByteOrder
+	bo  binary.ByteOrder
+	// "implicit" isn't used by Decoder internally. It's there for the user
+	// of Decoder to see the current transfer syntax.
 	implicit IsImplicitVR
-	limit    int64
-
+	// Max bytes to read from "in".
+	limit int64
+	// Stack of old transfer syntaxes. Used by {Push,Pop}TransferSyntax.
 	oldTransferSyntaxes []transferSyntaxStackEntry
-	oldLimits           []int64
-
+	// Stack of old limits. Used by {Push,Pop}Limit.
+	// INVARIANT: oldLimits[] store values in decreasing order.
+	oldLimits []int64
 	// Cumulative # bytes read.
 	pos int64
-	// Max bytes to read. PushLimit() will add a new limit, and PopLimit()
-	// will restore the old limit. The newest limit is at the end.
-	//
-	// INVARIANT: limits[] store values in decreasing order.
-	// limits []int64
 }
 
 // NewDecoder creates a decoder object that reads up to "limit" bytes from "in".
@@ -160,23 +170,30 @@ func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit IsImplicitVR) *D
 	return NewDecoder(bytes.NewBuffer(data), int64(len(data)), bo, implicit)
 }
 
+// Set the error to be reported by future Error() or Finish() calls.
+//
+// REQUIRES: err != nil
 func (d *Decoder) SetError(err error) {
 	if d.err == nil {
-
 		d.err = err
 	}
 }
 
+// Get the current transfer syntax.
 func (d *Decoder) TransferSyntax() (bo binary.ByteOrder, implicit IsImplicitVR) {
 	return d.bo, d.implicit
 }
 
+// Temporarily change the encoding format. PopTrasnferSyntax() will restore the
+// old format.
 func (d *Decoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR) {
 	d.oldTransferSyntaxes = append(d.oldTransferSyntaxes, transferSyntaxStackEntry{d.bo, d.implicit})
 	d.bo = bo
 	d.implicit = implicit
 }
 
+// Restore the encoding format active before the last call to
+// PushTransferSyntax().
 func (d *Decoder) PopTransferSyntax() {
 	e := d.oldTransferSyntaxes[len(d.oldTransferSyntaxes)-1]
 	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
@@ -184,7 +201,8 @@ func (d *Decoder) PopTransferSyntax() {
 	d.implicit = e.implicit
 }
 
-// Temporarily override the end of the buffer.
+// Temporarily override the end of the buffer. PopLimit() will restore the old
+// limit.
 //
 // REQUIRES: limit must be smaller than the current limit
 func (d *Decoder) PushLimit(bytes int64) {
@@ -257,7 +275,7 @@ func (d *Decoder) DecodeByte() (v byte) {
 func (d *Decoder) DecodeUInt32() (v uint32) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 	}
 	return v
 }
@@ -265,7 +283,7 @@ func (d *Decoder) DecodeUInt32() (v uint32) {
 func (d *Decoder) DecodeInt32() (v int32) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 	}
 	return v
 }
@@ -273,7 +291,7 @@ func (d *Decoder) DecodeInt32() (v int32) {
 func (d *Decoder) DecodeUInt16() (v uint16) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 	}
 	return v
 }
@@ -281,7 +299,7 @@ func (d *Decoder) DecodeUInt16() (v uint16) {
 func (d *Decoder) DecodeInt16() (v int16) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 	}
 	return v
 }
@@ -289,7 +307,7 @@ func (d *Decoder) DecodeInt16() (v int16) {
 func (d *Decoder) DecodeFloat32() (v float32) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 	}
 	return v
 }
@@ -297,7 +315,7 @@ func (d *Decoder) DecodeFloat32() (v float32) {
 func (d *Decoder) DecodeFloat64() (v float64) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 	}
 	return v
 }
@@ -317,11 +335,10 @@ func (d *Decoder) DecodeBytes(length int) []byte {
 		}
 		remaining = remaining[n:]
 	}
-	//doassert(d.err==nil)
 	if len(remaining) > 0 {
 		d.err = fmt.Errorf("DecodeBytes: requested %d, remaining %d",
 			length, len(remaining))
-		panic(d.err) // TODO(saito) remove
+		return nil
 	}
 	return v
 }
