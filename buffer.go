@@ -8,8 +8,8 @@ import (
 )
 
 type transferSyntaxStackEntry struct {
-	bo binary.ByteOrder
-	implicit  IsImplicitVR
+	bo       binary.ByteOrder
+	implicit IsImplicitVR
 }
 
 type Encoder struct {
@@ -22,10 +22,10 @@ type Encoder struct {
 
 func NewEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
-		err:            nil,
-		buf:            &bytes.Buffer{},
-		bo: bo,
-		implicit:implicit,
+		err:      nil,
+		buf:      &bytes.Buffer{},
+		bo:       bo,
+		implicit: implicit,
 	}
 }
 
@@ -42,8 +42,8 @@ func (d *Encoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR)
 
 func (d *Encoder) PopTransferSyntax() {
 	e := d.oldTransferSyntaxes[len(d.oldTransferSyntaxes)-1]
-	d.bo=e.bo
-	d.implicit=e.implicit
+	d.bo = e.bo
+	d.implicit = e.implicit
 	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
 }
 
@@ -125,7 +125,7 @@ type Decoder struct {
 	limit    int64
 
 	oldTransferSyntaxes []transferSyntaxStackEntry
-	oldLimits []int64
+	oldLimits           []int64
 
 	// Cumulative # bytes read.
 	pos int64

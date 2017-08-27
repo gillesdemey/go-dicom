@@ -7,17 +7,18 @@ package dicom
 // Translated from pynetdict, _uid_dict.py
 
 import (
-	"log"
 	"fmt"
+	"log"
 )
 
 type UIDType string
+
 const (
-	UIDTypeSOPClass = "SOP Class"
-	UIDTypeTransferSyntax = "Transfer Syntax"
+	UIDTypeSOPClass                  = "SOP Class"
+	UIDTypeTransferSyntax            = "Transfer Syntax"
 	UIDTypeWellKnownFrameOfReference = "Well-known frame of reference"
-	UIDTypeWellKnownSOPInstance = "Well-known SOP instance"
-	UIDTypeCodingScheme = "Coding Scheme"
+	UIDTypeWellKnownSOPInstance      = "Well-known SOP instance"
+	UIDTypeCodingScheme              = "Coding Scheme"
 )
 
 type UIDDictEntry struct {

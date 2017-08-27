@@ -89,7 +89,7 @@ func TestReadWriteFileHeader(t *testing.T) {
 	}
 	d := dicom.NewBytesDecoder(bytes, binary.LittleEndian, dicom.ImplicitVR)
 	elems := dicom.ParseFileHeader(d)
-	if err := d.Finish(); err !=nil {
+	if err := d.Finish(); err != nil {
 		t.Fatal(err)
 	}
 	elem, err := dicom.LookupElementByTag(elems, dicom.TagTransferSyntaxUID)

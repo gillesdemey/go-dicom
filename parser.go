@@ -350,12 +350,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			if len(str) > 0 {
 				for _, s := range strings.Split(str, "\\") {
 					data = append(data, s)
-					if elem.Tag.Group == 8 && elem.Tag.Element == 0x50 {
-						log.Printf("SHTAGXX2: append [%s]", s)
-					}
-				}
-				if elem.Tag.Group == 8 && elem.Tag.Element == 0x50 {
-					log.Printf("SHTAGXX: %v [%v]", len(data), data)
 				}
 			}
 		}

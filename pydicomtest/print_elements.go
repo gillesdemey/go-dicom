@@ -66,9 +66,9 @@ func printScalar(i interface{}, indent int) string {
 	var s string
 	switch v := i.(type) {
 	case float32:
-		s = fmt.Sprintf("%f", v)
+		s = fmt.Sprintf("%.4f", v)
 	case float64:
-		s = fmt.Sprintf("%f", v)
+		s = fmt.Sprintf("%.4f", v)
 	case string:
 		if indent == 0 {
 			s = fmt.Sprintf("'%s'", v)
@@ -134,9 +134,6 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		tag := elem.Value[0].(dicom.Tag)
 		fmt.Printf(" %s\n", printTag(tag))
 	} else if elem.Vr != "SQ" { // not a sequence
-		if elem.Tag.Group == 8 && elem.Tag.Element == 0x50 {
-			log.Printf("SHTAG: %v [%v]", len(elem.Value), elem.Value)
-		}
 		if len(elem.Value) == 0 {
 			fmt.Print("\n")
 		} else if len(elem.Value) == 1 {

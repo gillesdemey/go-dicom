@@ -25,7 +25,7 @@ func TestGetDictEntry(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if (elem.Tag != Tag{2,0x10}) {
+	if (elem.Tag != Tag{2, 0x10}) {
 		t.Errorf("Wrong element: %v", elem)
 	}
 }

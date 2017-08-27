@@ -18,6 +18,12 @@ def recurse_tree(dataset, out: IO[str], nest_level: int):
             print(' [omitted]', file=out)
         elif data_element.VR in ("OW", "OB", "OD", "OF", "LT", "LO"): # long text
             print(f" {len(data_element.value)}B", file=out)
+        elif data_element.VR in ('FL', 'FD'):
+            if type(data_element.value) is float:
+                print(" %.4f" % data_element.value, file=out)
+            else:
+                print(" [" + ", ".join(["%.4f" % v for v in data_element.value]) + "]",
+                      file=out)
         elif data_element.VR != "SQ":   # not a sequence
             v  = str(data_element.value)
             if len(v) > 0:
