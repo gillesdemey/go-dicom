@@ -121,7 +121,7 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 		doassert(vl == 0)
 		return nil, true
 	}
-	if tag != tagItem {
+	if tag != TagItem {
 		d.SetError(fmt.Errorf("Expect item in pixeldata but found %v", tag))
 		return nil, false
 	}
@@ -210,7 +210,9 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			var bytes []byte
 			for d.Len() > 0 {
 				chunk, endOfItems := readRawItem(d)
-				if d.Error() != nil {break}
+				if d.Error() != nil {
+					break
+				}
 				if endOfItems {
 					break
 				}
@@ -236,7 +238,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 				if item.Tag == tagSequenceDelimitationItem {
 					break
 				}
-				if item.Tag != tagItem {
+				if item.Tag != TagItem {
 					log.Panicf("Unknown item in seq(unlimited): %v", TagDebugString(item.Tag))
 				}
 				data = append(data, item)
@@ -252,7 +254,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 				if d.Error() != nil {
 					break
 				}
-				if item.Tag != tagItem {
+				if item.Tag != TagItem {
 					d.SetError(fmt.Errorf("Unknown item in seq: %v", TagDebugString(item.Tag)))
 					log.Panic(d.Error()) // TODO: remove
 				}
@@ -282,6 +284,13 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			}
 			d.PopLimit()
 		}
+	} else if vr == "AT" {
+		if vl != 4 {
+			d.SetError(fmt.Errorf("VR of AT requires 4 byte payload, but found %d", vl))
+			return nil
+		}
+		tag := Tag{d.DecodeUInt16(), d.DecodeUInt16()}
+		data = append(data, tag)
 	} else {
 		if vl == UndefinedLength {
 			d.SetError(fmt.Errorf("Undefined length found at offset %d for element with VR=%s", initialPos, vr))
@@ -294,8 +303,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 				data = append(data, d.DecodeUInt32())
 			case "SL":
 				data = append(data, d.DecodeInt32())
-			case "AT":
-				fallthrough
 			case "US":
 				data = append(data, d.DecodeUInt16())
 			case "SS":
@@ -309,11 +316,21 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			case "OB":
 				// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
 				data = append(data, d.DecodeBytes(int(vl)))
+			case "DS":
+				fallthrough
+			case "IS":
+				// Decimal string
+				str := strings.Trim(d.DecodeString(int(vl)), " ")
+				for _, s := range strings.Split(str, "\\") {
+					data = append(data, s)
+				}
+			case "LT":
+				str := d.DecodeString(int(vl))
+				data = append(data, str)
 			default:
 				// String may have '\0' suffix if its length is odd.
 				str := strings.TrimRight(d.DecodeString(int(vl)), " \000")
-				strs := strings.Split(str, "\\")
-				for _, s := range strs {
+				for _, s := range strings.Split(str, "\\") {
 					data = append(data, s)
 				}
 

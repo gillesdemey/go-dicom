@@ -3994,7 +3994,7 @@ type TagDictEntry struct {
 }
 
 var (
-	tagItem                     Tag
+	TagItem                     Tag
 	tagItemDelimitationItem     Tag
 	tagSequenceDelimitationItem Tag
 
@@ -4041,7 +4041,7 @@ func init() {
 			Version: row[4],
 		}
 	}
-	tagItem = MustLookupTag(Tag{0xfffe, 0xe000}).Tag
+	TagItem = MustLookupTag(Tag{0xfffe, 0xe000}).Tag
 	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d}).Tag
 	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd}).Tag
 	TagMetaElementGroupLength = MustLookupTag(Tag{2, 0}).Tag
