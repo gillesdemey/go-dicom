@@ -3981,7 +3981,7 @@ func (t *Tag) String() string {
 	return fmt.Sprintf("(%04x,%04x)", t.Group, t.Element)
 }
 
-type TagDictEntry struct {
+type TagInfo struct {
 	Tag Tag
 
 	// Data encoding "UL", "CS", etc.
@@ -4012,7 +4012,7 @@ var (
 )
 
 // (group, element) -> tag information
-type tagDict map[Tag]TagDictEntry
+type tagDict map[Tag]TagInfo
 
 var singletonDict tagDict
 
@@ -4033,7 +4033,7 @@ func init() {
 		if err != nil {
 			continue // we don't support groups yet
 		}
-		singletonDict[tag] = TagDictEntry{
+		singletonDict[tag] = TagInfo{
 			Tag:     tag,
 			VR:      strings.ToUpper(row[1]),
 			Name:    row[2],
@@ -4061,21 +4061,21 @@ func init() {
 // is retired in the standard, it returns an error.
 //
 // Example: LookupTagByName(Tag{2,0x10})
-func LookupTag(tag Tag) (TagDictEntry, error) {
+func LookupTag(tag Tag) (TagInfo, error) {
 	entry, ok := singletonDict[tag]
 	if !ok {
 		// (0000-u-ffff,0000)	UL	GenericGroupLength	1	GENERIC
 		if tag.Group%2 == 0 && tag.Element == 0x0000 {
-			entry = TagDictEntry{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
+			entry = TagInfo{tag, "UL", "GenericGroupLength", "1", "GENERIC"}
 		} else {
-			return TagDictEntry{}, fmt.Errorf("Could not find tag (0x%x, 0x%x) in dictionary", tag.Group, tag.Element)
+			return TagInfo{}, fmt.Errorf("Could not find tag (0x%x, 0x%x) in dictionary", tag.Group, tag.Element)
 		}
 	}
 	return entry, nil
 }
 
 // Like LookupTag, but panics on error.
-func MustLookupTag(tag Tag) TagDictEntry {
+func MustLookupTag(tag Tag) TagInfo {
 	e, err := LookupTag(tag)
 	if err != nil {
 		log.Panicf("tag %s not found: %s", tag, err)
@@ -4087,13 +4087,13 @@ func MustLookupTag(tag Tag) TagDictEntry {
 // is retired in the standard, it returns an error.
 //
 // Example: LookupTagByName("TransferSyntaxUID")
-func LookupTagByName(name string) (TagDictEntry, error) {
+func LookupTagByName(name string) (TagInfo, error) {
 	for _, ent := range singletonDict {
 		if ent.Name == name {
 			return ent, nil
 		}
 	}
-	return TagDictEntry{}, fmt.Errorf("Could not find tag with name %s", name)
+	return TagInfo{}, fmt.Errorf("Could not find tag with name %s", name)
 }
 
 // TagDebugString returns a human-readable diagnostic string for the tag
