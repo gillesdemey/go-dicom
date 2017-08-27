@@ -1,30 +1,48 @@
 #!/usr/bin/env python3.6
 
-import sys
 import os
+import subprocess
+import sys
 
 sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
 sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
 import pydicom
+from typing import IO
 
-
-def recurse_tree(dataset, nest_level: int):
+def recurse_tree(dataset, out: IO[str], nest_level: int):
     # order the dicom tags
     for data_element in dataset:
         indent = "  " * nest_level
-        print(f"{indent}{data_element.tag} {data_element.VR}: ", end="")
-        if data_element.VR in ("OW", "OB", "OD", "OF", "LT", "LO"): # long text
-            print(f"{len(data_element.value)}bytes")
+        print(f"{indent}{data_element.tag} {data_element.VR}:", end="", file=out)
+        if data_element.tag.group == 0x7fe0 and data_element.tag.element == 0x10:
+            print(' [omitted]', file=out)
+        elif data_element.VR in ("OW", "OB", "OD", "OF", "LT", "LO"): # long text
+            print(f" {len(data_element.value)}B", file=out)
         elif data_element.VR != "SQ":   # not a sequence
-            print(str(data_element.value))
+            v  = str(data_element.value)
+            if len(v) > 0:
+                print(" " + v, file=out)
+            else:
+                print("", file=out)
         else:   # a sequence
-            print("")
+            print("", file=out)
             for i, child in enumerate(data_element.value):
-                recurse_tree(child, nest_level + 1)
+                recurse_tree(child, out, nest_level + 1)
+
+def print_file_using_pydicom(dicom_path: str, out_path: str):
+    ds = pydicom.read_file(dicom_path)
+    ds.decode()
+    with open(out_path, 'w') as out:
+        recurse_tree(ds, out, 0)
+
+def print_file_using_godicom(dicom_path: str, out_path: str):
+    with open(out_path, 'w') as out:
+        subprocess.check_call(['./pydicomtest', dicom_path],
+                              stdout=out)
 
 def main():
-    ds = pydicom.read_file(sys.argv[1])
-    ds.decode()
-    recurse_tree(ds, 0)
-
+    dicom_path = sys.argv[1]
+    print_file_using_pydicom(dicom_path, '/tmp/pydicom.txt')
+    print_file_using_godicom(dicom_path, '/tmp/godicom.txt')
+    subprocess.check_call(['/usr/bin/diff', '/tmp/pydicom.txt', '/tmp/godicom.txt'])
 main()

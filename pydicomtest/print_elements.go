@@ -93,14 +93,19 @@ func printElement(elem *dicom.DicomElement, indent int) {
 	}
 
 	fmt.Printf("%s%s %s:", strings.Repeat(" ", indent*2), printTag(elem.Tag), elem.Vr)
-	if elem.Vr == "OW" || elem.Vr == "OB" || elem.Vr == "OD" || elem.Vr == "OF" || elem.Vr == "LO" {
+
+	if elem.Tag == dicom.TagPixelData {
+		// PixelData encoding differs between godicom and pydicom.  Skip
+		// for now.  TODO(saito) fix.
+		fmt.Print(" [omitted]\n")
+	} else if elem.Vr == "OW" || elem.Vr == "OB" || elem.Vr == "OD" || elem.Vr == "OF" || elem.Vr == "LO" {
 		if len(elem.Value) != 1 {
 			fmt.Printf(" [%d values]", len(elem.Value))
 		} else if v, ok := elem.Value[0].([]byte); ok {
-			fmt.Printf(" %dbytes\n", len(v))
+			fmt.Printf(" %dB\n", len(v))
 		} else {
 			v := elem.Value[0].(string)
-			fmt.Printf(" %dbytes\n", len(v))
+			fmt.Printf(" %dB\n", len(v))
 		}
 	} else if elem.Vr == "LT" {
 		// pydicom trims one (but not more) trailing space from the
@@ -113,7 +118,7 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		if strings.HasSuffix(v, " ") {
 			n--
 		}
-		fmt.Printf(" %dbytes\n", n)
+		fmt.Printf(" %dB\n", n)
 	} else if elem.Vr == "UI" {
 		// Resolve UIDs if possible.
 		uid := dicom.MustGetString(*elem)
