@@ -207,8 +207,8 @@ func (d *Decoder) PopTransferSyntax() {
 // REQUIRES: limit must be smaller than the current limit
 func (d *Decoder) PushLimit(bytes int64) {
 	newLimit := d.pos + bytes
-	if (newLimit > d.limit) {
-		d.SetError(fmt.Errorf("Trying to read %d bytes beyond buffer end", newLimit - d.limit))
+	if newLimit > d.limit {
+		d.SetError(fmt.Errorf("Trying to read %d bytes beyond buffer end", newLimit-d.limit))
 		newLimit = d.pos
 	}
 	d.oldLimits = append(d.oldLimits, d.limit)

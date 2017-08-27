@@ -41,6 +41,37 @@ type DicomFile struct {
 	Elements []DicomElement
 }
 
+// A DICOM element
+type DicomElement struct {
+	Tag Tag
+	// TODO(saito) Rename to VR, VL.
+
+	// VR defines the encoding of Value[] in two-letter alphabets, e.g.,
+	// "AE", "UL". See P3.5 6.2.
+	Vr string
+
+	// Total number of bytes in the Value[].  This is mostly meaningless for
+	// the user of the library.
+	Vl uint32
+
+	// List of values in the element. Their types depends on VR:
+	//
+	// If Vr=="SQ", Value[i] is a *DicomElement, with Tag=TagItem.
+	// If Vr=="NA" (i.e., Tag=tagItem), each Value[i] is a *DicomElement.
+	//    a value's Tag can be any (including TagItem, which represents a nested Item)
+	// If Vr=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
+	// If Vr=="LT", then len(Value)==1, and Value[0] is []byte.
+	// If Vr=="AT", then Value[] is a list of Tags.
+	// If Vr=="US", Value[] is a list of uint16s
+	// If Vr=="UL", Value[] is a list of uint32s
+	// If Vr=="SS", Value[] is a list of int16s
+	// If Vr=="SL", Value[] is a list of int32s
+	// If Vr=="FL", Value[] is a list of float32s
+	// If Vr=="FD", Value[] is a list of float64s
+	// Else, Value[] is a list of strings.
+	Value []interface{} // Value Multiplicity PS 3.5 6.4
+}
+
 // ParseBytes(buf) is shorthand for Parse(bytes.NewBuffer(buf), len(buf)).
 func ParseBytes(data []byte) (*DicomFile, error) {
 	return Parse(bytes.NewBuffer(data), int64(len(data)))

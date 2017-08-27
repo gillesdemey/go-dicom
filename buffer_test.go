@@ -62,7 +62,7 @@ func TestSkip(t *testing.T) {
 
 	d := dicom.NewBytesDecoder(encoded, binary.BigEndian, dicom.UnknownVR)
 	d.Skip(3)
-	if d.Len()!=8{
+	if d.Len() != 8 {
 		t.Error("Skip 3; len")
 	}
 	if d.DecodeString(8) != "defghijk" {

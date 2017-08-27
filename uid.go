@@ -1,6 +1,6 @@
 package dicom
 
-// List of UIDs, as defined in P3.6.
+// List of standard UIDs, as defined in P3.6.
 //
 // http://dicom.nema.org/medical/dicom/current/output/pdf/part06.pdf
 //

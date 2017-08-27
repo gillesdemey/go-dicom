@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestGetDictEntry(t *testing.T) {
+func TestLookupTag(t *testing.T) {
 	elem, err := LookupTag(Tag{32736, 16})
 	if err != nil {
 		t.Error(err)
@@ -32,7 +32,7 @@ func TestGetDictEntry(t *testing.T) {
 
 // TODO: add a test for correctly splitting ranges
 func TestSplitTag(t *testing.T) {
-	tag, err := splitTag("(7FE0,0010)")
+	tag, err := parseTag("(7FE0,0010)")
 	if err != nil {
 		t.Error(err)
 	}

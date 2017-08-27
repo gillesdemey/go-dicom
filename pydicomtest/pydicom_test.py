@@ -75,4 +75,5 @@ def main():
     else:
         process_one_file(dicom_path)
 
+    logging.info("All files passed the test!")
 main()

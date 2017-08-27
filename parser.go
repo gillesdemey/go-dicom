@@ -14,23 +14,6 @@ const (
 	privateGroupName = "Private Data"
 )
 
-// A DICOM element
-type DicomElement struct {
-	Tag Tag
-	// TODO(saito) Rename to VR, VL.
-	Vr string // Encoding of Value. "AE", "UL", etc.
-	Vl uint32
-
-	// Value encoding:
-	//
-	// If Vr is "SQ", Value[i] is a *DicomElement of type TagItem.
-	// If Vr is "OW" or "OB", then Value[i] is raw []byte.
-	// If Vr is "NA" (i.e., Tag=tagItem), each Value[i] is a *DicomElement.
-	//
-	// Else, Value[i] is a scalar value as defined by Vr. E.g., if Vr==UL, then each value is uint32.
-	Value []interface{} // Value Multiplicity PS 3.5 6.4
-}
-
 func GetUInt32(e DicomElement) (uint32, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint32 (expect 1): %v", len(e.Value), e)
@@ -295,7 +278,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			return nil
 		}
 		d.PushLimit(int64(vl))
-
+		defer d.PopLimit()
 		if vr == "DA" {
 			// 8-byte Date string
 			for d.Len() > 0 && d.Error() == nil {
@@ -311,12 +294,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			// TODO(saito) Check that size is even. Byte swap??
 			// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
 			data = append(data, d.DecodeBytes(int(vl)))
-		} else if vr == "DS" || vr == "IS" {
-			// Decimal string
-			str := strings.Trim(d.DecodeString(int(vl)), " \000")
-			for _, s := range strings.Split(str, "\\") {
-				data = append(data, s)
-			}
 		} else if vr == "LT" {
 			str := d.DecodeString(int(vl))
 			data = append(data, str)
@@ -348,14 +325,13 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			// List of strings, each delimited by '\\'.
 			v := d.DecodeString(int(vl))
 			// String may have '\0' suffix if its length is odd.
-			str := strings.TrimRight(v, " \000")
+			str := strings.Trim(v, " \000")
 			if len(str) > 0 {
 				for _, s := range strings.Split(str, "\\") {
 					data = append(data, s)
 				}
 			}
 		}
-		d.PopLimit()
 	}
 	elem.Value = data
 	return elem
@@ -466,8 +442,6 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	sube := NewEncoder(e.TransferSyntax())
 	for _, value := range elem.Value {
 		switch vr {
-		case "AT":
-			fallthrough
 		case "US":
 			sube.EncodeUInt16(value.(uint16))
 		case "UL":
@@ -488,10 +462,12 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 			if len(bytes)%2 == 1 {
 				sube.EncodeByte(0)
 			}
+		case "AT":
+			fallthrough
 		case "NA":
 			fallthrough
 		case "SQ":
-			sube.SetError(fmt.Errorf("NA and SQ encoding not supported yet"))
+			sube.SetError(fmt.Errorf("Encoding tag %v not supported yet", vr))
 		default:
 			{
 				s := value.(string)
@@ -522,9 +498,7 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		}
 
 	} else {
-		if _, implicit := e.TransferSyntax(); implicit != ImplicitVR {
-			log.Panicf("Unknown VR: %v", e)
-		}
+		doassert(implicit == ImplicitVR)
 		e.EncodeUInt32(uint32(len(bytes)))
 	}
 	e.EncodeBytes(bytes)
