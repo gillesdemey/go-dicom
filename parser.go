@@ -313,15 +313,12 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			data = append(data, d.DecodeBytes(int(vl)))
 		} else if vr == "DS" || vr == "IS" {
 			// Decimal string
-			str := strings.Trim(d.DecodeString(int(vl)), " ")
+			str := strings.Trim(d.DecodeString(int(vl)), " \000")
 			for _, s := range strings.Split(str, "\\") {
 				data = append(data, s)
 			}
 		} else if vr == "LT" {
 			str := d.DecodeString(int(vl))
-			data = append(data, str)
-		} else if vr == "LO" {
-			str := strings.Trim(d.DecodeString(int(vl)), " \000")
 			data = append(data, str)
 		} else if vr == "UL" {
 			for d.Len() > 0 && d.Error() == nil {

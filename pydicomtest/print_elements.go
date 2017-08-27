@@ -98,7 +98,7 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		// PixelData encoding differs between godicom and pydicom.  Skip
 		// for now.  TODO(saito) fix.
 		fmt.Print(" [omitted]\n")
-	} else if elem.Vr == "OW" || elem.Vr == "OB" || elem.Vr == "OD" || elem.Vr == "OF" || elem.Vr == "LO" {
+	} else if elem.Vr == "OW" || elem.Vr == "OB" || elem.Vr == "OD" || elem.Vr == "OF" {
 		if len(elem.Value) != 1 {
 			fmt.Printf(" [%d values]\n", len(elem.Value))
 		} else if v, ok := elem.Value[0].([]byte); ok {

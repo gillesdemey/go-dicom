@@ -19,6 +19,8 @@ def recurse_tree(dataset, out: IO[str], nest_level: int):
         print(f"{indent}{data_element.tag} {data_element.VR}:", end="", file=out)
         if data_element.tag.group == 0x7fe0 and data_element.tag.element == 0x10:
             print(' [omitted]', file=out)
+        elif data_element.VR in ("LO", ):
+            print(f" {data_element.value}", file=out)
         elif data_element.VR in ("OW", "OB", "OD", "OF", "LT", "LO"): # long text
             print(f" {len(data_element.value)}B", file=out)
         elif data_element.VR in ('FL', 'FD'):
