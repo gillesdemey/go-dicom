@@ -284,56 +284,79 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			}
 			d.PopLimit()
 		}
-	} else if vr == "AT" {
-		if vl != 4 {
-			d.SetError(fmt.Errorf("VR of AT requires 4 byte payload, but found %d", vl))
-			return nil
-		}
-		tag := Tag{d.DecodeUInt16(), d.DecodeUInt16()}
-		data = append(data, tag)
 	} else {
 		if vl == UndefinedLength {
 			d.SetError(fmt.Errorf("Undefined length found at offset %d for element with VR=%s", initialPos, vr))
 			return nil
 		}
 		d.PushLimit(int64(vl))
-		for d.Len() > 0 && d.Error() == nil {
-			switch vr {
-			case "UL":
-				data = append(data, d.DecodeUInt32())
-			case "SL":
-				data = append(data, d.DecodeInt32())
-			case "US":
-				data = append(data, d.DecodeUInt16())
-			case "SS":
-				data = append(data, d.DecodeInt16())
-			case "FL":
-				data = append(data, d.DecodeFloat32())
-			case "FD":
-				data = append(data, d.DecodeFloat64())
-			case "OW":
-				fallthrough // TODO(saito) Check that size is even. Byte swap??
-			case "OB":
-				// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
-				data = append(data, d.DecodeBytes(int(vl)))
-			case "DS":
-				fallthrough
-			case "IS":
-				// Decimal string
-				str := strings.Trim(d.DecodeString(int(vl)), " ")
-				for _, s := range strings.Split(str, "\\") {
-					data = append(data, s)
-				}
-			case "LT":
-				str := d.DecodeString(int(vl))
-				data = append(data, str)
-			default:
-				// String may have '\0' suffix if its length is odd.
-				str := strings.TrimRight(d.DecodeString(int(vl)), " \000")
-				for _, s := range strings.Split(str, "\\") {
-					data = append(data, s)
-				}
 
+		if vr == "DA" {
+			// 8-byte Date string
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeString(8))
+			}
+		} else if vr == "AT" {
+			// (2byte group, 2byte elem)
+			for d.Len() > 0 && d.Error() == nil {
+				tag := Tag{d.DecodeUInt16(), d.DecodeUInt16()}
+				data = append(data, tag)
+			}
+		} else if vr == "OW" || vr == "OB" {
+			// TODO(saito) Check that size is even. Byte swap??
+			// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
+			data = append(data, d.DecodeBytes(int(vl)))
+		} else if vr == "DS" || vr == "IS" {
+			// Decimal string
+			str := strings.Trim(d.DecodeString(int(vl)), " ")
+			for _, s := range strings.Split(str, "\\") {
+				data = append(data, s)
+			}
+		} else if vr == "LT" {
+			str := d.DecodeString(int(vl))
+			data = append(data, str)
+		} else if vr == "LO" {
+			str := strings.Trim(d.DecodeString(int(vl)), " \000")
+			data = append(data, str)
+		} else if vr == "UL" {
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeUInt32())
+			}
+		} else if vr == "SL" {
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeInt32())
+			}
+		} else if vr == "US" {
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeUInt16())
+			}
+		} else if vr == "SS" {
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeInt16())
+			}
+		} else if vr == "FL" {
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeFloat32())
+			}
+		} else if vr == "FD" {
+			for d.Len() > 0 && d.Error() == nil {
+				data = append(data, d.DecodeFloat64())
+			}
+		} else {
+			// List of strings, each delimited by '\\'.
+			v := d.DecodeString(int(vl))
+			// String may have '\0' suffix if its length is odd.
+			str := strings.TrimRight(v, " \000")
+			if len(str) > 0 {
+				for _, s := range strings.Split(str, "\\") {
+					data = append(data, s)
+					if elem.Tag.Group == 8 && elem.Tag.Element == 0x50 {
+						log.Printf("SHTAGXX2: append [%s]", s)
+					}
+				}
+				if elem.Tag.Group == 8 && elem.Tag.Element == 0x50 {
+					log.Printf("SHTAGXX: %v [%v]", len(data), data)
+				}
 			}
 		}
 		d.PopLimit()

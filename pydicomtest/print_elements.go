@@ -66,9 +66,9 @@ func printScalar(i interface{}, indent int) string {
 	var s string
 	switch v := i.(type) {
 	case float32:
-		s = fmt.Sprintf("%.1f", v)
+		s = fmt.Sprintf("%f", v)
 	case float64:
-		s = fmt.Sprintf("%.1f", v)
+		s = fmt.Sprintf("%f", v)
 	case string:
 		if indent == 0 {
 			s = fmt.Sprintf("'%s'", v)
@@ -100,7 +100,7 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		fmt.Print(" [omitted]\n")
 	} else if elem.Vr == "OW" || elem.Vr == "OB" || elem.Vr == "OD" || elem.Vr == "OF" || elem.Vr == "LO" {
 		if len(elem.Value) != 1 {
-			fmt.Printf(" [%d values]", len(elem.Value))
+			fmt.Printf(" [%d values]\n", len(elem.Value))
 		} else if v, ok := elem.Value[0].([]byte); ok {
 			fmt.Printf(" %dB\n", len(v))
 		} else {
@@ -134,6 +134,9 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		tag := elem.Value[0].(dicom.Tag)
 		fmt.Printf(" %s\n", printTag(tag))
 	} else if elem.Vr != "SQ" { // not a sequence
+		if elem.Tag.Group == 8 && elem.Tag.Element == 0x50 {
+			log.Printf("SHTAG: %v [%v]", len(elem.Value), elem.Value)
+		}
 		if len(elem.Value) == 0 {
 			fmt.Print("\n")
 		} else if len(elem.Value) == 1 {
