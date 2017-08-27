@@ -54,6 +54,10 @@ func CanonicalTransferSyntaxUID(uid string) (string, error) {
 	}
 }
 
+// Given a transfer syntax uid, return its encoding.  TrasnferSyntaxUID can be
+// any UID that refers to a transfer syntax. It can be, e.g., 1.2.840.10008.1.2
+// (it will return LittleEndian, ImplicitVR) or 1.2.840.10008.1.2.4.54 (it will
+// return (LittleEndian, ExplicitVR).
 func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplicitVR, err error) {
 	canonical, err := CanonicalTransferSyntaxUID(uid)
 	if err != nil {

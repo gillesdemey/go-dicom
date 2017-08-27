@@ -23,16 +23,12 @@ type DicomElement struct {
 
 	// Value encoding:
 	//
-	// If Vr is "SQ", Value[i] is a *DicomElement of type tagItem.
+	// If Vr is "SQ", Value[i] is a *DicomElement of type TagItem.
 	// If Vr is "OW" or "OB", then Value[i] is raw []byte.
 	// If Vr is "NA" (i.e., Tag=tagItem), each Value[i] is a *DicomElement.
 	//
 	// Else, Value[i] is a scalar value as defined by Vr. E.g., if Vr==UL, then each value is uint32.
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
-
-	// IndentLevel uint8
-	// elemLen uint32 // Element length, in bytes.
-	Pos int64 // The byte position of the start of the element.
 }
 
 func GetUInt32(e DicomElement) (uint32, error) {
@@ -89,7 +85,7 @@ func elementDebugString(e *DicomElement, nestLevel int) string {
 	if e.Vl == UndefinedLength {
 		sVl = "UNDEF"
 	}
-	s = fmt.Sprintf("%08d %s %s %s %s ", e.Pos, s, TagDebugString(e.Tag), e.Vr, sVl)
+	s = fmt.Sprintf("%s %s %s %s ", s, TagDebugString(e.Tag), e.Vr, sVl)
 	if e.Vr != "SQ" {
 		sv := fmt.Sprintf("%v", e.Value)
 		if len(sv) > 50 {
@@ -356,7 +352,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		d.PopLimit()
 	}
 	elem.Value = data
-	elem.Pos = initialPos
 	return elem
 }
 

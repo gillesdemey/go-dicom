@@ -4074,6 +4074,15 @@ func LookupTag(tag Tag) (TagDictEntry, error) {
 	return entry, nil
 }
 
+// Like LookupTag, but panics on error.
+func MustLookupTag(tag Tag) TagDictEntry {
+	e, err := LookupTag(tag)
+	if err != nil {
+		log.Panicf("tag %s not found: %s", tag, err)
+	}
+	return e
+}
+
 // LookupTag finds information about the tag with the given name. If the tag is undefined or
 // is retired in the standard, it returns an error.
 //
@@ -4085,15 +4094,6 @@ func LookupTagByName(name string) (TagDictEntry, error) {
 		}
 	}
 	return TagDictEntry{}, fmt.Errorf("Could not find tag with name %s", name)
-}
-
-// Like LookupTag, but panics on error.
-func MustLookupTag(tag Tag) TagDictEntry {
-	e, err := LookupTag(tag)
-	if err != nil {
-		log.Panicf("tag %s not found: %s", tag, err)
-	}
-	return e
 }
 
 // TagDebugString returns a human-readable diagnostic string for the tag
