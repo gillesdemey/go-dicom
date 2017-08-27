@@ -114,7 +114,9 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 	// Item is always encoded implicit. PS3.6 7.5
 	_, vr, vl := readImplicit(d, tag)
 	if tag == tagSequenceDelimitationItem {
-		doassert(vl == 0)
+		if vl != 0 {
+			d.SetError(fmt.Errorf("SequenceDelimitationItem's VL != 0: %v", vl))
+		}
 		return nil, true
 	}
 	if tag != TagItem {
@@ -226,7 +228,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			//  Sequence := ItemSet* SequenceDelimitationItem
 			//  ItemSet := Item Any* ItemDelimitationItem (when Item.VL is undefined) or
 			//             Item Any*N                     (when Item.VL has a defined value)
-			for d.Len() > 0 {
+			for {
 				item := ReadDataElement(d)
 				if d.Error() != nil {
 					break
@@ -235,7 +237,8 @@ func ReadDataElement(d *Decoder) *DicomElement {
 					break
 				}
 				if item.Tag != TagItem {
-					log.Panicf("Unknown item in seq(unlimited): %v", TagDebugString(item.Tag))
+					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagDebugString(item.Tag)))
+					break
 				}
 				data = append(data, item)
 			}
@@ -251,8 +254,8 @@ func ReadDataElement(d *Decoder) *DicomElement {
 					break
 				}
 				if item.Tag != TagItem {
-					d.SetError(fmt.Errorf("Unknown item in seq: %v", TagDebugString(item.Tag)))
-					log.Panic(d.Error()) // TODO: remove
+					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagDebugString(item.Tag)))
+					break
 				}
 				data = append(data, item)
 			}
@@ -261,13 +264,19 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		// Parse Item.
 		if vl == UndefinedLength {
 			// Format: Item Any* ItemDelimitationItem
-			for d.Len() > 0 && elem.Tag != tagItemDelimitationItem {
+			log.Printf("Start undefined item")
+			for {
 				subelem := ReadDataElement(d)
 				if d.Error() != nil {
 					break
 				}
+				log.Printf("Read elem: %v", TagDebugString(subelem.Tag))
+				if subelem.Tag == tagItemDelimitationItem {
+					break
+				}
 				data = append(data, subelem)
 			}
+			log.Printf("End undefined item: %v", d.Error())
 		} else {
 			// Sequence of arbitary elements, for the  total of "vl" bytes.
 			d.PushLimit(int64(vl))

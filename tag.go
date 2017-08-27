@@ -4008,6 +4008,7 @@ var (
 	TagImplementationVersionName      Tag
 	TagTransferSyntaxUID              Tag
 
+	// Tag for image data. Usually the last element in a DICOM file.
 	TagPixelData Tag
 )
 

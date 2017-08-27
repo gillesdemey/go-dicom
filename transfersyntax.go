@@ -66,6 +66,8 @@ func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplici
 	switch canonical {
 	case ImplicitVRLittleEndian:
 		return binary.LittleEndian, ImplicitVR, nil
+	case DeflatedExplicitVRLittleEndian:
+		fallthrough
 	case ExplicitVRLittleEndian:
 		return binary.LittleEndian, ExplicitVR, nil
 	case ExplicitVRBigEndian:

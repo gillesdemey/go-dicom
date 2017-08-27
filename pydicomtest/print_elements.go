@@ -133,7 +133,44 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		}
 		tag := elem.Value[0].(dicom.Tag)
 		fmt.Printf(" %s\n", printTag(tag))
-	} else if elem.Vr != "SQ" { // not a sequence
+	} else if elem.Vr == "SQ" {
+		var childElems []dicom.DicomElement
+		if len(elem.Value) == 1 {
+			// If SQ contains one Item, unwrap the item.
+			items := elem.Value[0].(*dicom.DicomElement)
+			if items.Tag != dicom.TagItem {
+				log.Panicf("A SQ item must be of type Item, but found %v", items)
+			}
+			for _, item := range items.Value {
+				childElems = append(childElems, *item.(*dicom.DicomElement))
+			}
+		} else {
+			for _, v := range elem.Value {
+				child := v.(*dicom.DicomElement)
+				if child.Tag != dicom.TagItem {
+					log.Panicf("A SQ item must be of type Item, but found %v", child)
+				}
+				childElems = append(childElems, *child)
+			}
+		}
+		fmt.Print("\n")
+		printElements(childElems, indent+1)
+	} else if elem.Vr == "NA" {
+		var childElems []dicom.DicomElement
+		if len(elem.Value) == 1 {
+			items := elem.Value[0].(*dicom.DicomElement)
+			for _, item := range items.Value {
+				childElems = append(childElems, *item.(*dicom.DicomElement))
+			}
+		} else {
+			for _, v := range elem.Value {
+				child := v.(*dicom.DicomElement)
+				childElems = append(childElems, *child)
+			}
+		}
+		fmt.Print("\n")
+		printElements(childElems, indent+1)
+	} else { // Other scalar value
 		if len(elem.Value) == 0 {
 			fmt.Print("\n")
 		} else if len(elem.Value) == 1 {
@@ -157,28 +194,6 @@ func printElement(elem *dicom.DicomElement, indent int) {
 			}
 			fmt.Print("]\n")
 		}
-	} else {
-		var childElems []dicom.DicomElement
-		if len(elem.Value) == 1 {
-			// If SQ contains one Item, unwrap the item.
-			items := elem.Value[0].(*dicom.DicomElement)
-			if items.Tag != dicom.TagItem {
-				log.Panicf("A SQ item must be of type Item, but found %v", items)
-			}
-			for _, item := range items.Value {
-				childElems = append(childElems, *item.(*dicom.DicomElement))
-			}
-		} else {
-			for _, v := range elem.Value {
-				child := v.(*dicom.DicomElement)
-				if child.Tag != dicom.TagItem {
-					log.Panicf("A SQ item must be of type Item, but found %v", child)
-				}
-				childElems = append(childElems, *child)
-			}
-		}
-		fmt.Print("\n")
-		printElements(childElems, indent+1)
 	}
 }
 

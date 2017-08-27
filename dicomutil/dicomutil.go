@@ -33,8 +33,8 @@ func main() {
 		panic(err)
 	}
 	if *printMetadata {
-		for i, elem := range data.Elements {
-			fmt.Printf("%v\n", i, elem.String())
+		for _, elem := range data.Elements {
+			fmt.Printf("%v\n", elem.String())
 		}
 	}
 	if *extractImages {

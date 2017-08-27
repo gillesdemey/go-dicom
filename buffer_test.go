@@ -19,7 +19,7 @@ func TestBasic(t *testing.T) {
 
 	encoded, err := e.Finish()
 	if err != nil {
-		t.Error(encoded)
+		t.Fatal(encoded)
 	}
 	d := dicom.NewDecoder(
 		bytes.NewBuffer(encoded), int64(len(encoded)),
@@ -52,12 +52,30 @@ func TestBasic(t *testing.T) {
 	}
 }
 
+func TestSkip(t *testing.T) {
+	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
+	e.EncodeString("abcdefghijk")
+	encoded, err := e.Finish()
+	if err != nil {
+		t.Fatal(encoded)
+	}
+
+	d := dicom.NewBytesDecoder(encoded, binary.BigEndian, dicom.UnknownVR)
+	d.Skip(3)
+	if d.Len()!=8{
+		t.Error("Skip 3; len")
+	}
+	if d.DecodeString(8) != "defghijk" {
+		t.Error("Skip 3; read")
+	}
+}
+
 func TestPartialData(t *testing.T) {
 	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
 	e.EncodeByte(10)
 	encoded, err := e.Finish()
 	if err != nil {
-		t.Error(encoded)
+		t.Fatal(encoded)
 	}
 	// Read uint16, when there's only one byte in buffer.
 	d := dicom.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),

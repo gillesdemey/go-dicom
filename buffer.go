@@ -206,9 +206,13 @@ func (d *Decoder) PopTransferSyntax() {
 //
 // REQUIRES: limit must be smaller than the current limit
 func (d *Decoder) PushLimit(bytes int64) {
-	doassert(bytes >= 0)
+	newLimit := d.pos + bytes
+	if (newLimit > d.limit) {
+		d.SetError(fmt.Errorf("Trying to read %d bytes beyond buffer end", newLimit - d.limit))
+		newLimit = d.pos
+	}
 	d.oldLimits = append(d.oldLimits, d.limit)
-	d.limit = d.pos + bytes
+	d.limit = newLimit
 }
 
 // Restore the old limit overridden by PushLimit.
@@ -325,33 +329,50 @@ func (d *Decoder) DecodeString(length int) string {
 }
 
 func (d *Decoder) DecodeBytes(length int) []byte {
+	if d.Len() < int64(length) {
+		d.err = fmt.Errorf("DecodeBytes: requested %d, available %d",
+			length, d.Len())
+		return nil
+	}
 	v := make([]byte, length)
 	remaining := v
 	for len(remaining) > 0 {
 		n, err := d.Read(v)
 		if err != nil {
-			d.err = err
+			d.SetError(err)
 			break
 		}
 		remaining = remaining[n:]
 	}
-	if len(remaining) > 0 {
-		d.err = fmt.Errorf("DecodeBytes: requested %d, remaining %d",
-			length, len(remaining))
-		return nil
-	}
+	doassert(d.Error() != nil || len(remaining) == 0)
 	return v
 }
 
-func (d *Decoder) Skip(bytes int) {
-	junk := make([]byte, bytes)
-	n, err := d.Read(junk)
-	if err != nil {
-		d.err = err
+func (d *Decoder) Skip(length int) {
+	if d.Len() < int64(length) {
+		d.SetError(fmt.Errorf("Skip: requested %d, available %d",
+			length, d.Len()))
 		return
 	}
-	if n != bytes {
-		d.err = fmt.Errorf("Failed to skip %d bytes (read %d bytes instead)", bytes, n)
-		return
+	junkSize := 1 << 16
+	if length < junkSize {
+		junkSize = length
 	}
+	junk := make([]byte, junkSize)
+	remaining := length
+	for remaining > 0 {
+		tmpLength := len(junk)
+		if remaining < tmpLength {
+			tmpLength = remaining
+		}
+		tmpBuf := junk[:tmpLength]
+		n, err := d.Read(tmpBuf)
+		if err != nil {
+			d.SetError(err)
+			break
+		}
+		doassert(n > 0)
+		remaining -= n
+	}
+	doassert(d.Error() != nil || remaining == 0)
 }

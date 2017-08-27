@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.6
 
+import logging
 import os
 import subprocess
 import sys
@@ -8,6 +9,8 @@ sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
 sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
 import pydicom
 from typing import IO
+
+logging.basicConfig(level=logging.INFO)
 
 def recurse_tree(dataset, out: IO[str], nest_level: int):
     # order the dicom tags
@@ -46,9 +49,28 @@ def print_file_using_godicom(dicom_path: str, out_path: str):
         subprocess.check_call(['./pydicomtest', dicom_path],
                               stdout=out)
 
-def main():
-    dicom_path = sys.argv[1]
+def process_one_file(dicom_path: str):
+    logging.info("Compare %s", dicom_path)
     print_file_using_pydicom(dicom_path, '/tmp/pydicom.txt')
     print_file_using_godicom(dicom_path, '/tmp/godicom.txt')
-    subprocess.check_call(['/usr/bin/diff', '/tmp/pydicom.txt', '/tmp/godicom.txt'])
+
+    # Ignore an item headers. Pydicom flattens all the Items in a sequence, so
+    # the item headers aren't shown. On the other hand, godicom preserves the
+    # hierarchy.
+    if subprocess.call(['/usr/bin/diff', '-w',
+                        '--ignore-matching-lines', 'fffe, e000',
+                        '/tmp/pydicom.txt', '/tmp/godicom.txt']) != 0:
+        logging.error("pydicom and godicom produced different results. Outputs are in /tmp/pydicom.txt and /tmp/godicom.txt")
+        sys.exit(1)
+
+def main():
+    dicom_path = sys.argv[1]
+    if os.path.isdir(dicom_path):
+        for dirpath, dirnames, filenames in os.walk(dicom_path):
+            for filename in filenames:
+                if filename.endswith(".dcm"):
+                    process_one_file(os.path.join(dirpath, filename))
+    else:
+        process_one_file(dicom_path)
+
 main()
