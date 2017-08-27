@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
@@ -135,6 +136,51 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 		offsets = append(offsets, subdecoder.DecodeUInt32())
 	}
 	return offsets
+}
+
+// Consume the DICOM magic header and metadata elements from a Dicom
+// file. Errors are reported through d.Error().
+func ParseFileHeader(d *Decoder) []DicomElement {
+	d.PushTransferSyntax(binary.LittleEndian, ExplicitVR)
+	defer d.PopTransferSyntax()
+	d.Skip(128) // skip preamble
+
+	// check for magic word
+	if s := d.DecodeString(4); s != "DICM" {
+		d.SetError(errors.New("Keyword 'DICM' not found in the header"))
+		return nil
+	}
+
+	// (0002,0000) MetaElementGroupLength
+	metaElem := ReadDataElement(d)
+	if d.Error() != nil {
+		return nil
+	}
+	if metaElem.Tag != TagMetaElementGroupLength {
+		d.SetError(fmt.Errorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String()))
+	}
+	metaLength, err := GetUInt32(*metaElem)
+	if err != nil {
+		d.SetError(fmt.Errorf("Failed to read uint32 in MetaElementGroupLength: %v", err))
+		return nil
+	}
+	if d.Len() <= 0 {
+		d.SetError(fmt.Errorf("No data element found"))
+		return nil
+	}
+	metaElems := []DicomElement{*metaElem}
+
+	// Read meta tags
+	d.PushLimit(int64(metaLength))
+	defer d.PopLimit()
+	for d.Len() > 0 {
+		elem := ReadDataElement(d)
+		if d.Error() != nil {
+			break
+		}
+		metaElems = append(metaElems, *elem)
+	}
+	return metaElems
 }
 
 // Read a DICOM data element. Errors are reported through d.Error(). The caller
@@ -411,95 +457,4 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v", vl, vr))
 	}
 	return elem, vr, vl
-}
-
-// EncodeDataElement encodes one data element. "tag" must be for a scalar
-// value. That is, SQ elements are not supported yet. Errors are reported
-// through e.Error() and/or E.Finish().
-//
-// REQUIRES: Each value in values[] must match the VR of the tag. E.g., if tag
-// is for UL, then each value must be uint32.
-func EncodeDataElement(e *Encoder, elem *DicomElement) {
-	vr := elem.Vr
-	if elem.Vl == UndefinedLength {
-		log.Panicf("Encoding undefined-length element not yet supported: %v", elem)
-	}
-	entry, err := LookupTag(elem.Tag)
-	if vr == "" {
-		if err == nil {
-			vr = entry.VR
-		} else {
-			vr = "UN"
-		}
-	} else {
-		if err == nil && entry.VR != vr {
-			e.SetError(fmt.Errorf("VR value mismatch. DicomElement.Vr=%v, but tag is for %v",
-				vr, entry.VR))
-			return
-		}
-	}
-	doassert(vr != "")
-	sube := NewEncoder(e.TransferSyntax())
-	for _, value := range elem.Value {
-		switch vr {
-		case "US":
-			sube.EncodeUInt16(value.(uint16))
-		case "UL":
-			sube.EncodeUInt32(value.(uint32))
-		case "SL":
-			sube.EncodeInt32(value.(int32))
-		case "SS":
-			sube.EncodeInt16(value.(int16))
-		case "FL":
-			sube.EncodeFloat32(value.(float32))
-		case "FD":
-			sube.EncodeFloat64(value.(float64))
-		case "OW":
-			fallthrough // TODO(saito) Check that size is even. Byte swap??
-		case "OB":
-			bytes := value.([]byte)
-			sube.EncodeBytes(bytes)
-			if len(bytes)%2 == 1 {
-				sube.EncodeByte(0)
-			}
-		case "AT":
-			fallthrough
-		case "NA":
-			fallthrough
-		case "SQ":
-			sube.SetError(fmt.Errorf("Encoding tag %v not supported yet", vr))
-		default:
-			{
-				s := value.(string)
-				sube.EncodeString(s)
-				if len(s)%2 == 1 {
-					sube.EncodeByte(0)
-				}
-			}
-		}
-	}
-	bytes, err := sube.Finish()
-	if err != nil {
-		e.SetError(err)
-		return
-	}
-	doassert(len(bytes)%2 == 0)
-	e.EncodeUInt16(elem.Tag.Group)
-	e.EncodeUInt16(elem.Tag.Element)
-	if _, implicit := e.TransferSyntax(); implicit == ExplicitVR {
-		doassert(len(vr) == 2)
-		e.EncodeString(vr)
-		switch vr {
-		case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
-			e.EncodeZeros(2) // two bytes for "future use" (0000H)
-			e.EncodeUInt32(uint32(len(bytes)))
-		default:
-			e.EncodeUInt16(uint16(len(bytes)))
-		}
-
-	} else {
-		doassert(implicit == ImplicitVR)
-		e.EncodeUInt32(uint32(len(bytes)))
-	}
-	e.EncodeBytes(bytes)
 }
