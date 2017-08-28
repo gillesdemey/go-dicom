@@ -3,13 +3,13 @@
 This is a fork of github.com/gillesdemey/go-dicom. Changes are:
 
 - Many bug fixes, especially around handling of sequences.
+- Handle non-ASCII characters more properly.
 - Simplify the API. All the functions are synchronous.
 - Better library supports around tags & uids.
 - Rudimentary support for writing DICOM files. This part is not complete yet.
 - Adds fuzz tests and tests that ensure compatibility with pydicom.
 
 TODO:
-- Non-utf8 coding system support.
 - A multi-image file. Functionality is almost there, but I haven't had time to complete it.
 - Native pixeldata format. It'll be parsed as just []byte.
 

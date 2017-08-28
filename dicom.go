@@ -25,7 +25,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/charmap"
 	"io"
+	"log"
 )
 
 // UID prefix provided by https://www.medicalconnections.co.uk/Free_UID
@@ -67,8 +70,29 @@ type DicomElement struct {
 	// If Vr=="SL", Value[] is a list of int32s
 	// If Vr=="FL", Value[] is a list of float32s
 	// If Vr=="FD", Value[] is a list of float64s
+	// If Vr=="AT", Value[] is a list of Tag's.
 	// Else, Value[] is a list of strings.
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
+}
+
+// Convert DICOM character encoding names, such as "ISO-IR 100" to golang
+// decoder. Cf. P3.2
+// D.6.2. http://dicom.nema.org/medical/dicom/2016d/output/chtml/part02/sect_D.6.2.html
+func parseSpecificCharacterSet(name string) (*encoding.Decoder, error) {
+	switch name {
+	case "ISO_IR 100":
+		return charmap.ISO8859_1.NewDecoder(), nil
+	case "ISO_IR 101":
+		return charmap.ISO8859_2.NewDecoder(), nil
+	case "ISO_IR 109":
+		return charmap.ISO8859_3.NewDecoder(), nil
+	case "ISO_IR 110":
+		return charmap.ISO8859_4.NewDecoder(), nil
+	default:
+		// TODO(saito) Suppor more chars.
+		log.Printf("Unknown character set '%s'. Assuming utf-8", name)
+		return nil, nil
+	}
 }
 
 // ParseBytes(buf) is shorthand for Parse(bytes.NewBuffer(buf), len(buf)).
@@ -113,6 +137,25 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 		elem := ReadDataElement(buffer)
 		if buffer.Error() != nil {
 			break
+		}
+		if elem.Tag == TagSpecificCharacterSet {
+			// Set the []byte -> string decoder for the rest of the
+			// file.  It's sad that SpecificCharacterSet isn't part
+			// of metadata, but is part of regular attrs, so we need
+			// to watch out for multiple occurrences of this type of
+			// elements.
+			encoderName, err := GetString(*elem)
+			if err != nil {
+				buffer.SetError(err)
+				break
+			}
+			newDecoder, err := parseSpecificCharacterSet(encoderName)
+			if err != nil {
+				buffer.SetError(err)
+			} else {
+				log.Printf("Using new character set %v", encoderName)
+				buffer.SetStringDecoder(newDecoder)
+			}
 		}
 		file.Elements = append(file.Elements, *elem)
 	}

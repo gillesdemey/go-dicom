@@ -77,22 +77,14 @@ func printScalar(vr string, i interface{}, indent int) string {
 				v= e.Name
 			}
 		}
-		if indent == 0 {
-			s = fmt.Sprintf("'%s'", v)
-		} else {
-			s = fmt.Sprintf("%s", v)
-		}
+		s = fmt.Sprintf("%s", v)
 	case dicom.Tag:
-		if indent == 0 {
-			s = fmt.Sprintf("'%s'", v.String())
-		} else {
-			return v.String()
-		}
+		return v.String()
+
 	default:
 		s = fmt.Sprintf("%v", i)
 	}
 	return s
-
 }
 
 func printTag(tag dicom.Tag) string {

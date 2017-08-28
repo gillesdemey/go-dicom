@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"golang.org/x/text/encoding"
 	"io"
 )
 
@@ -71,6 +72,7 @@ func (e *Encoder) SetError(err error) {
 // Finish() must be called after all the data are encoded.  It returns the
 // serialized payload, or error if any.
 func (e *Encoder) Finish() ([]byte, error) {
+	doassert(len(e.oldTransferSyntaxes) == 0)
 	return e.buf.Bytes(), e.err
 }
 
@@ -137,13 +139,18 @@ type Decoder struct {
 	implicit IsImplicitVR
 	// Max bytes to read from "in".
 	limit int64
+	// Cumulative # bytes read.
+	pos int64
+
+	// For decoding raw strings in DICOM file into utf-8.
+	// If nil, assume ASCII. Cf P3.5 6.1.2.1
+	stringDecoder *encoding.Decoder
+
 	// Stack of old transfer syntaxes. Used by {Push,Pop}TransferSyntax.
 	oldTransferSyntaxes []transferSyntaxStackEntry
 	// Stack of old limits. Used by {Push,Pop}Limit.
 	// INVARIANT: oldLimits[] store values in decreasing order.
 	oldLimits []int64
-	// Cumulative # bytes read.
-	pos int64
 }
 
 // NewDecoder creates a decoder object that reads up to "limit" bytes from "in".
@@ -192,13 +199,17 @@ func (d *Decoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR)
 	d.implicit = implicit
 }
 
+func (d *Decoder) SetStringDecoder(ds *encoding.Decoder) {
+	d.stringDecoder = ds
+}
+
 // Restore the encoding format active before the last call to
 // PushTransferSyntax().
 func (d *Decoder) PopTransferSyntax() {
 	e := d.oldTransferSyntaxes[len(d.oldTransferSyntaxes)-1]
-	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
 	d.bo = e.bo
 	d.implicit = e.implicit
+	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
 }
 
 // Temporarily override the end of the buffer. PopLimit() will restore the old
@@ -325,7 +336,21 @@ func (d *Decoder) DecodeFloat64() (v float64) {
 }
 
 func (d *Decoder) DecodeString(length int) string {
-	return string(d.DecodeBytes(length))
+	bytes := d.DecodeBytes(length)
+	if len(bytes) == 0 {
+		return ""
+	}
+	if d.stringDecoder == nil {
+		// Assume that UTF-8 is a superset of ASCII.
+		// TODO(saito) check that string is 7-bit clean.
+		return string(bytes)
+	}
+	bytes, err := d.stringDecoder.Bytes(bytes)
+	if err != nil {
+		d.SetError(err)
+		return ""
+	}
+	return string(bytes)
 }
 
 func (d *Decoder) DecodeBytes(length int) []byte {

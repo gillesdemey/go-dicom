@@ -1,9 +1,12 @@
 #!/usr/bin/env python3.6
 
+import io
 import logging
 import os
+import re
 import subprocess
 import sys
+import tempfile
 
 #sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
 #sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
@@ -43,15 +46,29 @@ def recurse_tree(dataset, out: IO[str], nest_level: int):
 def print_file_using_pydicom(dicom_path: str, out_path: str):
     ds = pydicom.read_file(dicom_path)
     ds.decode()
+    tmp = io.StringIO()
+    recurse_tree(ds, tmp, 0)
+
+    # Remove single quotes around string. I can't tell any rule about quotes are
+    # added, so just strip them unconditionalyl.
     with open(out_path, 'w') as out:
-        recurse_tree(ds, out, 0)
+        out.write(tmp.getvalue().replace("'", ''))
 
 def print_file_using_godicom(dicom_path: str, out_path: str):
-    with open(out_path, 'w') as out:
+    with tempfile.TemporaryFile(mode='w+b') as tmp:
         subprocess.check_call(['./pydicomtest', dicom_path],
-                              stdout=out)
+                              stdout=tmp)
+        tmp.seek(0)
+        with open(out_path, 'wb') as out:
+            out.write(tmp.read().replace(b"'", b''))
 
 def process_one_file(dicom_path: str):
+    if (dicom_path.endswith('ExplVR_BigEndNoMeta.dcm') or
+        dicom_path.endswith('ExplVR_LitEndNoMeta.dcm') or
+        dicom_path.endswith('OT-PAL-8-face.dcm')):
+        logging.info("Skip %s, it is known to be broken", dicom_path)
+        return
+
     logging.info("Compare %s", dicom_path)
     print_file_using_pydicom(dicom_path, '/tmp/pydicom.txt')
     print_file_using_godicom(dicom_path, '/tmp/godicom.txt')

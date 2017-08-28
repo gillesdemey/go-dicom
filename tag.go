@@ -4007,6 +4007,7 @@ var (
 	TagImplementationClassUID         Tag
 	TagImplementationVersionName      Tag
 	TagTransferSyntaxUID              Tag
+	TagSpecificCharacterSet           Tag
 
 	// Tag for image data. Usually the last element in a DICOM file.
 	TagPixelData Tag
@@ -4055,6 +4056,7 @@ func init() {
 	TagImplementationClassUID = MustLookupTag(Tag{2, 0x12}).Tag
 	TagImplementationVersionName = MustLookupTag(Tag{2, 0x13}).Tag
 
+	TagSpecificCharacterSet = MustLookupTag(Tag{8, 5}).Tag
 	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
 }
 

@@ -138,8 +138,8 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 	return offsets
 }
 
-// Consume the DICOM magic header and metadata elements from a Dicom
-// file. Errors are reported through d.Error().
+// Consume the DICOM magic header and metadata elements (whose elements with tag
+// group==2) from a Dicom file. Errors are reported through d.Error().
 func ParseFileHeader(d *Decoder) []DicomElement {
 	d.PushTransferSyntax(binary.LittleEndian, ExplicitVR)
 	defer d.PopTransferSyntax()
@@ -343,7 +343,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			// TODO(saito) Check that size is even. Byte swap??
 			// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
 			data = append(data, d.DecodeBytes(int(vl)))
-		} else if vr == "LT" {
+		} else if vr == "LT" || vr == "UT" {
 			str := d.DecodeString(int(vl))
 			data = append(data, str)
 		} else if vr == "UL" {
