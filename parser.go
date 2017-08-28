@@ -186,7 +186,6 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 // Read a DICOM data element. Errors are reported through d.Error(). The caller
 // must check d.Error() before using the returned value.
 func ReadDataElement(d *Decoder) *DicomElement {
-	initialPos := d.Pos()
 	tag := readTag(d)
 	var elem *DicomElement
 	var vr string     // Value Representation
@@ -320,7 +319,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		}
 	} else {
 		if vl == UndefinedLength {
-			d.SetError(fmt.Errorf("Undefined length found at offset %d for element with VR=%s", initialPos, vr))
+			d.SetError(fmt.Errorf("Undefined length found at offset for element with VR=%s", vr))
 			return nil
 		}
 		d.PushLimit(int64(vl))

@@ -270,7 +270,7 @@ func (d *Decoder) Len() int64 {
 func (d *Decoder) DecodeByte() (v byte) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
-		d.err = err
+		d.SetError(err)
 		return 0
 	}
 	return v
@@ -330,8 +330,8 @@ func (d *Decoder) DecodeString(length int) string {
 
 func (d *Decoder) DecodeBytes(length int) []byte {
 	if d.Len() < int64(length) {
-		d.err = fmt.Errorf("DecodeBytes: requested %d, available %d",
-			length, d.Len())
+		d.SetError(fmt.Errorf("DecodeBytes: requested %d, available %d",
+			length, d.Len()))
 		return nil
 	}
 	v := make([]byte, length)
