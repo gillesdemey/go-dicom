@@ -48,6 +48,21 @@ func (di *DicomFile) Discard(in <-chan DicomMessage, done *sync.WaitGroup) {
 
 }
 
+// Discard messages and not store pixel data
+func (di *DicomFile) DiscardPixel(in <-chan DicomMessage, done *sync.WaitGroup) {
+	done.Add(1)
+	go func() {
+		for dcmMsg := range in {
+			dcmMsg.wait <- true
+			if dcmMsg.msg.Name != "PixelData" {
+				di.Elements = append(di.Elements, *dcmMsg.msg)
+			}
+		}
+		done.Done()
+	}()
+
+}
+
 func fileName(folder string, i int, ext string) string {
 	basename := fp.Base(folder)
 	filename := basename + "_" + fmt.Sprintf("%03d\n", i)
