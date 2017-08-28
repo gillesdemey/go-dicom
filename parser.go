@@ -322,9 +322,16 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		d.PushLimit(int64(vl))
 		defer d.PopLimit()
 		if vr == "DA" {
-			// 8-byte Date string
+			// 8-byte Date string of form 19930822 or 10-byte
+			// ACR-NEMA300 string of form "1993.08.22". The latter
+			// is not compliant according to P3.5 6.2, but it still
+			// happens in real life.
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeString(8))
+				date := d.DecodeString(8)
+				if strings.Contains(date, ".") {
+					date += d.DecodeString(2)
+				}
+				data = append(data, date)
 			}
 		} else if vr == "AT" {
 			// (2byte group, 2byte elem)
