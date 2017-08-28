@@ -292,19 +292,16 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		// Parse Item.
 		if vl == UndefinedLength {
 			// Format: Item Any* ItemDelimitationItem
-			log.Printf("Start undefined item")
 			for {
 				subelem := ReadDataElement(d)
 				if d.Error() != nil {
 					break
 				}
-				log.Printf("Read elem: %v", TagDebugString(subelem.Tag))
 				if subelem.Tag == tagItemDelimitationItem {
 					break
 				}
 				data = append(data, subelem)
 			}
-			log.Printf("End undefined item: %v", d.Error())
 		} else {
 			// Sequence of arbitary elements, for the  total of "vl" bytes.
 			d.PushLimit(int64(vl))

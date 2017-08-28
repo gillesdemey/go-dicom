@@ -62,7 +62,7 @@ func main() {
 	printElements(data.Elements, 0)
 }
 
-func printScalar(i interface{}, indent int) string {
+func printScalar(vr string, i interface{}, indent int) string {
 	var s string
 	switch v := i.(type) {
 	case float32:
@@ -70,15 +70,29 @@ func printScalar(i interface{}, indent int) string {
 	case float64:
 		s = fmt.Sprintf("%.4f", v)
 	case string:
+		if vr == "UI" {
+			// Resolve UID
+			e, err := dicom.LookupUID(v)
+			if err == nil {
+				v= e.Name
+			}
+		}
 		if indent == 0 {
 			s = fmt.Sprintf("'%s'", v)
 		} else {
-			s = fmt.Sprintf("%v", i)
+			s = fmt.Sprintf("%s", v)
+		}
+	case dicom.Tag:
+		if indent == 0 {
+			s = fmt.Sprintf("'%s'", v.String())
+		} else {
+			return v.String()
 		}
 	default:
 		s = fmt.Sprintf("%v", i)
 	}
 	return s
+
 }
 
 func printTag(tag dicom.Tag) string {
@@ -119,20 +133,6 @@ func printElement(elem *dicom.DicomElement, indent int) {
 			n--
 		}
 		fmt.Printf(" %dB\n", n)
-	} else if elem.Vr == "UI" {
-		// Resolve UIDs if possible.
-		uid := dicom.MustGetString(*elem)
-		e, err := dicom.LookupUID(uid)
-		if err == nil {
-			uid = e.Name
-		}
-		fmt.Printf(" %s\n", uid)
-	} else if elem.Vr == "AT" {
-		if len(elem.Value) != 1 {
-			log.Panic(elem)
-		}
-		tag := elem.Value[0].(dicom.Tag)
-		fmt.Printf(" %s\n", printTag(tag))
 	} else if elem.Vr == "SQ" {
 		var childElems []dicom.DicomElement
 		if len(elem.Value) == 1 {
@@ -174,7 +174,7 @@ func printElement(elem *dicom.DicomElement, indent int) {
 		if len(elem.Value) == 0 {
 			fmt.Print("\n")
 		} else if len(elem.Value) == 1 {
-			fmt.Printf(" %s\n", printScalar(elem.Value[0], 1))
+			fmt.Printf(" %s\n", printScalar(elem.Vr, elem.Value[0], 1))
 		} else {
 			fmt.Print(" [")
 			for i, value := range elem.Value {
@@ -182,15 +182,9 @@ func printElement(elem *dicom.DicomElement, indent int) {
 					fmt.Print(", ")
 				}
 				// Follow the pydicom's printing format.  It
-				// encloses the value in '...' only at the
+				// encloses the value in quotes only at the
 				// toplevel.
-				if indent == 0 {
-					//fmt.Print("'")
-				}
-				fmt.Print(printScalar(value, indent))
-				if indent == 0 {
-					//fmt.Print("'")
-				}
+				fmt.Print(printScalar(elem.Vr, value, indent))
 			}
 			fmt.Print("]\n")
 		}

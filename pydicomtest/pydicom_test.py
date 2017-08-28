@@ -5,8 +5,8 @@ import os
 import subprocess
 import sys
 
-sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
-sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
+#sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
+#sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
 import pydicom
 from typing import IO
 
@@ -67,6 +67,7 @@ def process_one_file(dicom_path: str):
 
 def main():
     dicom_path = sys.argv[1]
+    subprocess.check_call(['go', 'build', '.'])
     if os.path.isdir(dicom_path):
         for dirpath, dirnames, filenames in os.walk(dicom_path):
             for filename in filenames:
