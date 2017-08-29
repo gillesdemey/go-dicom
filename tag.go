@@ -4101,8 +4101,8 @@ func LookupTagByName(name string) (TagInfo, error) {
 	return TagInfo{}, fmt.Errorf("Could not find tag with name %s", name)
 }
 
-// TagDebugString returns a human-readable diagnostic string for the tag
-func TagDebugString(tag Tag) string {
+// TagString returns a human-readable diagnostic string for the tag
+func TagString(tag Tag) string {
 	e, err := LookupTag(tag)
 	if err != nil {
 		return fmt.Sprintf("(%04x,%04x)[??]", tag.Group, tag.Element)

@@ -74,14 +74,14 @@ func (e *DicomElement) MustGetString() string {
 	return v
 }
 
-func elementDebugString(e *DicomElement, nestLevel int) string {
+func elementString(e *DicomElement, nestLevel int) string {
 	doassert(nestLevel < 10)
 	s := strings.Repeat(" ", nestLevel)
 	sVl := fmt.Sprintf("%d", e.Vl)
 	if e.Vl == UndefinedLength {
 		sVl = "UNDEF"
 	}
-	s = fmt.Sprintf("%s %s %s %s ", s, TagDebugString(e.Tag), e.Vr, sVl)
+	s = fmt.Sprintf("%s %s %s %s ", s, TagString(e.Tag), e.Vr, sVl)
 	if e.Vr != "SQ" {
 		sv := fmt.Sprintf("%v", e.Value)
 		if len(sv) > 50 {
@@ -92,7 +92,7 @@ func elementDebugString(e *DicomElement, nestLevel int) string {
 		s += " seq:\n"
 		for _, v := range e.Value {
 			item := v.(*DicomElement)
-			s += elementDebugString(item, nestLevel+1)
+			s += elementString(item, nestLevel+1)
 		}
 	}
 	return s
@@ -100,7 +100,7 @@ func elementDebugString(e *DicomElement, nestLevel int) string {
 
 // Stringer
 func (e *DicomElement) String() string {
-	return elementDebugString(e, 0)
+	return elementString(e, 0)
 }
 
 // Read an Item object as raw bytes, w/o parsing them into DataElement. Used to
@@ -127,7 +127,7 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 		d.SetError(fmt.Errorf("Expect NA item, but found %s", vr))
 		return nil, true
 	}
-	return d.DecodeBytes(int(vl)), false
+	return d.ReadBytes(int(vl)), false
 }
 
 // Read the basic offset table. This is the first Item object embedded inside
@@ -145,7 +145,7 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 	subdecoder := NewBytesDecoder(data, d.bo, ImplicitVR)
 	var offsets []uint32
 	for subdecoder.Len() > 0 && subdecoder.Error() == nil {
-		offsets = append(offsets, subdecoder.DecodeUInt32())
+		offsets = append(offsets, subdecoder.ReadUInt32())
 	}
 	return offsets
 }
@@ -158,7 +158,7 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 	d.Skip(128) // skip preamble
 
 	// check for magic word
-	if s := d.DecodeString(4); s != "DICM" {
+	if s := d.ReadString(4); s != "DICM" {
 		d.SetError(errors.New("Keyword 'DICM' not found in the header"))
 		return nil
 	}
@@ -265,7 +265,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			data = append(data, bytes)
 		} else {
 			log.Printf("Warning: defined-length pixel data not supported: tag %v, VR=%v, VL=%v", tag.String(), vr, vl)
-			data = append(data, d.DecodeBytes(int(vl)))
+			data = append(data, d.ReadBytes(int(vl)))
 		}
 		// TODO(saito) handle multi-frame image.
 	} else if vr == "SQ" {
@@ -283,7 +283,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 					break
 				}
 				if item.Tag != TagItem {
-					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagDebugString(item.Tag)))
+					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagString(item.Tag)))
 					break
 				}
 				data = append(data, item)
@@ -300,7 +300,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 					break
 				}
 				if item.Tag != TagItem {
-					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagDebugString(item.Tag)))
+					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagString(item.Tag)))
 					break
 				}
 				data = append(data, item)
@@ -334,8 +334,8 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		}
 	} else {
 		if vl == UndefinedLength {
-			panic(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagDebugString(tag)))
-			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagDebugString(tag)))
+			panic(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
+			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
 			return nil
 		}
 		d.PushLimit(int64(vl))
@@ -346,52 +346,52 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			// is not compliant according to P3.5 6.2, but it still
 			// happens in real life.
 			for d.Len() > 0 && d.Error() == nil {
-				date := d.DecodeString(8)
+				date := d.ReadString(8)
 				if strings.Contains(date, ".") {
-					date += d.DecodeString(2)
+					date += d.ReadString(2)
 				}
 				data = append(data, date)
 			}
 		} else if vr == "AT" {
 			// (2byte group, 2byte elem)
 			for d.Len() > 0 && d.Error() == nil {
-				tag := Tag{d.DecodeUInt16(), d.DecodeUInt16()}
+				tag := Tag{d.ReadUInt16(), d.ReadUInt16()}
 				data = append(data, tag)
 			}
 		} else if vr == "OW" || vr == "OB" {
 			// TODO(saito) Check that size is even. Byte swap??
 			// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
-			data = append(data, d.DecodeBytes(int(vl)))
+			data = append(data, d.ReadBytes(int(vl)))
 		} else if vr == "LT" || vr == "UT" {
-			str := d.DecodeString(int(vl))
+			str := d.ReadString(int(vl))
 			data = append(data, str)
 		} else if vr == "UL" {
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeUInt32())
+				data = append(data, d.ReadUInt32())
 			}
 		} else if vr == "SL" {
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeInt32())
+				data = append(data, d.ReadInt32())
 			}
 		} else if vr == "US" {
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeUInt16())
+				data = append(data, d.ReadUInt16())
 			}
 		} else if vr == "SS" {
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeInt16())
+				data = append(data, d.ReadInt16())
 			}
 		} else if vr == "FL" {
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeFloat32())
+				data = append(data, d.ReadFloat32())
 			}
 		} else if vr == "FD" {
 			for d.Len() > 0 && d.Error() == nil {
-				data = append(data, d.DecodeFloat64())
+				data = append(data, d.ReadFloat64())
 			}
 		} else {
 			// List of strings, each delimited by '\\'.
-			v := d.DecodeString(int(vl))
+			v := d.ReadString(int(vl))
 			// String may have '\0' suffix if its length is odd.
 			str := strings.Trim(v, " \000")
 			if len(str) > 0 {
@@ -411,8 +411,8 @@ const UndefinedLength uint32 = 0xfffffffe // must be even.
 // ie. (0002,0000)
 // added  Value Multiplicity PS 3.5 6.4
 func readTag(buffer *Decoder) Tag {
-	group := buffer.DecodeUInt16()   // group
-	element := buffer.DecodeUInt16() // element
+	group := buffer.ReadUInt16()   // group
+	element := buffer.ReadUInt16() // element
 	return Tag{group, element}
 }
 
@@ -424,14 +424,14 @@ func readImplicit(buffer *Decoder, tag Tag) (string, uint32) {
 		vr = entry.VR
 	}
 
-	vl := buffer.DecodeUInt32()
+	vl := buffer.ReadUInt32()
 	// Rectify Undefined Length VL
 	if vl == 0xffffffff {
 		vl = UndefinedLength
 	}
 	// Error when encountering odd length
 	if vl > 0 && vl%2 != 0 {
-		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading implicit VR '%v' for tag %s", vl, vr, TagDebugString(tag)))
+		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading implicit VR '%v' for tag %s", vl, vr, TagString(tag)))
 	}
 	return vr, vl
 }
@@ -439,7 +439,7 @@ func readImplicit(buffer *Decoder, tag Tag) (string, uint32) {
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
 func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
-	vr := buffer.DecodeString(2)
+	vr := buffer.ReadString(2)
 	// buffer.p += 2
 
 	var vl uint32
@@ -451,7 +451,7 @@ func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
 	switch vr {
 	case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
 		buffer.Skip(2) // ignore two bytes for "future use" (0000H)
-		vl = buffer.DecodeUInt32()
+		vl = buffer.ReadUInt32()
 		// Rectify Undefined Length VL
 		if vl == 0xffffffff {
 			switch vr {
@@ -462,7 +462,7 @@ func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
 			}
 		}
 	default:
-		vl = uint32(buffer.DecodeUInt16())
+		vl = uint32(buffer.ReadUInt16())
 		// Rectify Undefined Length VL
 		if vl == 0xffff {
 			vl = UndefinedLength
@@ -470,7 +470,7 @@ func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
 	}
 	// Error when encountering odd length
 	if vl > 0 && vl%2 != 0 {
-		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagDebugString(tag)))
+		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag)))
 	}
 	return vr, vl
 }

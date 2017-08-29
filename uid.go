@@ -449,8 +449,8 @@ func MustLookupUID(uid string) UIDInfo {
 	return e
 }
 
-// UidDebugString returns a human-readable diagnostic string for a DICOM UID.
-func UIDDebugString(uid string) string {
+// UidString returns a human-readable diagnostic string for a DICOM UID.
+func UIDString(uid string) string {
 	e, ok := uidDict[uid]
 	if !ok {
 		return fmt.Sprintf("%s[??]", uid)

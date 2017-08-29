@@ -76,47 +76,47 @@ func (e *Encoder) Finish() ([]byte, error) {
 	return e.buf.Bytes(), e.err
 }
 
-func (e *Encoder) EncodeByte(v byte) {
+func (e *Encoder) WriteByte(v byte) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeUInt16(v uint16) {
+func (e *Encoder) WriteUInt16(v uint16) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeUInt32(v uint32) {
+func (e *Encoder) WriteUInt32(v uint32) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeInt16(v int16) {
+func (e *Encoder) WriteInt16(v int16) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeInt32(v int32) {
+func (e *Encoder) WriteInt32(v int32) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeFloat32(v float32) {
+func (e *Encoder) WriteFloat32(v float32) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeFloat64(v float64) {
+func (e *Encoder) WriteFloat64(v float64) {
 	binary.Write(e.buf, e.bo, &v)
 }
 
-func (e *Encoder) EncodeString(v string) {
+func (e *Encoder) WriteString(v string) {
 	e.buf.Write([]byte(v))
 }
 
 // Encode an array of zero bytes.
-func (e *Encoder) EncodeZeros(len int) {
+func (e *Encoder) WriteZeros(len int) {
 	// TODO(saito) reuse the buffer!
 	zeros := make([]byte, len)
 	e.buf.Write(zeros)
 }
 
 // Copy the given data to the output.
-func (e *Encoder) EncodeBytes(v []byte) {
+func (e *Encoder) WriteBytes(v []byte) {
 	e.buf.Write(v)
 }
 
@@ -298,9 +298,9 @@ func (d *Decoder) Len() int64 {
 	return d.limit - d.pos
 }
 
-// DecodeByte() reads a single byte from the buffer. On EOF, it returns a junk
+// ReadByte() reads a single byte from the buffer. On EOF, it returns a junk
 // value, and sets an error to be returned by Error() or Finish().
-func (d *Decoder) DecodeByte() (v byte) {
+func (d *Decoder) ReadByte() (v byte) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -309,7 +309,7 @@ func (d *Decoder) DecodeByte() (v byte) {
 	return v
 }
 
-func (d *Decoder) DecodeUInt32() (v uint32) {
+func (d *Decoder) ReadUInt32() (v uint32) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -317,7 +317,7 @@ func (d *Decoder) DecodeUInt32() (v uint32) {
 	return v
 }
 
-func (d *Decoder) DecodeInt32() (v int32) {
+func (d *Decoder) ReadInt32() (v int32) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -325,7 +325,7 @@ func (d *Decoder) DecodeInt32() (v int32) {
 	return v
 }
 
-func (d *Decoder) DecodeUInt16() (v uint16) {
+func (d *Decoder) ReadUInt16() (v uint16) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -333,7 +333,7 @@ func (d *Decoder) DecodeUInt16() (v uint16) {
 	return v
 }
 
-func (d *Decoder) DecodeInt16() (v int16) {
+func (d *Decoder) ReadInt16() (v int16) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -341,7 +341,7 @@ func (d *Decoder) DecodeInt16() (v int16) {
 	return v
 }
 
-func (d *Decoder) DecodeFloat32() (v float32) {
+func (d *Decoder) ReadFloat32() (v float32) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -349,7 +349,7 @@ func (d *Decoder) DecodeFloat32() (v float32) {
 	return v
 }
 
-func (d *Decoder) DecodeFloat64() (v float64) {
+func (d *Decoder) ReadFloat64() (v float64) {
 	err := binary.Read(d, d.bo, &v)
 	if err != nil {
 		d.SetError(err)
@@ -357,9 +357,8 @@ func (d *Decoder) DecodeFloat64() (v float64) {
 	return v
 }
 
-func internalDecodeString(d *Decoder, sd *encoding.Decoder, length int) string {
-
-	bytes := d.DecodeBytes(length)
+func internalReadString(d *Decoder, sd *encoding.Decoder, length int) string {
+	bytes := d.ReadBytes(length)
 	if len(bytes) == 0 {
 		return ""
 	}
@@ -376,7 +375,7 @@ func internalDecodeString(d *Decoder, sd *encoding.Decoder, length int) string {
 	return string(bytes)
 }
 
-func (d *Decoder) DecodeStringWithCodingSystem(csType CodingSystemType, length int) string {
+func (d *Decoder) ReadStringWithCodingSystem(csType CodingSystemType, length int) string {
 	var sd *encoding.Decoder
 	switch csType {
 	case AlphabeticCodingSystem:
@@ -388,17 +387,16 @@ func (d *Decoder) DecodeStringWithCodingSystem(csType CodingSystemType, length i
 	default:
 		panic(csType)
 	}
-	return internalDecodeString(d, sd, length)
+	return internalReadString(d, sd, length)
 }
 
-func (d *Decoder) DecodeString(length int) string {
-	return internalDecodeString(d, d.codingSystem.Ideographic, length)
+func (d *Decoder) ReadString(length int) string {
+	return internalReadString(d, d.codingSystem.Ideographic, length)
 }
 
-func (d *Decoder) DecodeBytes(length int) []byte {
+func (d *Decoder) ReadBytes(length int) []byte {
 	if d.Len() < int64(length) {
-		d.SetError(fmt.Errorf("DecodeBytes: requested %d, available %d",
-			length, d.Len()))
+		d.SetError(fmt.Errorf("ReadBytes: requested %d, available %d", length, d.Len()))
 		return nil
 	}
 	v := make([]byte, length)

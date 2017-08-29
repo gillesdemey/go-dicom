@@ -38,10 +38,10 @@ func WriteFileHeader(e *Encoder,
 		return
 	}
 
-	e.EncodeZeros(128)
-	e.EncodeString("DICM")
+	e.WriteZeros(128)
+	e.WriteString("DICM")
 	encodeSingleValue(e, TagMetaElementGroupLength, uint32(len(metaBytes)))
-	e.EncodeBytes(metaBytes)
+	e.WriteBytes(metaBytes)
 }
 
 // EncodeDataElement encodes one data element. "tag" must be for a scalar
@@ -74,24 +74,24 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	for _, value := range elem.Value {
 		switch vr {
 		case "US":
-			sube.EncodeUInt16(value.(uint16))
+			sube.WriteUInt16(value.(uint16))
 		case "UL":
-			sube.EncodeUInt32(value.(uint32))
+			sube.WriteUInt32(value.(uint32))
 		case "SL":
-			sube.EncodeInt32(value.(int32))
+			sube.WriteInt32(value.(int32))
 		case "SS":
-			sube.EncodeInt16(value.(int16))
+			sube.WriteInt16(value.(int16))
 		case "FL":
-			sube.EncodeFloat32(value.(float32))
+			sube.WriteFloat32(value.(float32))
 		case "FD":
-			sube.EncodeFloat64(value.(float64))
+			sube.WriteFloat64(value.(float64))
 		case "OW":
 			fallthrough // TODO(saito) Check that size is even. Byte swap??
 		case "OB":
 			bytes := value.([]byte)
-			sube.EncodeBytes(bytes)
+			sube.WriteBytes(bytes)
 			if len(bytes)%2 == 1 {
-				sube.EncodeByte(0)
+				sube.WriteByte(0)
 			}
 		case "AT":
 			fallthrough
@@ -101,9 +101,9 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 			sube.SetError(fmt.Errorf("Encoding tag %v not supported yet", vr))
 		default:
 			s := value.(string)
-			sube.EncodeString(s)
+			sube.WriteString(s)
 			if len(s)%2 == 1 {
-				sube.EncodeByte(0)
+				sube.WriteByte(0)
 			}
 		}
 	}
@@ -113,22 +113,22 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		return
 	}
 	doassert(len(bytes)%2 == 0)
-	e.EncodeUInt16(elem.Tag.Group)
-	e.EncodeUInt16(elem.Tag.Element)
+	e.WriteUInt16(elem.Tag.Group)
+	e.WriteUInt16(elem.Tag.Element)
 	if _, implicit := e.TransferSyntax(); implicit == ExplicitVR {
 		doassert(len(vr) == 2)
-		e.EncodeString(vr)
+		e.WriteString(vr)
 		switch vr {
 		case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
-			e.EncodeZeros(2) // two bytes for "future use" (0000H)
-			e.EncodeUInt32(uint32(len(bytes)))
+			e.WriteZeros(2) // two bytes for "future use" (0000H)
+			e.WriteUInt32(uint32(len(bytes)))
 		default:
-			e.EncodeUInt16(uint16(len(bytes)))
+			e.WriteUInt16(uint16(len(bytes)))
 		}
 
 	} else {
 		doassert(implicit == ImplicitVR)
-		e.EncodeUInt32(uint32(len(bytes)))
+		e.WriteUInt32(uint32(len(bytes)))
 	}
-	e.EncodeBytes(bytes)
+	e.WriteBytes(bytes)
 }

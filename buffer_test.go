@@ -10,12 +10,12 @@ import (
 
 func TestBasic(t *testing.T) {
 	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
-	e.EncodeByte(10)
-	e.EncodeByte(11)
-	e.EncodeUInt16(0x123)
-	e.EncodeUInt32(0x234)
-	e.EncodeZeros(12)
-	e.EncodeString("abcde")
+	e.WriteByte(10)
+	e.WriteByte(11)
+	e.WriteUInt16(0x123)
+	e.WriteUInt32(0x234)
+	e.WriteZeros(12)
+	e.WriteString("abcde")
 
 	encoded, err := e.Finish()
 	if err != nil {
@@ -24,21 +24,21 @@ func TestBasic(t *testing.T) {
 	d := dicom.NewDecoder(
 		bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, dicom.ImplicitVR)
-	if v := d.DecodeByte(); v != 10 {
-		t.Errorf("DecodeByte %v", v)
+	if v := d.ReadByte(); v != 10 {
+		t.Errorf("ReadByte %v", v)
 	}
-	if v := d.DecodeByte(); v != 11 {
-		t.Errorf("DecodeByte %v", v)
+	if v := d.ReadByte(); v != 11 {
+		t.Errorf("ReadByte %v", v)
 	}
-	if v := d.DecodeUInt16(); v != 0x123 {
-		t.Errorf("DecodeUint16 %v", v)
+	if v := d.ReadUInt16(); v != 0x123 {
+		t.Errorf("ReadUint16 %v", v)
 	}
-	if v := d.DecodeUInt32(); v != 0x234 {
-		t.Errorf("DecodeUint32 %v", v)
+	if v := d.ReadUInt32(); v != 0x234 {
+		t.Errorf("ReadUint32 %v", v)
 	}
 	d.Skip(12)
-	if v := d.DecodeString(5); v != "abcde" {
-		t.Errorf("DecodeString %v", v)
+	if v := d.ReadString(5); v != "abcde" {
+		t.Errorf("ReadString %v", v)
 	}
 	if d.Len() != 0 {
 		t.Errorf("Len %d", d.Len())
@@ -47,14 +47,14 @@ func TestBasic(t *testing.T) {
 		t.Errorf("!Error %v", d.Error())
 	}
 	// Read past the buffer. It should flag an error
-	if _ = d.DecodeByte(); d.Error() == nil {
+	if _ = d.ReadByte(); d.Error() == nil {
 		t.Errorf("Error %v %v", d.Error())
 	}
 }
 
 func TestSkip(t *testing.T) {
 	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
-	e.EncodeString("abcdefghijk")
+	e.WriteString("abcdefghijk")
 	encoded, err := e.Finish()
 	if err != nil {
 		t.Fatal(encoded)
@@ -65,14 +65,14 @@ func TestSkip(t *testing.T) {
 	if d.Len() != 8 {
 		t.Error("Skip 3; len")
 	}
-	if d.DecodeString(8) != "defghijk" {
+	if d.ReadString(8) != "defghijk" {
 		t.Error("Skip 3; read")
 	}
 }
 
 func TestPartialData(t *testing.T) {
 	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
-	e.EncodeByte(10)
+	e.WriteByte(10)
 	encoded, err := e.Finish()
 	if err != nil {
 		t.Fatal(encoded)
@@ -80,16 +80,16 @@ func TestPartialData(t *testing.T) {
 	// Read uint16, when there's only one byte in buffer.
 	d := dicom.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, dicom.ImplicitVR)
-	if _ = d.DecodeUInt16(); d.Error() == nil {
-		t.Errorf("DecodeUint16")
+	if _ = d.ReadUInt16(); d.Error() == nil {
+		t.Errorf("ReadUint16")
 	}
 }
 
 func TestLimit(t *testing.T) {
 	e := dicom.NewEncoder(binary.BigEndian, dicom.UnknownVR)
-	e.EncodeByte(10)
-	e.EncodeByte(11)
-	e.EncodeByte(12)
+	e.WriteByte(10)
+	e.WriteByte(11)
+	e.WriteByte(12)
 	encoded, err := e.Finish()
 	if err != nil {
 		t.Error(encoded)
@@ -104,11 +104,11 @@ func TestLimit(t *testing.T) {
 	if d.Len() != 2 {
 		t.Errorf("Len %d", d.Len())
 	}
-	v0, v1 := d.DecodeByte(), d.DecodeByte()
+	v0, v1 := d.ReadByte(), d.ReadByte()
 	if d.Len() != 0 {
 		t.Errorf("Len %d", d.Len())
 	}
-	_ = d.DecodeByte()
+	_ = d.ReadByte()
 	if v0 != 10 || v1 != 11 || d.Error() != io.EOF {
 		t.Error("Limit: %v %v %v", v0, v1, d.Error())
 	}

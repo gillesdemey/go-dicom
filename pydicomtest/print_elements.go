@@ -74,7 +74,7 @@ func printScalar(vr string, i interface{}, indent int) string {
 			// Resolve UID
 			e, err := dicom.LookupUID(v)
 			if err == nil {
-				v= e.Name
+				v = e.Name
 			}
 		}
 		s = fmt.Sprintf("%s", v)
