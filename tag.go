@@ -1,6 +1,6 @@
 package dicom
 
-// Dictionary supports looking up DICOM data dictionary as defined in
+// Standard DICOM tag definitions.
 //
 // ftp://medical.nema.org/medical/dicom/2011/11_06pu.pdf
 
@@ -4033,11 +4033,13 @@ type tagDict map[Tag]TagInfo
 
 var singletonDict tagDict
 
+// Lookup a tag in the dictionary, crash on error.
 func standardTag(group, elem uint16) Tag {
 	maybeInitTagDict()
 	return MustLookupTag(Tag{group, elem}).Tag
 }
 
+// Create a new, fully filled dictionary. A nop if called multiple times.
 func maybeInitTagDict() {
 	if len(singletonDict) > 0 {
 		return
@@ -4065,10 +4067,6 @@ func maybeInitTagDict() {
 			Version: row[4],
 		}
 	}
-}
-
-// Create a new, fully filled dictionary.
-func init() {
 }
 
 // LookupTag finds information about the given tag. If the tag is undefined or

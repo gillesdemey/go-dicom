@@ -138,21 +138,6 @@ const (
 	PhoneticCodingSystem
 )
 
-// Defines how a []byte is translated into a utf8 string.
-type CodingSystem struct {
-	// VR="PN" is the only place where we potentially use all three
-	// decoders.  For all other VR types, only Ideographic decoder is used.
-	// See P3.5, 6.2.
-	//
-	// P3.5 6.1 is supposed to define the coding systems in detail.  But the
-	// spec text is insanely obtuse and I couldn't tell what its meaning
-	// after hours of trying. So I just copied what pydicom charset.py is
-	// doing.
-	Alphabetic  *encoding.Decoder
-	Ideographic *encoding.Decoder
-	Phonetic    *encoding.Decoder
-}
-
 type Decoder struct {
 	in  io.Reader
 	err error
