@@ -15,7 +15,7 @@ const (
 	privateGroupName = "Private Data"
 )
 
-func GetUInt32(e DicomElement) (uint32, error) {
+func (e *DicomElement) GetUInt32() (uint32, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint32 (expect 1): %v", len(e.Value), e)
 	}
@@ -26,7 +26,7 @@ func GetUInt32(e DicomElement) (uint32, error) {
 	return v, nil
 }
 
-func GetUInt16(e DicomElement) (uint16, error) {
+func (e *DicomElement) GetUInt16() (uint16, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint16 (expect 1): %v", len(e.Value), e)
 	}
@@ -40,7 +40,7 @@ func GetUInt16(e DicomElement) (uint16, error) {
 // GetString() is a convenience function for getting a string value from an
 // element.  It returns an error the element contains more than one value, or
 // the value is not a string.
-func GetString(e DicomElement) (string, error) {
+func (e *DicomElement) GetString() (string, error) {
 	if len(e.Value) != 1 {
 		return "", fmt.Errorf("Found %d value(s) in getstring (expect 1): %v", len(e.Value), e.String())
 	}
@@ -66,8 +66,8 @@ func GetStrings(e *DicomElement) ([]string, error) {
 // MustGetString() is similar to GetString(), but panics on error.
 //
 // TODO(saito): Add other variants of MustGet<type>.
-func MustGetString(e DicomElement) string {
-	v, err := GetString(e)
+func (e *DicomElement) MustGetString() string {
+	v, err := e.GetString()
 	if err != nil {
 		panic(err)
 	}
@@ -171,7 +171,7 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 	if metaElem.Tag != TagMetaElementGroupLength {
 		d.SetError(fmt.Errorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String()))
 	}
-	metaLength, err := GetUInt32(*metaElem)
+	metaLength, err := metaElem.GetUInt32()
 	if err != nil {
 		d.SetError(fmt.Errorf("Failed to read uint32 in MetaElementGroupLength: %v", err))
 		return nil

@@ -188,7 +188,7 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	transferSyntaxUID, err := GetString(*elem)
+	transferSyntaxUID, err := elem.GetString()
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, IsImplicitVR, erro
 	if err != nil {
 		return nil, UnknownVR, err
 	}
-	ts, err := GetString(*elem)
+	ts, err := elem.GetString()
 	if err != nil {
 		return nil, UnknownVR, err
 	}

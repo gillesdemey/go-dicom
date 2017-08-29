@@ -96,21 +96,21 @@ func TestReadWriteFileHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dicom.MustGetString(*elem) != dicom.ImplicitVRLittleEndian {
+	if elem.MustGetString() != dicom.ImplicitVRLittleEndian {
 		t.Error(elem)
 	}
 	elem, err = dicom.LookupElementByTag(elems, dicom.TagMediaStorageSOPClassUID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dicom.MustGetString(*elem) != "1.2.840.10008.5.1.4.1.1.1.2" {
+	if elem.MustGetString() != "1.2.840.10008.5.1.4.1.1.1.2" {
 		t.Error(elem)
 	}
 	elem, err = dicom.LookupElementByTag(elems, dicom.TagMediaStorageSOPInstanceUID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dicom.MustGetString(*elem) != "1.2.3.4.5.6.7" {
+	if elem.MustGetString() != "1.2.3.4.5.6.7" {
 		t.Error(elem)
 	}
 }
