@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/htmlindex"
 	"golang.org/x/text/encoding/japanese"
 	"io"
 	"log"
@@ -78,6 +79,16 @@ type DicomElement struct {
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
 }
 
+var htmlEncodingNames = map[string]string{
+	"ISO_IR 126": "iso-ir-126",
+	"ISO_IR 144": "iso-ir-144",
+	"ISO_IR 127": "iso-ir-127",
+	"ISO_IR 138": "iso-ir-138",
+	"ISO_IR 13":  "iso-ir-13",
+	"ISO_IR 166": "iso-ir-166",
+	"ISO_IR 148": "iso-ir-148",
+}
+
 // Convert DICOM character encoding names, such as "ISO-IR 100" to golang
 // decoder. It will return nil, nil for the default (7bit ASCII)
 // encoding. Cf. P3.2
@@ -95,21 +106,47 @@ func parseSpecificCharacterSet(elem *DicomElement) (CodingSystem, error) {
 	var decoders []*encoding.Decoder
 	for _, name := range encodingNames {
 		var c *encoding.Decoder
-		switch name {
-		case "ISO_IR 100":
-			c = charmap.ISO8859_1.NewDecoder()
-		case "ISO_IR 101":
-			c = charmap.ISO8859_2.NewDecoder()
-		case "ISO_IR 109":
-			c = charmap.ISO8859_3.NewDecoder()
-		case "ISO_IR 110":
-			c = charmap.ISO8859_4.NewDecoder()
-		case "ISO 2022 IR 13":
-			c = japanese.ShiftJIS.NewDecoder()
-		case "ISO 2022 IR 87":
-			fallthrough
-		case "ISO 2022 IR 159":
-			c = japanese.ISO2022JP.NewDecoder()
+		if htmlName, ok := htmlEncodingNames[name]; ok {
+			d, err := htmlindex.Get(htmlName)
+			if err != nil {
+				panic(err)
+			}
+			c = d.NewDecoder()
+		}
+		if c == nil {
+			switch name {
+			case "ISO 2022 IR 6":
+				fallthrough
+			case "ISO_IR 100":
+				c = charmap.ISO8859_1.NewDecoder()
+			case "ISO_IR 101":
+				c = charmap.ISO8859_2.NewDecoder()
+			case "ISO_IR 109":
+				c = charmap.ISO8859_3.NewDecoder()
+			case "ISO_IR 110":
+				c = charmap.ISO8859_4.NewDecoder()
+			case "ISO 2022 IR 13":
+				c = japanese.ShiftJIS.NewDecoder()
+			case "ISO 2022 IR 87":
+				fallthrough
+			case "ISO 2022 IR 159":
+				c = japanese.ISO2022JP.NewDecoder()
+				// TODO(saito) handle below.
+				// case "ISO 2022 IR 100":
+				// case "ISO 2022 IR 101":
+				// case "ISO 2022 IR 109":
+				// case "ISO 2022 IR 110":
+				// case "ISO 2022 IR 144":
+				// case "ISO 2022 IR 127":
+				// case "ISO 2022 IR 126":
+				// case "ISO 2022 IR 138":
+				// case "ISO 2022 IR 148":
+				// case "ISO 2022 IR 13":
+				// case "ISO 2022 IR 166":
+				// case "ISO 2022 IR 87":
+				// case "ISO 2022 IR 159":
+				// case "ISO 2022 IR 149":
+			}
 		}
 		if c == nil {
 			// TODO(saito) Support more encodings.

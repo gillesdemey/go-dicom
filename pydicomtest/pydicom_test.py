@@ -75,16 +75,15 @@ def process_one_file(dicom_path: str):
                     'OT-PAL-8-face.dcm',
                     'image_dfl.dcm',
                     'meta_missing_tsyntax.dcm',
+                    'chrH32.dcm',
                     'chrJapMultiExplicitIR6.dcm',
                     'chrJapMulti.dcm',
-                    'chrFrenMulti.dcm', # TODO: handle this
                     'chrX2.dcm', # TODO: handle this
                     'chrX1.dcm', # TODO: handle this
                     'chrI2.dcm', # TODO: handle this
-                    'chrHbrw.dcm', # TODO: handle this
                     'priv_SQ.dcm',
                     'chrSQEncoding.dcm', # TODO: handle this
-                    'chrGreek.dcm', # TODO: handle this
+                    #'chrGreek.dcm', # TODO: handle this
                     'chrKoreanMulti.dcm', # TODO: handle this
                     'nested_priv_SQ.dcm',
                     'no_meta_group_length.dcm',
