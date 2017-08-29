@@ -130,6 +130,28 @@ const (
 	UnknownVR
 )
 
+type CodingSystemType int
+
+const (
+	AlphabeticCodingSystem = iota
+	IdeographicCodingSystem
+	PhoneticCodingSystem
+)
+
+type CodingSystem struct {
+	// "PN" decoder is the only place where we potentially use three
+	// decoders.  For all other VR types, the ideographic one is used.
+	// See P3.5, 6.2.
+	//
+	// P3.5 6.1 is supposed to define the coding systems in detail.  But the
+	// spec text is insanely obtuse and I couldn't tell what its meaning
+	// after hours of trying. So I just copied what pydicom charset.py is
+	// doing.
+	Alphabetic  *encoding.Decoder
+	Ideographic *encoding.Decoder
+	Phonetic    *encoding.Decoder
+}
+
 type Decoder struct {
 	in  io.Reader
 	err error
@@ -144,7 +166,7 @@ type Decoder struct {
 
 	// For decoding raw strings in DICOM file into utf-8.
 	// If nil, assume ASCII. Cf P3.5 6.1.2.1
-	stringDecoder *encoding.Decoder
+	codingSystem CodingSystem
 
 	// Stack of old transfer syntaxes. Used by {Push,Pop}TransferSyntax.
 	oldTransferSyntaxes []transferSyntaxStackEntry
@@ -199,8 +221,10 @@ func (d *Decoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR)
 	d.implicit = implicit
 }
 
-func (d *Decoder) SetStringDecoder(ds *encoding.Decoder) {
-	d.stringDecoder = ds
+// Override the default (7bit ASCII) decoder used when converting a byte[] to a
+// string.
+func (d *Decoder) SetCodingSystem(cs CodingSystem) {
+	d.codingSystem = cs
 }
 
 // Restore the encoding format active before the last call to
@@ -231,9 +255,6 @@ func (d *Decoder) PopLimit() {
 	d.limit = d.oldLimits[len(d.oldLimits)-1]
 	d.oldLimits = d.oldLimits[:len(d.oldLimits)-1]
 }
-
-// Pos() returns the cumulative number of bytes read so far.
-func (d *Decoder) Pos() int64 { return d.pos }
 
 // Returns an error encountered so far.
 func (d *Decoder) Error() error { return d.err }
@@ -335,22 +356,42 @@ func (d *Decoder) DecodeFloat64() (v float64) {
 	return v
 }
 
-func (d *Decoder) DecodeString(length int) string {
+func internalDecodeString(d *Decoder, sd *encoding.Decoder, length int) string {
+
 	bytes := d.DecodeBytes(length)
 	if len(bytes) == 0 {
 		return ""
 	}
-	if d.stringDecoder == nil {
+	if sd == nil {
 		// Assume that UTF-8 is a superset of ASCII.
 		// TODO(saito) check that string is 7-bit clean.
 		return string(bytes)
 	}
-	bytes, err := d.stringDecoder.Bytes(bytes)
+	bytes, err := sd.Bytes(bytes)
 	if err != nil {
 		d.SetError(err)
 		return ""
 	}
 	return string(bytes)
+}
+
+func (d *Decoder) DecodeStringWithCodingSystem(csType CodingSystemType, length int) string {
+	var sd *encoding.Decoder
+	switch csType {
+	case AlphabeticCodingSystem:
+		sd = d.codingSystem.Alphabetic
+	case IdeographicCodingSystem:
+		sd = d.codingSystem.Ideographic
+	case PhoneticCodingSystem:
+		sd = d.codingSystem.Phonetic
+	default:
+		panic(csType)
+	}
+	return internalDecodeString(d, sd, length)
+}
+
+func (d *Decoder) DecodeString(length int) string {
+	return internalDecodeString(d, d.codingSystem.Ideographic, length)
 }
 
 func (d *Decoder) DecodeBytes(length int) []byte {

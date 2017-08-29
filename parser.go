@@ -10,7 +10,7 @@ import (
 
 // Constants
 const (
-	pixeldataGroup   = 0xFFFE
+	itemSeqGroup     = 0xFFFE
 	unknownGroupName = "Unknown Group"
 	privateGroupName = "Private Data"
 )
@@ -42,13 +42,25 @@ func GetUInt16(e DicomElement) (uint16, error) {
 // the value is not a string.
 func GetString(e DicomElement) (string, error) {
 	if len(e.Value) != 1 {
-		return "", fmt.Errorf("Found %d value(s) in getstring (expect 1): %v", len(e.Value), e)
+		return "", fmt.Errorf("Found %d value(s) in getstring (expect 1): %v", len(e.Value), e.String())
 	}
 	v, ok := e.Value[0].(string)
 	if !ok {
 		return "", fmt.Errorf("string value not found in %v", e)
 	}
 	return v, nil
+}
+
+func GetStrings(e *DicomElement) ([]string, error) {
+	var values []string
+	for _, v := range e.Value {
+		v, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("string value not found in %v", e.String())
+		}
+		values = append(values, v)
+	}
+	return values, nil
 }
 
 // MustGetString() is similar to GetString(), but panics on error.
@@ -96,7 +108,7 @@ func (e *DicomElement) String() string {
 func readRawItem(d *Decoder) ([]byte, bool) {
 	tag := readTag(d)
 	// Item is always encoded implicit. PS3.6 7.5
-	_, vr, vl := readImplicit(d, tag)
+	vr, vl := readImplicit(d, tag)
 	if tag == tagSequenceDelimitationItem {
 		if vl != 0 {
 			d.SetError(fmt.Errorf("SequenceDelimitationItem's VL != 0: %v", vl))
@@ -187,28 +199,34 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 // must check d.Error() before using the returned value.
 func ReadDataElement(d *Decoder) *DicomElement {
 	tag := readTag(d)
-	var elem *DicomElement
 	var vr string     // Value Representation
 	var vl uint32 = 0 // Value Length
 
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
 	implicit := d.implicit
-	if tag.Group == pixeldataGroup {
+	if tag.Group == itemSeqGroup {
 		implicit = ImplicitVR
 	}
 	if implicit == ImplicitVR {
-		elem, vr, vl = readImplicit(d, tag)
+		vr, vl = readImplicit(d, tag)
 	} else {
 		doassert(implicit == ExplicitVR)
-		elem, vr, vl = readExplicit(d, tag)
+		vr, vl = readExplicit(d, tag)
 	}
 	if d.Error() != nil {
 		return nil
 	}
-
-	elem.Vr = vr
-	elem.Vl = vl
+	if vr == "OX" {
+		// TODO(saito) Figure out how to converct ox to a concrete
+		// type. I can't find one in the spec.
+		vr = "OW"
+	}
+	elem := &DicomElement{
+		Tag: tag,
+		Vr:  vr,
+		Vl:  vl,
+	}
 	var data []interface{}
 
 	if tag == TagPixelData {
@@ -316,7 +334,8 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		}
 	} else {
 		if vl == UndefinedLength {
-			d.SetError(fmt.Errorf("Undefined length found at offset for element with VR=%s", vr))
+			panic(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagDebugString(tag)))
+			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagDebugString(tag)))
 			return nil
 		}
 		d.PushLimit(int64(vl))
@@ -399,10 +418,7 @@ func readTag(buffer *Decoder) Tag {
 
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
-func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
-	elem := &DicomElement{
-		Tag: tag,
-	}
+func readImplicit(buffer *Decoder, tag Tag) (string, uint32) {
 	vr := "UN"
 	if entry, err := LookupTag(tag); err == nil {
 		vr = entry.VR
@@ -415,17 +431,14 @@ func readImplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	}
 	// Error when encountering odd length
 	if vl > 0 && vl%2 != 0 {
-		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading implicit VR '%v'", vl, vr))
+		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading implicit VR '%v' for tag %s", vl, vr, TagDebugString(tag)))
 	}
-	return elem, vr, vl
+	return vr, vl
 }
 
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
-func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
-	elem := &DicomElement{
-		Tag: tag,
-	}
+func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
 	vr := buffer.DecodeString(2)
 	// buffer.p += 2
 
@@ -457,7 +470,7 @@ func readExplicit(buffer *Decoder, tag Tag) (*DicomElement, string, uint32) {
 	}
 	// Error when encountering odd length
 	if vl > 0 && vl%2 != 0 {
-		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v", vl, vr))
+		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagDebugString(tag)))
 	}
-	return elem, vr, vl
+	return vr, vl
 }
