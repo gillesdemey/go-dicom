@@ -3993,6 +3993,8 @@ type TagInfo struct {
 	Version string
 }
 
+const TagMetadataGroup = 2
+
 var (
 	TagItem                     Tag
 	tagItemDelimitationItem     Tag
