@@ -3996,23 +3996,36 @@ type TagInfo struct {
 const TagMetadataGroup = 2
 
 var (
-	TagItem                     Tag
-	tagItemDelimitationItem     Tag
-	tagSequenceDelimitationItem Tag
+	TagItem                     = standardTag(0xfffe, 0xe000)
+	tagItemDelimitationItem     = standardTag(0xfffe, 0xe00d)
+	tagSequenceDelimitationItem = standardTag(0xfffe, 0xe0dd)
 
 	// Standard file metadata tags, with group=2
-	TagMetaElementGroupLength         Tag // Always the first element in a file
-	TagFileMetaInformationGroupLength Tag
-	TagFileMetaInformationVersion     Tag
-	TagMediaStorageSOPClassUID        Tag
-	TagMediaStorageSOPInstanceUID     Tag
-	TagImplementationClassUID         Tag
-	TagImplementationVersionName      Tag
-	TagTransferSyntaxUID              Tag
-	TagSpecificCharacterSet           Tag
+	TagMetaElementGroupLength         = standardTag(2, 0) // Always the first element in a file
+	TagFileMetaInformationGroupLength = standardTag(2, 0)
+	TagFileMetaInformationVersion     = standardTag(2, 1)
+	TagMediaStorageSOPClassUID        = standardTag(2, 2)
+	TagMediaStorageSOPInstanceUID     = standardTag(2, 3)
+	TagImplementationClassUID         = standardTag(2, 0x12)
+	TagImplementationVersionName      = standardTag(2, 0x13)
+	TagTransferSyntaxUID              = standardTag(2, 0x10)
+	TagSpecificCharacterSet           = standardTag(8, 5)
+
+	// Standard DIMSE tags
+	TagCommandGroupLength                   = standardTag(0, 0)
+	TagCommandField                         = standardTag(0, 0x100)
+	TagAffectedSOPClassUID                  = standardTag(0x0000, 0x0002)
+	TagMessageID                            = standardTag(0000, 0x0110)
+	TagMessageIDBeingRespondedTo            = standardTag(0000, 0x0120)
+	TagPriority                             = standardTag(0000, 0x0700)
+	TagCommandDataSetType                   = standardTag(0000, 0x0800)
+	TagStatus                               = standardTag(0000, 0x0900)
+	TagAffectedSOPInstanceUID               = standardTag(0000, 0x1000)
+	TagMoveOriginatorApplicationEntityTitle = standardTag(0000, 0x1030)
+	TagMoveOriginatorMessageID              = standardTag(0000, 0x1031)
 
 	// Tag for image data. Usually the last element in a DICOM file.
-	TagPixelData Tag
+	TagPixelData = standardTag(0x7fe0, 0x0010)
 )
 
 // (group, element) -> tag information
@@ -4020,8 +4033,15 @@ type tagDict map[Tag]TagInfo
 
 var singletonDict tagDict
 
-// Create a new, fully filled dictionary.
-func init() {
+func standardTag(group, elem uint16) Tag {
+	maybeInitTagDict()
+	return MustLookupTag(Tag{group, elem}).Tag
+}
+
+func maybeInitTagDict() {
+	if len(singletonDict) > 0 {
+		return
+	}
 	reader := csv.NewReader(bytes.NewReader([]byte(tagDictData)))
 	reader.Comma = '\t'  // tab separated file
 	reader.Comment = '#' // comments start with #
@@ -4045,21 +4065,10 @@ func init() {
 			Version: row[4],
 		}
 	}
-	TagItem = MustLookupTag(Tag{0xfffe, 0xe000}).Tag
-	tagItemDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe00d}).Tag
-	tagSequenceDelimitationItem = MustLookupTag(Tag{0xfffe, 0xe0dd}).Tag
-	TagMetaElementGroupLength = MustLookupTag(Tag{2, 0}).Tag
+}
 
-	TagFileMetaInformationGroupLength = MustLookupTag(Tag{2, 0}).Tag
-	TagFileMetaInformationVersion = MustLookupTag(Tag{2, 1}).Tag
-	TagMediaStorageSOPClassUID = MustLookupTag(Tag{2, 2}).Tag
-	TagMediaStorageSOPInstanceUID = MustLookupTag(Tag{2, 3}).Tag
-	TagTransferSyntaxUID = MustLookupTag(Tag{2, 0x10}).Tag
-	TagImplementationClassUID = MustLookupTag(Tag{2, 0x12}).Tag
-	TagImplementationVersionName = MustLookupTag(Tag{2, 0x13}).Tag
-
-	TagSpecificCharacterSet = MustLookupTag(Tag{8, 5}).Tag
-	TagPixelData = MustLookupTag(Tag{0x7fe0, 0x0010}).Tag
+// Create a new, fully filled dictionary.
+func init() {
 }
 
 // LookupTag finds information about the given tag. If the tag is undefined or

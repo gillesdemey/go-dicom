@@ -51,7 +51,9 @@ func (e *DicomElement) GetString() (string, error) {
 	return v, nil
 }
 
-func GetStrings(e *DicomElement) ([]string, error) {
+// Get the element value as list of strings. Returns an error if the value is of
+// any other type.
+func (e *DicomElement) GetStrings() ([]string, error) {
 	var values []string
 	for _, v := range e.Value {
 		v, ok := v.(string)

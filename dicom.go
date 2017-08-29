@@ -99,7 +99,7 @@ func parseSpecificCharacterSet(elem *DicomElement) (CodingSystem, error) {
 	// of metadata, but is part of regular attrs, so we need
 	// to watch out for multiple occurrences of this type of
 	// elements.
-	encodingNames, err := GetStrings(elem)
+	encodingNames, err := elem.GetStrings()
 	if err != nil {
 		return CodingSystem{}, err
 	}
