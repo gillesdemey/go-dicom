@@ -138,9 +138,10 @@ const (
 	PhoneticCodingSystem
 )
 
+// Defines how a []byte is translated into a utf8 string.
 type CodingSystem struct {
-	// "PN" decoder is the only place where we potentially use three
-	// decoders.  For all other VR types, the ideographic one is used.
+	// VR="PN" is the only place where we potentially use all three
+	// decoders.  For all other VR types, only Ideographic decoder is used.
 	// See P3.5, 6.2.
 	//
 	// P3.5 6.1 is supposed to define the coding systems in detail.  But the
