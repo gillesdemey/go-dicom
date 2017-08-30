@@ -1,7 +1,6 @@
 package dicom
 
 import (
-	"encoding/binary"
 	"log"
 	"os"
 	"testing"
@@ -66,29 +65,6 @@ func TestParseFile(t *testing.T) {
 	if l := len(data.Elements); l != 98 {
 		t.Errorf("Error parsing DICOM file, wrong number of elements: %d", l)
 	}
-}
-
-func TestGetTransferSyntaxImplicitLittleEndian(t *testing.T) {
-	file := &DicomFile{}
-	values2 := make([]interface{}, 1)
-	values2[0] = "1.2.840.10008.1.2"
-	file.Elements = append(
-		file.Elements,
-		DicomElement{Tag{0002, 0x0010}, "UI", 0, values2})
-
-	bo, implicit, err := file.getTransferSyntax()
-	if err != nil {
-		t.Errorf("Could not get TransferSyntaxUID. %s", err)
-	}
-
-	if bo != binary.LittleEndian {
-		t.Errorf("Incorrect ByteOrder %v. Should be LittleEndian.", bo)
-	}
-
-	if implicit != ImplicitVR {
-		t.Errorf("Incorrect implicitness %v. Should be true.", implicit)
-	}
-
 }
 
 func BenchmarkParseSingle(b *testing.B) {

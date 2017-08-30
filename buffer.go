@@ -123,21 +123,19 @@ func (e *Encoder) WriteBytes(v []byte) {
 type IsImplicitVR int
 
 const (
+	// TODO(saito) Where are implicit/explicit defined? Add a ref!
+
+	// With ImplicitVR, the VR is not encoded w/ a data element. Instead,
+	// the reader consults the static tag->VR mapping (see tags.go) defined
+	// by DICOM standard.
 	ImplicitVR IsImplicitVR = iota
+
+	// ExplicitVR stores the 2-byte VR value inline w/ a data element.
 	ExplicitVR
 
 	// UnknownVR is to be used when you never encode or decode DataElement.
 	UnknownVR
 )
-
-type CodingSystemType int
-
-const (
-	AlphabeticCodingSystem = iota
-	IdeographicCodingSystem
-	PhoneticCodingSystem
-)
-
 type Decoder struct {
 	in  io.Reader
 	err error

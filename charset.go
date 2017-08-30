@@ -21,6 +21,16 @@ type CodingSystem struct {
 	Phonetic    *encoding.Decoder
 }
 
+
+type CodingSystemType int
+
+const (
+	// See CodingSystem for explanations of these coding-system types.
+	AlphabeticCodingSystem = iota
+	IdeographicCodingSystem
+	PhoneticCodingSystem
+)
+
 // Mapping of DICOM charset name to golang encoding/htmlindex name.  "" means
 // 7bit ascii.
 var htmlEncodingNames = map[string]string{

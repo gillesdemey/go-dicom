@@ -145,21 +145,6 @@ func doassert(x bool) {
 	}
 }
 
-// Finds the SyntaxTrasnferUID and returns the endianess and implicit VR for the file
-func (file *DicomFile) getTransferSyntax() (binary.ByteOrder, IsImplicitVR, error) {
-	var err error
-
-	elem, err := file.LookupElement("TransferSyntaxUID")
-	if err != nil {
-		return nil, UnknownVR, err
-	}
-	ts, err := elem.GetString()
-	if err != nil {
-		return nil, UnknownVR, err
-	}
-	return ParseTransferSyntaxUID(ts)
-}
-
 // LookupElementByName finds an element with the given DicomElement.Name in
 // "elems" If not found, returns an error.
 func LookupElementByName(elems []DicomElement, name string) (*DicomElement, error) {
