@@ -44,15 +44,27 @@ type DicomFile struct {
 
 // A DICOM element
 type DicomElement struct {
+	// Tag is a pair of <group, element>. See tags.go for possible values.
 	Tag Tag
-	// TODO(saito) Rename to VR, VL.
 
 	// VR defines the encoding of Value[] in two-letter alphabets, e.g.,
 	// "AE", "UL". See P3.5 6.2.
+	//
+	// In a conformant DICOM file, the VR value of an element is determined
+	// by its Tag, so this field is redundant.  Still, a non-conformant file
+	// with with explicitVR encoding may have an element with VR that's
+	// different from the standard's. In such case, this library honors the
+	// VR value found in the file, and this field stores the VR used for
+	// parsing Values[].
+	//
+	// TODO(saito) Rename to VR, VL.
 	Vr string
 
 	// Total number of bytes in the Value[].  This is mostly meaningless for
-	// the user of the library.
+	// a user of the library.
+	//
+	// TODO(saito) Replace this field is a boolean "does this element has
+	// undefined length?" field.
 	Vl uint32
 
 	// List of values in the element. Their types depends on VR:
@@ -79,13 +91,9 @@ func ParseBytes(data []byte) (*DicomFile, error) {
 	return Parse(bytes.NewBuffer(data), int64(len(data)))
 }
 
-// Parse up to "bytes" from "io" as DICOM file. Returns a DICOM file struct
+// Parse a DICOM file stored in "io", up to "bytes". Returns a DICOM file struct
 func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
-	buffer := NewDecoder(in,
-		bytes,
-		binary.LittleEndian,
-		ExplicitVR)
-
+	buffer := NewDecoder(in, bytes, binary.LittleEndian, ExplicitVR)
 	metaElems := ParseFileHeader(buffer)
 	if buffer.Error() != nil {
 		return nil, buffer.Error()
@@ -93,7 +101,7 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	file := &DicomFile{Elements: metaElems}
 
 	// Change the transfer syntax for the rest of the file.
-	elem, err := file.LookupElement("TransferSyntaxUID")
+	elem, err := LookupElementByTag(metaElems, TagTransferSyntaxUID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +116,17 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	buffer.PushTransferSyntax(endian, implicit)
 	defer buffer.PopTransferSyntax()
 
-	// Now read the list of elements.
-	for buffer.Len() != 0 {
+	// Read the list of elements.
+	for buffer.Len() > 0 {
 		elem := ReadDataElement(buffer)
 		if buffer.Error() != nil {
 			break
 		}
 		if elem.Tag == TagSpecificCharacterSet {
+			// TODO(saito) SpecificCharacterSet may appear in a
+			// middle of a SQ or NA.  In such case, the charset seem
+			// to be scoped inside the SQ or NA. So we need to make
+			// the charset a stack.
 			cs, err := parseSpecificCharacterSet(elem)
 			if err != nil {
 				buffer.SetError(err)

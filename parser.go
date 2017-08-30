@@ -15,6 +15,8 @@ const (
 	privateGroupName = "Private Data"
 )
 
+// GetString() gets a uint32 value from an element.  It returns an error if the
+// element contains zero or >1 values, or the value is not a uint32.
 func (e *DicomElement) GetUInt32() (uint32, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint32 (expect 1): %v", len(e.Value), e)
@@ -26,6 +28,8 @@ func (e *DicomElement) GetUInt32() (uint32, error) {
 	return v, nil
 }
 
+// GetString() gets a uint16 value from an element.  It returns an error if the
+// element contains zero or >1 values, or the value is not a uint16.
 func (e *DicomElement) GetUInt16() (uint16, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint16 (expect 1): %v", len(e.Value), e)
@@ -37,9 +41,8 @@ func (e *DicomElement) GetUInt16() (uint16, error) {
 	return v, nil
 }
 
-// GetString() is a convenience function for getting a string value from an
-// element.  It returns an error the element contains more than one value, or
-// the value is not a string.
+// GetString() gets a string value from an element.  It returns an error if the
+// element contains zero or >1 values, or the value is not a string.
 func (e *DicomElement) GetString() (string, error) {
 	if len(e.Value) != 1 {
 		return "", fmt.Errorf("Found %d value(s) in getstring (expect 1): %v", len(e.Value), e.String())
@@ -49,6 +52,17 @@ func (e *DicomElement) GetString() (string, error) {
 		return "", fmt.Errorf("string value not found in %v", e)
 	}
 	return v, nil
+}
+
+// MustGetString() is similar to GetString(), but panics on error.
+//
+// TODO(saito): Add other variants of MustGet<type>.
+func (e *DicomElement) MustGetString() string {
+	v, err := e.GetString()
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 // Get the element value as list of strings. Returns an error if the value is of
@@ -63,17 +77,6 @@ func (e *DicomElement) GetStrings() ([]string, error) {
 		values = append(values, v)
 	}
 	return values, nil
-}
-
-// MustGetString() is similar to GetString(), but panics on error.
-//
-// TODO(saito): Add other variants of MustGet<type>.
-func (e *DicomElement) MustGetString() string {
-	v, err := e.GetString()
-	if err != nil {
-		panic(err)
-	}
-	return v
 }
 
 func elementString(e *DicomElement, nestLevel int) string {
@@ -201,15 +204,14 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 // must check d.Error() before using the returned value.
 func ReadDataElement(d *Decoder) *DicomElement {
 	tag := readTag(d)
-	var vr string     // Value Representation
-	var vl uint32 = 0 // Value Length
-
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
 	implicit := d.implicit
 	if tag.Group == itemSeqGroup {
 		implicit = ImplicitVR
 	}
+	var vr string     // Value Representation
+	var vl uint32 = 0 // Value Length
 	if implicit == ImplicitVR {
 		vr, vl = readImplicit(d, tag)
 	} else {
@@ -270,7 +272,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			data = append(data, d.ReadBytes(int(vl)))
 		}
 		// TODO(saito) handle multi-frame image.
-	} else if vr == "SQ" {
+	} else if vr == "SQ" { // Sequence
 		if vl == UndefinedLength {
 			// Format:
 			//  Sequence := ItemSet* SequenceDelimitationItem
@@ -308,8 +310,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 				data = append(data, item)
 			}
 		}
-	} else if vr == "NA" {
-		// Parse Item.
+	} else if vr == "NA" { // Item (component of SQ)
 		if vl == UndefinedLength {
 			// Format: Item Any* ItemDelimitationItem
 			for {
@@ -334,7 +335,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			}
 			d.PopLimit()
 		}
-	} else {
+	} else { // List of scalar
 		if vl == UndefinedLength {
 			panic(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
 			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
