@@ -34,11 +34,11 @@ const (
 // Mapping of DICOM charset name to golang encoding/htmlindex name.  "" means
 // 7bit ascii.
 var htmlEncodingNames = map[string]string{
-	"ISO 2022 IR 6":   "",
+	"ISO 2022 IR 6":   "iso-8859-1",
 	"ISO_IR 13":       "shift_jis",
 	"ISO 2022 IR 13":  "shift_jis",
-	"ISO_IR 100":      "",
-	"ISO 2022 IR 100": "",
+	"ISO_IR 100":      "iso-8859-1",
+	"ISO 2022 IR 100": "iso-8859-1",
 	"ISO_IR 101":      "iso-8859-2",
 	"ISO 2022 IR 101": "iso-8859-2",
 	"ISO_IR 109":      "iso-8859-3",
@@ -79,6 +79,7 @@ func parseSpecificCharacterSet(elem *DicomElement) (CodingSystem, error) {
 	var decoders []*encoding.Decoder
 	for _, name := range encodingNames {
 		var c *encoding.Decoder
+		log.Printf("Using coding system %s", name)
 		if htmlName, ok := htmlEncodingNames[name]; !ok {
 			// TODO(saito) Support more encodings.
 			log.Printf("Unknown character set '%s'. Assuming utf-8", encodingNames[0])
