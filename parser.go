@@ -337,7 +337,6 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		}
 	} else { // List of scalar
 		if vl == UndefinedLength {
-			panic(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
 			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
 			return nil
 		}
