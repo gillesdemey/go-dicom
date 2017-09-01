@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"io"
 	"github.com/golang/glog"
+	"io"
 	"strconv"
 	"strings"
 )

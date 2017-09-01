@@ -1,9 +1,9 @@
 package dicom
 
 import (
+	"github.com/golang/glog"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/htmlindex"
-	"github.com/golang/glog"
 )
 
 // Defines how a []byte is translated into a utf8 string.
@@ -20,7 +20,6 @@ type CodingSystem struct {
 	Ideographic *encoding.Decoder
 	Phonetic    *encoding.Decoder
 }
-
 
 type CodingSystemType int
 

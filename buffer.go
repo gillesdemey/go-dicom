@@ -136,6 +136,7 @@ const (
 	// UnknownVR is to be used when you never encode or decode DataElement.
 	UnknownVR
 )
+
 type Decoder struct {
 	in  io.Reader
 	err error
