@@ -8,7 +8,7 @@ package dicom
 
 import (
 	"fmt"
-	"github.com/golang/glog"
+	"v.io/x/lib/vlog"
 )
 
 type UIDType string
@@ -444,7 +444,7 @@ func LookupUID(uid string) (UIDInfo, error) {
 func MustLookupUID(uid string) UIDInfo {
 	e, err := LookupUID(uid)
 	if err != nil {
-		glog.Fatal(err)
+		vlog.Fatal(err)
 	}
 	return e
 }

@@ -1,24 +1,24 @@
 package dicom
 
 import (
-	"github.com/golang/glog"
 	"os"
 	"testing"
+	"v.io/x/lib/vlog"
 )
 
 func mustReadFile(path string) *DicomFile {
 	file, err := os.Open(path)
 	if err != nil {
-		glog.Fatalf("%s: failed to open", path, err)
+		vlog.Fatalf("%s: failed to open", path, err)
 	}
 	defer file.Close()
 	st, err := file.Stat()
 	if err != nil {
-		glog.Fatalf("%s: failed to stat", path, err)
+		vlog.Fatalf("%s: failed to stat", path, err)
 	}
 	data, err := Parse(file, st.Size())
 	if err != nil {
-		glog.Fatalf("%s: failed to read: %v", path, err)
+		vlog.Fatalf("%s: failed to read: %v", path, err)
 	}
 	return data
 }
@@ -33,7 +33,7 @@ func TestAllFiles(t *testing.T) {
 		panic(err)
 	}
 	for _, name := range names {
-		glog.Infof("Reading %s", name)
+		vlog.Infof("Reading %s", name)
 		_ = mustReadFile("examples/" + name)
 	}
 }

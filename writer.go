@@ -3,7 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/golang/glog"
+	"v.io/x/lib/vlog"
 )
 
 // Inverse of ParseFileHeader. Errors are reported via e.Error()
@@ -53,7 +53,7 @@ func WriteFileHeader(e *Encoder,
 func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	vr := elem.Vr
 	if elem.Vl == UndefinedLength {
-		glog.Fatalf("Encoding undefined-length element not yet supported: %v", elem)
+		vlog.Fatalf("Encoding undefined-length element not yet supported: %v", elem)
 	}
 	entry, err := LookupTag(elem.Tag)
 	if vr == "" {

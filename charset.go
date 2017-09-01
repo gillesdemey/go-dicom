@@ -1,9 +1,9 @@
 package dicom
 
 import (
-	"github.com/golang/glog"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/htmlindex"
+	"v.io/x/lib/vlog"
 )
 
 // Defines how a []byte is translated into a utf8 string.
@@ -78,15 +78,15 @@ func parseSpecificCharacterSet(elem *DicomElement) (CodingSystem, error) {
 	var decoders []*encoding.Decoder
 	for _, name := range encodingNames {
 		var c *encoding.Decoder
-		glog.V(1).Infof("Using coding system %s", name)
+		vlog.VI(1).Infof("Using coding system %s", name)
 		if htmlName, ok := htmlEncodingNames[name]; !ok {
 			// TODO(saito) Support more encodings.
-			glog.Warningf("Unknown character set '%s'. Assuming utf-8", encodingNames[0])
+			vlog.Errorf("Unknown character set '%s'. Assuming utf-8", encodingNames[0])
 		} else {
 			if htmlName != "" {
 				d, err := htmlindex.Get(htmlName)
 				if err != nil {
-					glog.Fatalf("Encoding name %s (for %s) not found", name, htmlName)
+					vlog.Fatalf("Encoding name %s (for %s) not found", name, htmlName)
 				}
 				c = d.NewDecoder()
 			}

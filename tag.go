@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"github.com/golang/glog"
 	"io"
 	"strconv"
 	"strings"
+	"v.io/x/lib/vlog"
 )
 
 const tagDictData = `#
@@ -4090,7 +4090,7 @@ func LookupTag(tag Tag) (TagInfo, error) {
 func MustLookupTag(tag Tag) TagInfo {
 	e, err := LookupTag(tag)
 	if err != nil {
-		glog.Fatalf("tag %s not found: %s", tag, err)
+		vlog.Fatalf("tag %s not found: %s", tag, err)
 	}
 	return e
 }
