@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/golang/glog"
 	"strings"
 )
 
@@ -253,7 +253,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 		if vl == UndefinedLength {
 			offsets := readBasicOffsetTable(d) // TODO(saito) Use the offset table.
 			if len(offsets) > 1 {
-				log.Printf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", offsets)
+				glog.Warningf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", offsets)
 			}
 			var bytes []byte
 			for d.Len() > 0 {
@@ -268,7 +268,7 @@ func ReadDataElement(d *Decoder) *DicomElement {
 			}
 			data = append(data, bytes)
 		} else {
-			log.Printf("Warning: defined-length pixel data not supported: tag %v, VR=%v, VL=%v", tag.String(), vr, vl)
+			glog.Warningf("Warning: defined-length pixel data not supported: tag %v, VR=%v, VL=%v", tag.String(), vr, vl)
 			data = append(data, d.ReadBytes(int(vl)))
 		}
 		// TODO(saito) handle multi-frame image.

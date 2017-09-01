@@ -3,7 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
+	"github.com/golang/glog"
 )
 
 // https://www.dicomlibrary.com/dicom/transfer-syntax/
@@ -73,7 +73,7 @@ func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplici
 	case ExplicitVRBigEndian:
 		return binary.BigEndian, ExplicitVR, nil
 	default:
-		log.Panic(canonical, uid)
+		glog.Fatal(canonical, uid)
 		return binary.BigEndian, ExplicitVR, nil
 	}
 }

@@ -1,7 +1,7 @@
 package dicom
 
 import (
-	"log"
+	"github.com/golang/glog"
 	"os"
 	"testing"
 )
@@ -9,16 +9,16 @@ import (
 func mustReadFile(path string) *DicomFile {
 	file, err := os.Open(path)
 	if err != nil {
-		log.Panicf("%s: failed to open", path, err)
+		glog.Fatalf("%s: failed to open", path, err)
 	}
 	defer file.Close()
 	st, err := file.Stat()
 	if err != nil {
-		log.Panicf("%s: failed to stat", path, err)
+		glog.Fatalf("%s: failed to stat", path, err)
 	}
 	data, err := Parse(file, st.Size())
 	if err != nil {
-		log.Panicf("%s: failed to read: %v", path, err)
+		glog.Fatalf("%s: failed to read: %v", path, err)
 	}
 	return data
 }
@@ -33,7 +33,7 @@ func TestAllFiles(t *testing.T) {
 		panic(err)
 	}
 	for _, name := range names {
-		log.Printf("Reading %s", name)
+		glog.Infof("Reading %s", name)
 		_ = mustReadFile("examples/" + name)
 	}
 }

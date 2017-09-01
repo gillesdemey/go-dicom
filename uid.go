@@ -8,7 +8,7 @@ package dicom
 
 import (
 	"fmt"
-	"log"
+	"github.com/golang/glog"
 )
 
 type UIDType string
@@ -444,7 +444,7 @@ func LookupUID(uid string) (UIDInfo, error) {
 func MustLookupUID(uid string) UIDInfo {
 	e, err := LookupUID(uid)
 	if err != nil {
-		log.Panic(err)
+		glog.Fatal(err)
 	}
 	return e
 }

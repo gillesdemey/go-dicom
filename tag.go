@@ -9,7 +9,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
+	"github.com/golang/glog"
 	"strconv"
 	"strings"
 )
@@ -4090,7 +4090,7 @@ func LookupTag(tag Tag) (TagInfo, error) {
 func MustLookupTag(tag Tag) TagInfo {
 	e, err := LookupTag(tag)
 	if err != nil {
-		log.Panicf("tag %s not found: %s", tag, err)
+		glog.Fatalf("tag %s not found: %s", tag, err)
 	}
 	return e
 }
