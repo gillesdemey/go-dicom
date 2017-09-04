@@ -1,4 +1,4 @@
-package dicom
+package dicomio
 
 import (
 	"bytes"

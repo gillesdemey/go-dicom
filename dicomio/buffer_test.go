@@ -1,4 +1,4 @@
-package dicom_test
+package dicomio_test
 
 import (
 	"bytes"

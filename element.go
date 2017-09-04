@@ -1,6 +1,7 @@
 package dicom
 
 import (
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -14,6 +15,50 @@ const (
 	unknownGroupName = "Unknown Group"
 	privateGroupName = "Private Data"
 )
+
+// A DICOM element
+type DicomElement struct {
+	// Tag is a pair of <group, element>. See tags.go for possible values.
+	Tag Tag
+
+	// VR defines the encoding of Value[] in two-letter alphabets, e.g.,
+	// "AE", "UL". See P3.5 6.2.
+	//
+	// In a conformant DICOM file, the VR value of an element is determined
+	// by its Tag, so this field is redundant.  Still, a non-conformant file
+	// with with explicitVR encoding may have an element with VR that's
+	// different from the standard's. In such case, this library honors the
+	// VR value found in the file, and this field stores the VR used for
+	// parsing Values[].
+	//
+	// TODO(saito) Rename to VR, VL.
+	Vr string
+
+	// Total number of bytes in the Value[].  This is mostly meaningless for
+	// a user of the library.
+	//
+	// TODO(saito) Replace this field is a boolean "does this element has
+	// undefined length?" field.
+	Vl uint32
+
+	// List of values in the element. Their types depends on VR:
+	//
+	// If Vr=="SQ", Value[i] is a *DicomElement, with Tag=TagItem.
+	// If Vr=="NA" (i.e., Tag=tagItem), each Value[i] is a *DicomElement.
+	//    a value's Tag can be any (including TagItem, which represents a nested Item)
+	// If Vr=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
+	// If Vr=="LT", then len(Value)==1, and Value[0] is []byte.
+	// If Vr=="AT", then Value[] is a list of Tags.
+	// If Vr=="US", Value[] is a list of uint16s
+	// If Vr=="UL", Value[] is a list of uint32s
+	// If Vr=="SS", Value[] is a list of int16s
+	// If Vr=="SL", Value[] is a list of int32s
+	// If Vr=="FL", Value[] is a list of float32s
+	// If Vr=="FD", Value[] is a list of float64s
+	// If Vr=="AT", Value[] is a list of Tag's.
+	// Else, Value[] is a list of strings.
+	Value []interface{} // Value Multiplicity PS 3.5 6.4
+}
 
 // GetString() gets a uint32 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint32.
@@ -110,7 +155,7 @@ func (e *DicomElement) String() string {
 
 // Read an Item object as raw bytes, w/o parsing them into DataElement. Used to
 // parse pixel data.
-func readRawItem(d *Decoder) ([]byte, bool) {
+func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 	tag := readTag(d)
 	// Item is always encoded implicit. PS3.6 7.5
 	vr, vl := readImplicit(d, tag)
@@ -137,7 +182,7 @@ func readRawItem(d *Decoder) ([]byte, bool) {
 
 // Read the basic offset table. This is the first Item object embedded inside
 // PixelData element. P3.5 8.2. P3.5, A4 has a better example.
-func readBasicOffsetTable(d *Decoder) []uint32 {
+func readBasicOffsetTable(d *dicomio.Decoder) []uint32 {
 	data, endOfData := readRawItem(d)
 	if endOfData {
 		d.SetError(fmt.Errorf("basic offset table not found"))
@@ -145,9 +190,11 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 	if len(data) == 0 {
 		return []uint32{0}
 	}
+
+	byteOrder, _ := d.TransferSyntax()
 	// The payload of the item is sequence of uint32s, each representing the
 	// byte size of an image that follows.
-	subdecoder := NewBytesDecoder(data, d.bo, ImplicitVR)
+	subdecoder := dicomio.NewBytesDecoder(data, byteOrder, dicomio.ImplicitVR)
 	var offsets []uint32
 	for subdecoder.Len() > 0 && subdecoder.Error() == nil {
 		offsets = append(offsets, subdecoder.ReadUInt32())
@@ -157,8 +204,8 @@ func readBasicOffsetTable(d *Decoder) []uint32 {
 
 // Consume the DICOM magic header and metadata elements (whose elements with tag
 // group==2) from a Dicom file. Errors are reported through d.Error().
-func ParseFileHeader(d *Decoder) []DicomElement {
-	d.PushTransferSyntax(binary.LittleEndian, ExplicitVR)
+func ParseFileHeader(d *dicomio.Decoder) []DicomElement {
+	d.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer d.PopTransferSyntax()
 	d.Skip(128) // skip preamble
 
@@ -202,20 +249,21 @@ func ParseFileHeader(d *Decoder) []DicomElement {
 
 // Read a DICOM data element. Errors are reported through d.Error(). The caller
 // must check d.Error() before using the returned value.
-func ReadDataElement(d *Decoder) *DicomElement {
+func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 	tag := readTag(d)
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
-	implicit := d.implicit
+
+	_, implicit := d.TransferSyntax()
 	if tag.Group == itemSeqGroup {
-		implicit = ImplicitVR
+		implicit = dicomio.ImplicitVR
 	}
 	var vr string     // Value Representation
 	var vl uint32 = 0 // Value Length
-	if implicit == ImplicitVR {
+	if implicit == dicomio.ImplicitVR {
 		vr, vl = readImplicit(d, tag)
 	} else {
-		doassert(implicit == ExplicitVR)
+		doassert(implicit == dicomio.ExplicitVR)
 		vr, vl = readExplicit(d, tag)
 	}
 	if d.Error() != nil {
@@ -412,7 +460,7 @@ const UndefinedLength uint32 = 0xfffffffe // must be even.
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
 // added  Value Multiplicity PS 3.5 6.4
-func readTag(buffer *Decoder) Tag {
+func readTag(buffer *dicomio.Decoder) Tag {
 	group := buffer.ReadUInt16()   // group
 	element := buffer.ReadUInt16() // element
 	return Tag{group, element}
@@ -420,7 +468,7 @@ func readTag(buffer *Decoder) Tag {
 
 // Read the VR from the DICOM ditionary
 // The VL is a 32-bit unsigned integer
-func readImplicit(buffer *Decoder, tag Tag) (string, uint32) {
+func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	vr := "UN"
 	if entry, err := LookupTag(tag); err == nil {
 		vr = entry.VR
@@ -440,7 +488,7 @@ func readImplicit(buffer *Decoder, tag Tag) (string, uint32) {
 
 // The VR is represented by the next two consecutive bytes
 // The VL depends on the VR value
-func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
+func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	vr := buffer.ReadString(2)
 	// buffer.p += 2
 
@@ -475,4 +523,32 @@ func readExplicit(buffer *Decoder, tag Tag) (string, uint32) {
 		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag)))
 	}
 	return vr, vl
+}
+
+
+// LookupElementByName finds an element with the given DicomElement.Name in
+// "elems" If not found, returns an error.
+func LookupElementByName(elems []DicomElement, name string) (*DicomElement, error) {
+	t, err := LookupTagByName(name)
+	if err != nil {
+		return nil, err
+	}
+	for _, elem := range elems {
+		if elem.Tag == t.Tag {
+			return &elem, nil
+		}
+	}
+	return nil, fmt.Errorf("Could not find element named '%s' in dicom file", name)
+}
+
+// LookupElementByTag finds an element with the given DicomElement.Tag in
+// "elems" If not found, returns an error.
+func LookupElementByTag(elems []DicomElement, tag Tag) (*DicomElement, error) {
+	for _, elem := range elems {
+		if elem.Tag == tag {
+			return &elem, nil
+		}
+	}
+	return nil, fmt.Errorf("Could not find element with tag %s in dicom file",
+		tag.String())
 }

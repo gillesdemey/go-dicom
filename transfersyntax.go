@@ -3,6 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"v.io/x/lib/vlog"
 )
 
@@ -58,22 +59,22 @@ func CanonicalTransferSyntaxUID(uid string) (string, error) {
 // any UID that refers to a transfer syntax. It can be, e.g., 1.2.840.10008.1.2
 // (it will return LittleEndian, ImplicitVR) or 1.2.840.10008.1.2.4.54 (it will
 // return (LittleEndian, ExplicitVR).
-func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplicitVR, err error) {
+func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit dicomio.IsImplicitVR, err error) {
 	canonical, err := CanonicalTransferSyntaxUID(uid)
 	if err != nil {
-		return nil, UnknownVR, err
+		return nil, dicomio.UnknownVR, err
 	}
 	switch canonical {
 	case ImplicitVRLittleEndian:
-		return binary.LittleEndian, ImplicitVR, nil
+		return binary.LittleEndian, dicomio.ImplicitVR, nil
 	case DeflatedExplicitVRLittleEndian:
 		fallthrough
 	case ExplicitVRLittleEndian:
-		return binary.LittleEndian, ExplicitVR, nil
+		return binary.LittleEndian, dicomio.ExplicitVR, nil
 	case ExplicitVRBigEndian:
-		return binary.BigEndian, ExplicitVR, nil
+		return binary.BigEndian, dicomio.ExplicitVR, nil
 	default:
 		vlog.Fatal(canonical, uid)
-		return binary.BigEndian, ExplicitVR, nil
+		return binary.BigEndian, dicomio.ExplicitVR, nil
 	}
 }

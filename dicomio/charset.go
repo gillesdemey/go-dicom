@@ -1,4 +1,4 @@
-package dicom
+package dicomio
 
 import (
 	"golang.org/x/text/encoding"
@@ -65,16 +65,16 @@ var htmlEncodingNames = map[string]string{
 // decoder. It will return nil, nil for the default (7bit ASCII)
 // encoding. Cf. P3.2
 // D.6.2. http://dicom.nema.org/medical/dicom/2016d/output/chtml/part02/sect_D.6.2.html
-func parseSpecificCharacterSet(elem *DicomElement) (CodingSystem, error) {
+func ParseSpecificCharacterSet(encodingNames []string) (CodingSystem, error) {
 	// Set the []byte -> string decoder for the rest of the
 	// file.  It's sad that SpecificCharacterSet isn't part
 	// of metadata, but is part of regular attrs, so we need
 	// to watch out for multiple occurrences of this type of
 	// elements.
-	encodingNames, err := elem.GetStrings()
-	if err != nil {
-		return CodingSystem{}, err
-	}
+	// encodingNames, err := elem.GetStrings()
+	//if err != nil {
+	//return CodingSystem{}, err
+	//}
 	var decoders []*encoding.Decoder
 	for _, name := range encodingNames {
 		var c *encoding.Decoder

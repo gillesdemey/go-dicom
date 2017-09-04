@@ -1,19 +1,20 @@
 package dicom
 
 import (
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"encoding/binary"
 	"fmt"
 	"v.io/x/lib/vlog"
 )
 
 // Inverse of ParseFileHeader. Errors are reported via e.Error()
-func WriteFileHeader(e *Encoder,
+func WriteFileHeader(e *dicomio.Encoder,
 	transferSyntaxUID string,
 	sopClassUID string,
 	sopInstanceUID string) {
-	e.PushTransferSyntax(binary.LittleEndian, ExplicitVR)
+	e.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer e.PopTransferSyntax()
-	encodeSingleValue := func(encoder *Encoder, tag Tag, v interface{}) {
+	encodeSingleValue := func(encoder *dicomio.Encoder, tag Tag, v interface{}) {
 		elem := DicomElement{
 			Tag:   tag,
 			Vr:    "", // autodetect
@@ -24,7 +25,7 @@ func WriteFileHeader(e *Encoder,
 	}
 
 	// Encode the meta info first.
-	subEncoder := NewEncoder(binary.LittleEndian, ExplicitVR)
+	subEncoder := dicomio.NewEncoder(binary.LittleEndian, dicomio.ExplicitVR)
 	encodeSingleValue(subEncoder, TagFileMetaInformationVersion, []byte("0 1"))
 	encodeSingleValue(subEncoder, TagTransferSyntaxUID, transferSyntaxUID)
 	encodeSingleValue(subEncoder, TagMediaStorageSOPClassUID, sopClassUID)
@@ -50,7 +51,7 @@ func WriteFileHeader(e *Encoder,
 //
 // REQUIRES: Each value in values[] must match the VR of the tag. E.g., if tag
 // is for UL, then each value must be uint32.
-func EncodeDataElement(e *Encoder, elem *DicomElement) {
+func EncodeDataElement(e *dicomio.Encoder, elem *DicomElement) {
 	vr := elem.Vr
 	if elem.Vl == UndefinedLength {
 		vlog.Fatalf("Encoding undefined-length element not yet supported: %v", elem)
@@ -70,7 +71,7 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		}
 	}
 	doassert(vr != "")
-	sube := NewEncoder(e.TransferSyntax())
+	sube := dicomio.NewEncoder(e.TransferSyntax())
 	for _, value := range elem.Value {
 		switch vr {
 		case "US":
@@ -115,7 +116,7 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 	doassert(len(bytes)%2 == 0)
 	e.WriteUInt16(elem.Tag.Group)
 	e.WriteUInt16(elem.Tag.Element)
-	if _, implicit := e.TransferSyntax(); implicit == ExplicitVR {
+	if _, implicit := e.TransferSyntax(); implicit == dicomio.ExplicitVR {
 		doassert(len(vr) == 2)
 		e.WriteString(vr)
 		switch vr {
@@ -127,7 +128,7 @@ func EncodeDataElement(e *Encoder, elem *DicomElement) {
 		}
 
 	} else {
-		doassert(implicit == ImplicitVR)
+		doassert(implicit == dicomio.ImplicitVR)
 		e.WriteUInt32(uint32(len(bytes)))
 	}
 	e.WriteBytes(bytes)
