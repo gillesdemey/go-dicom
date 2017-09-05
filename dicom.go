@@ -110,3 +110,11 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	}
 	return file, buffer.Finish()
 }
+
+func (f*DicomFile) LookupElementByName(name string) (*DicomElement, error) {
+	return LookupElementByName(f.Elements, name)
+}
+
+func (f*DicomFile) LookupElementByTag(tag Tag) (*DicomElement, error) {
+	return LookupElementByTag(f.Elements, tag)
+}

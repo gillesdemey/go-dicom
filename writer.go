@@ -18,7 +18,7 @@ func WriteFileHeader(e *dicomio.Encoder,
 		elem := DicomElement{
 			Tag:   tag,
 			Vr:    "", // autodetect
-			Vl:    1,
+			UndefinedLength: false,
 			Value: []interface{}{v},
 		}
 		EncodeDataElement(encoder, &elem)
@@ -53,7 +53,7 @@ func WriteFileHeader(e *dicomio.Encoder,
 // is for UL, then each value must be uint32.
 func EncodeDataElement(e *dicomio.Encoder, elem *DicomElement) {
 	vr := elem.Vr
-	if elem.Vl == UndefinedLength {
+	if elem.UndefinedLength {
 		vlog.Fatalf("Encoding undefined-length element not yet supported: %v", elem)
 	}
 	entry, err := LookupTag(elem.Tag)

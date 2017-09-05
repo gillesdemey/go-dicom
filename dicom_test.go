@@ -40,7 +40,7 @@ func TestAllFiles(t *testing.T) {
 
 func TestParseFile(t *testing.T) {
 	data := mustReadFile("examples/IM-0001-0001.dcm")
-	elem, err := data.LookupElement("PatientName")
+	elem, err := data.LookupElementByName("PatientName")
 	if err != nil {
 		t.Error(err)
 	}
@@ -51,7 +51,7 @@ func TestParseFile(t *testing.T) {
 	if pn != "TOUTATIX" {
 		t.Errorf("Incorrect patient name: %s", pn)
 	}
-	elem, err = data.LookupElement("TransferSyntaxUID")
+	elem, err = data.LookupElementByName("TransferSyntaxUID")
 	if err != nil {
 		t.Error(err)
 	}

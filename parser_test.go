@@ -3,12 +3,13 @@ package dicom_test
 import (
 	"encoding/binary"
 	"github.com/yasushi-saito/go-dicom"
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"testing"
 )
 
-func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsImplicitVR) {
+func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.IsImplicitVR) {
 	// Encode two scalar elements.
-	e := dicom.NewEncoder(bo, implicit)
+	e := dicomio.NewEncoder(bo, implicit)
 	var values []interface{}
 	values = append(values, string("FooHah"))
 	dicom.EncodeDataElement(e, &dicom.DicomElement{
@@ -27,7 +28,7 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsI
 	}
 
 	// Read them back.
-	d := dicom.NewBytesDecoder(data, bo, implicit)
+	d := dicomio.NewBytesDecoder(data, bo, implicit)
 	elem0 := dicom.ReadDataElement(d)
 	if d.Error() != nil {
 		t.Fatal(d.Error())
@@ -66,19 +67,19 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicom.IsI
 }
 
 func TestEncodeDataElementImplicit(t *testing.T) {
-	testEncodeDataElement(t, binary.LittleEndian, dicom.ImplicitVR)
+	testEncodeDataElement(t, binary.LittleEndian, dicomio.ImplicitVR)
 }
 
 func TestEncodeDataElementExplicit(t *testing.T) {
-	testEncodeDataElement(t, binary.LittleEndian, dicom.ExplicitVR)
+	testEncodeDataElement(t, binary.LittleEndian, dicomio.ExplicitVR)
 }
 
 func TestEncodeDataElementBigEndianExplicit(t *testing.T) {
-	testEncodeDataElement(t, binary.BigEndian, dicom.ExplicitVR)
+	testEncodeDataElement(t, binary.BigEndian, dicomio.ExplicitVR)
 }
 
 func TestReadWriteFileHeader(t *testing.T) {
-	e := dicom.NewEncoder(binary.LittleEndian, dicom.ImplicitVR)
+	e := dicomio.NewEncoder(binary.LittleEndian, dicomio.ImplicitVR)
 	dicom.WriteFileHeader(
 		e, dicom.ImplicitVRLittleEndian,
 		"1.2.840.10008.5.1.4.1.1.1.2",
@@ -87,7 +88,7 @@ func TestReadWriteFileHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := dicom.NewBytesDecoder(bytes, binary.LittleEndian, dicom.ImplicitVR)
+	d := dicomio.NewBytesDecoder(bytes, binary.LittleEndian, dicomio.ImplicitVR)
 	elems := dicom.ParseFileHeader(d)
 	if err := d.Finish(); err != nil {
 		t.Fatal(err)

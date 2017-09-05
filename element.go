@@ -39,7 +39,7 @@ type DicomElement struct {
 	//
 	// TODO(saito) Replace this field is a boolean "does this element has
 	// undefined length?" field.
-	Vl uint32
+	UndefinedLength bool
 
 	// List of values in the element. Their types depends on VR:
 	//
@@ -127,8 +127,8 @@ func (e *DicomElement) GetStrings() ([]string, error) {
 func elementString(e *DicomElement, nestLevel int) string {
 	doassert(nestLevel < 10)
 	s := strings.Repeat(" ", nestLevel)
-	sVl := fmt.Sprintf("%d", e.Vl)
-	if e.Vl == UndefinedLength {
+	sVl := ""
+	if e.UndefinedLength {
 		sVl = "UNDEF"
 	}
 	s = fmt.Sprintf("%s %s %s %s ", s, TagString(e.Tag), e.Vr, sVl)
@@ -277,7 +277,7 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 	elem := &DicomElement{
 		Tag: tag,
 		Vr:  vr,
-		Vl:  vl,
+		UndefinedLength: (vl == UndefinedLength),
 	}
 	var data []interface{}
 
