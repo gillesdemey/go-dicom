@@ -3968,15 +3968,17 @@ const tagDictData = `#
 `
 
 // Tag is a <group, element> tuple that identifies an element type in a DICOM
-// file. List of standard tags are defined in tagdict.go. See also:
+// file. List of standard tags are defined in tag.go. See also:
 //
 // ftp://medical.nema.org/medical/dicom/2011/11_06pu.pdf
 type Tag struct {
-	// group and element are results of parsing the hex-pair tag, such as (1000,10008)
+	// Group and element are results of parsing the hex-pair tag, such as (1000,10008)
 	Group   uint16
 	Element uint16
 }
 
+// Return a string of form "(0008,1234)", where 0x0008 is t.Group,
+// 0x1234 is t.Element.
 func (t *Tag) String() string {
 	return fmt.Sprintf("(%04x,%04x)", t.Group, t.Element)
 }
@@ -3986,10 +3988,11 @@ type TagInfo struct {
 
 	// Data encoding "UL", "CS", etc.
 	VR string
-	// Human-readable name of the tag
+	// Human-readable name of the tag, e.g., "CommandDataSetType"
 	Name string
-	// Cardinality.
-	VM      string
+	// Cardinality (# of values expected in the element)
+	VM string
+	// The DICOM standard that introduced this tag. "DICOM_2011", etc.
 	Version string
 }
 
@@ -4012,17 +4015,17 @@ var (
 	TagSpecificCharacterSet           = standardTag(8, 5)
 
 	// Standard DIMSE tags
-	TagCommandGroupLength                   = standardTag(0, 0)
-	TagCommandField                         = standardTag(0, 0x100)
-	TagAffectedSOPClassUID                  = standardTag(0x0000, 0x0002)
-	TagMessageID                            = standardTag(0000, 0x0110)
-	TagMessageIDBeingRespondedTo            = standardTag(0000, 0x0120)
-	TagPriority                             = standardTag(0000, 0x0700)
-	TagCommandDataSetType                   = standardTag(0000, 0x0800)
-	TagStatus                               = standardTag(0000, 0x0900)
-	TagAffectedSOPInstanceUID               = standardTag(0000, 0x1000)
-	TagMoveOriginatorApplicationEntityTitle = standardTag(0000, 0x1030)
-	TagMoveOriginatorMessageID              = standardTag(0000, 0x1031)
+	TagCommandGroupLength                   = standardTag(0, 0x0000)
+	TagCommandField                         = standardTag(0, 0x0100)
+	TagAffectedSOPClassUID                  = standardTag(0, 0x0002)
+	TagMessageID                            = standardTag(0, 0x0110)
+	TagMessageIDBeingRespondedTo            = standardTag(0, 0x0120)
+	TagPriority                             = standardTag(0, 0x0700)
+	TagCommandDataSetType                   = standardTag(0, 0x0800)
+	TagStatus                               = standardTag(0, 0x0900)
+	TagAffectedSOPInstanceUID               = standardTag(0, 0x1000)
+	TagMoveOriginatorApplicationEntityTitle = standardTag(0, 0x1030)
+	TagMoveOriginatorMessageID              = standardTag(0, 0x1031)
 
 	// Tag for image data. Usually the last element in a DICOM file.
 	TagPixelData = standardTag(0x7fe0, 0x0010)
@@ -4069,10 +4072,8 @@ func maybeInitTagDict() {
 	}
 }
 
-// LookupTag finds information about the given tag. If the tag is undefined or
-// is retired in the standard, it returns an error.
-//
-// Example: LookupTagByName(Tag{2,0x10})
+// LookupTag finds information about the given tag. If the tag is not part of
+// the DICOM standard, or is retired from the standard, it returns an error.
 func LookupTag(tag Tag) (TagInfo, error) {
 	entry, ok := singletonDict[tag]
 	if !ok {
@@ -4095,10 +4096,10 @@ func MustLookupTag(tag Tag) TagInfo {
 	return e
 }
 
-// LookupTag finds information about the tag with the given name. If the tag is undefined or
-// is retired in the standard, it returns an error.
+// LookupTag finds information about the tag with the given name. If the tag is not part of
+// the DICOM standard, or is retired from the standard, it returns an error.
 //
-// Example: LookupTagByName("TransferSyntaxUID")
+//   Example: LookupTagByName("TransferSyntaxUID")
 func LookupTagByName(name string) (TagInfo, error) {
 	for _, ent := range singletonDict {
 		if ent.Name == name {

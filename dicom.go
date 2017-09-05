@@ -4,13 +4,19 @@
 //
 //   import (
 // 	"fmt"
-// 	"github.com/gillesdemey/go-dicom"
+// 	"github.com/yasushi-saito/go-dicom"
 // 	"os"
 //   )
 //
 //   func main() {
 //     in, err := os.Open("myfile.dcm")
+//     if err != nil {
+//         panic(err)
+//     }
 //     st, err := in.Stat()
+//     if err != nil {
+//         panic(err)
+//     }
 //     data, err := dicom.Parse(in, st.Size())
 //     if err != nil {
 //         panic(err)
@@ -28,18 +34,19 @@ import (
 	"io"
 )
 
-// UID prefix provided by https://www.medicalconnections.co.uk/Free_UID
-const DefaultImplementationClassUIDPrefix = "1.2.826.0.1.3680043.9.7133"
+// UID prefix for go-dicom. Provided by
+// https://www.medicalconnections.co.uk/Free_UID
+const GoDICOMImplementationClassUIDPrefix = "1.2.826.0.1.3680043.9.7133"
 
-var DefaultImplementationClassUID = DefaultImplementationClassUIDPrefix + ".1.1"
+var GoDICOMImplementationClassUID = GoDICOMImplementationClassUIDPrefix + ".1.1"
 
-const DefaultImplementationVersionName = "GODICOM_1_1"
+const GoDICOMImplementationVersionName = "GODICOM_1_1"
 
-// DicomFile represents result of parsing one DICOM file.
-type DicomFile struct {
+// DataSet represents result of parsing a single DICOM file.
+type DataSet struct {
 	// Elements in the file, in order of appearance.  Unlike pydicom,
 	// Elements also contains meta elements (those with tag.group==2).
-	Elements []DicomElement
+	Elements []Element
 }
 
 func doassert(x bool) {
@@ -49,18 +56,18 @@ func doassert(x bool) {
 }
 
 // ParseBytes(buf) is a shorthand for Parse(bytes.NewBuffer(buf), len(buf)).
-func ParseBytes(data []byte) (*DicomFile, error) {
+func ParseBytes(data []byte) (*DataSet, error) {
 	return Parse(bytes.NewBuffer(data), int64(len(data)))
 }
 
 // Parse a DICOM file stored in "io", up to "bytes". Returns a DICOM file struct
-func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
+func Parse(in io.Reader, bytes int64) (*DataSet, error) {
 	buffer := dicomio.NewDecoder(in, bytes, binary.LittleEndian, dicomio.ExplicitVR)
 	metaElems := ParseFileHeader(buffer)
 	if buffer.Error() != nil {
 		return nil, buffer.Error()
 	}
-	file := &DicomFile{Elements: metaElems}
+	file := &DataSet{Elements: metaElems}
 
 	// Change the transfer syntax for the rest of the file.
 	elem, err := LookupElementByTag(metaElems, TagTransferSyntaxUID)
@@ -111,10 +118,10 @@ func Parse(in io.Reader, bytes int64) (*DicomFile, error) {
 	return file, buffer.Finish()
 }
 
-func (f*DicomFile) LookupElementByName(name string) (*DicomElement, error) {
+func (f *DataSet) LookupElementByName(name string) (*Element, error) {
 	return LookupElementByName(f.Elements, name)
 }
 
-func (f*DicomFile) LookupElementByTag(tag Tag) (*DicomElement, error) {
+func (f *DataSet) LookupElementByTag(tag Tag) (*Element, error) {
 	return LookupElementByTag(f.Elements, tag)
 }

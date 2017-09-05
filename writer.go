@@ -1,9 +1,9 @@
 package dicom
 
 import (
-	"github.com/yasushi-saito/go-dicom/dicomio"
 	"encoding/binary"
 	"fmt"
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"v.io/x/lib/vlog"
 )
 
@@ -15,11 +15,11 @@ func WriteFileHeader(e *dicomio.Encoder,
 	e.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer e.PopTransferSyntax()
 	encodeSingleValue := func(encoder *dicomio.Encoder, tag Tag, v interface{}) {
-		elem := DicomElement{
-			Tag:   tag,
-			Vr:    "", // autodetect
+		elem := Element{
+			Tag:             tag,
+			VR:              "", // autodetect
 			UndefinedLength: false,
-			Value: []interface{}{v},
+			Value:           []interface{}{v},
 		}
 		EncodeDataElement(encoder, &elem)
 	}
@@ -30,8 +30,8 @@ func WriteFileHeader(e *dicomio.Encoder,
 	encodeSingleValue(subEncoder, TagTransferSyntaxUID, transferSyntaxUID)
 	encodeSingleValue(subEncoder, TagMediaStorageSOPClassUID, sopClassUID)
 	encodeSingleValue(subEncoder, TagMediaStorageSOPInstanceUID, sopInstanceUID)
-	encodeSingleValue(subEncoder, TagImplementationClassUID, DefaultImplementationClassUID)
-	encodeSingleValue(subEncoder, TagImplementationVersionName, DefaultImplementationVersionName)
+	encodeSingleValue(subEncoder, TagImplementationClassUID, GoDICOMImplementationClassUID)
+	encodeSingleValue(subEncoder, TagImplementationVersionName, GoDICOMImplementationVersionName)
 	// TODO(saito) add more
 	metaBytes, err := subEncoder.Finish()
 	if err != nil {
@@ -45,14 +45,13 @@ func WriteFileHeader(e *dicomio.Encoder,
 	e.WriteBytes(metaBytes)
 }
 
-// EncodeDataElement encodes one data element. "tag" must be for a scalar
-// value. That is, SQ elements are not supported yet. Errors are reported
-// through e.Error() and/or E.Finish().
+// EncodeDataElement encodes one data element.  Errors are reported through
+// e.Error() and/or E.Finish().
 //
 // REQUIRES: Each value in values[] must match the VR of the tag. E.g., if tag
 // is for UL, then each value must be uint32.
-func EncodeDataElement(e *dicomio.Encoder, elem *DicomElement) {
-	vr := elem.Vr
+func EncodeDataElement(e *dicomio.Encoder, elem *Element) {
+	vr := elem.VR
 	if elem.UndefinedLength {
 		vlog.Fatalf("Encoding undefined-length element not yet supported: %v", elem)
 	}
@@ -65,7 +64,7 @@ func EncodeDataElement(e *dicomio.Encoder, elem *DicomElement) {
 		}
 	} else {
 		if err == nil && entry.VR != vr {
-			e.SetError(fmt.Errorf("VR value mismatch. DicomElement.Vr=%v, but tag is for %v",
+			e.SetError(fmt.Errorf("VR value mismatch. Element.Vr=%v, but tag is for %v",
 				vr, entry.VR))
 			return
 		}

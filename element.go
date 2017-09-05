@@ -1,10 +1,10 @@
 package dicom
 
 import (
-	"github.com/yasushi-saito/go-dicom/dicomio"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"strings"
 	"v.io/x/lib/vlog"
 )
@@ -17,7 +17,7 @@ const (
 )
 
 // A DICOM element
-type DicomElement struct {
+type Element struct {
 	// Tag is a pair of <group, element>. See tags.go for possible values.
 	Tag Tag
 
@@ -32,19 +32,19 @@ type DicomElement struct {
 	// parsing Values[].
 	//
 	// TODO(saito) Rename to VR, VL.
-	Vr string
+	VR string
 
-	// Total number of bytes in the Value[].  This is mostly meaningless for
-	// a user of the library.
-	//
-	// TODO(saito) Replace this field is a boolean "does this element has
-	// undefined length?" field.
+	// UndefinedLength is true if, in the DICOM file, the element is encoded
+	// as having undefined length, and is delimited by end-sequence or
+	// end-item element.  This flag is meaningful only if Vr=="SQ" or
+	// Vr=="NA". If you don't understand what this description means, just
+	// ignore this field.
 	UndefinedLength bool
 
 	// List of values in the element. Their types depends on VR:
 	//
-	// If Vr=="SQ", Value[i] is a *DicomElement, with Tag=TagItem.
-	// If Vr=="NA" (i.e., Tag=tagItem), each Value[i] is a *DicomElement.
+	// If Vr=="SQ", Value[i] is a *Element, with Tag=TagItem.
+	// If Vr=="NA" (i.e., Tag=tagItem), each Value[i] is a *Element.
 	//    a value's Tag can be any (including TagItem, which represents a nested Item)
 	// If Vr=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
 	// If Vr=="LT", then len(Value)==1, and Value[0] is []byte.
@@ -62,7 +62,7 @@ type DicomElement struct {
 
 // GetString() gets a uint32 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint32.
-func (e *DicomElement) GetUInt32() (uint32, error) {
+func (e *Element) GetUInt32() (uint32, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint32 (expect 1): %v", len(e.Value), e)
 	}
@@ -75,7 +75,7 @@ func (e *DicomElement) GetUInt32() (uint32, error) {
 
 // GetString() gets a uint16 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint16.
-func (e *DicomElement) GetUInt16() (uint16, error) {
+func (e *Element) GetUInt16() (uint16, error) {
 	if len(e.Value) != 1 {
 		return 0, fmt.Errorf("Found %d value(s) in getuint16 (expect 1): %v", len(e.Value), e)
 	}
@@ -88,7 +88,7 @@ func (e *DicomElement) GetUInt16() (uint16, error) {
 
 // GetString() gets a string value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a string.
-func (e *DicomElement) GetString() (string, error) {
+func (e *Element) GetString() (string, error) {
 	if len(e.Value) != 1 {
 		return "", fmt.Errorf("Found %d value(s) in getstring (expect 1): %v", len(e.Value), e.String())
 	}
@@ -102,7 +102,7 @@ func (e *DicomElement) GetString() (string, error) {
 // MustGetString() is similar to GetString(), but panics on error.
 //
 // TODO(saito): Add other variants of MustGet<type>.
-func (e *DicomElement) MustGetString() string {
+func (e *Element) MustGetString() string {
 	v, err := e.GetString()
 	if err != nil {
 		panic(err)
@@ -112,7 +112,7 @@ func (e *DicomElement) MustGetString() string {
 
 // Get the element value as list of strings. Returns an error if the value is of
 // any other type.
-func (e *DicomElement) GetStrings() ([]string, error) {
+func (e *Element) GetStrings() ([]string, error) {
 	var values []string
 	for _, v := range e.Value {
 		v, ok := v.(string)
@@ -124,15 +124,15 @@ func (e *DicomElement) GetStrings() ([]string, error) {
 	return values, nil
 }
 
-func elementString(e *DicomElement, nestLevel int) string {
+func elementString(e *Element, nestLevel int) string {
 	doassert(nestLevel < 10)
 	s := strings.Repeat(" ", nestLevel)
 	sVl := ""
 	if e.UndefinedLength {
 		sVl = "UNDEF"
 	}
-	s = fmt.Sprintf("%s %s %s %s ", s, TagString(e.Tag), e.Vr, sVl)
-	if e.Vr != "SQ" {
+	s = fmt.Sprintf("%s %s %s %s ", s, TagString(e.Tag), e.VR, sVl)
+	if e.VR != "SQ" {
 		sv := fmt.Sprintf("%v", e.Value)
 		if len(sv) > 50 {
 			sv = sv[1:50] + "(...)"
@@ -141,7 +141,7 @@ func elementString(e *DicomElement, nestLevel int) string {
 	} else {
 		s += " seq:\n"
 		for _, v := range e.Value {
-			item := v.(*DicomElement)
+			item := v.(*Element)
 			s += elementString(item, nestLevel+1)
 		}
 	}
@@ -149,7 +149,7 @@ func elementString(e *DicomElement, nestLevel int) string {
 }
 
 // Stringer
-func (e *DicomElement) String() string {
+func (e *Element) String() string {
 	return elementString(e, 0)
 }
 
@@ -169,7 +169,7 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 		d.SetError(fmt.Errorf("Expect item in pixeldata but found %v", tag))
 		return nil, false
 	}
-	if vl == UndefinedLength {
+	if vl == undefinedLength {
 		d.SetError(fmt.Errorf("Expect defined-length item in pixeldata"))
 		return nil, false
 	}
@@ -204,7 +204,7 @@ func readBasicOffsetTable(d *dicomio.Decoder) []uint32 {
 
 // Consume the DICOM magic header and metadata elements (whose elements with tag
 // group==2) from a Dicom file. Errors are reported through d.Error().
-func ParseFileHeader(d *dicomio.Decoder) []DicomElement {
+func ParseFileHeader(d *dicomio.Decoder) []Element {
 	d.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer d.PopTransferSyntax()
 	d.Skip(128) // skip preamble
@@ -232,7 +232,7 @@ func ParseFileHeader(d *dicomio.Decoder) []DicomElement {
 		d.SetError(fmt.Errorf("No data element found"))
 		return nil
 	}
-	metaElems := []DicomElement{*metaElem}
+	metaElems := []Element{*metaElem}
 
 	// Read meta tags
 	d.PushLimit(int64(metaLength))
@@ -249,7 +249,7 @@ func ParseFileHeader(d *dicomio.Decoder) []DicomElement {
 
 // Read a DICOM data element. Errors are reported through d.Error(). The caller
 // must check d.Error() before using the returned value.
-func ReadDataElement(d *dicomio.Decoder) *DicomElement {
+func ReadDataElement(d *dicomio.Decoder) *Element {
 	tag := readTag(d)
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
@@ -274,10 +274,10 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 		// type. I can't find one in the spec.
 		vr = "OW"
 	}
-	elem := &DicomElement{
-		Tag: tag,
-		Vr:  vr,
-		UndefinedLength: (vl == UndefinedLength),
+	elem := &Element{
+		Tag:             tag,
+		VR:              vr,
+		UndefinedLength: (vl == undefinedLength),
 	}
 	var data []interface{}
 
@@ -298,7 +298,7 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 		//
 		// The total byte size of Item(ImageData*) equal the total of
 		// the bytesizes found in BasicOffsetTable.
-		if vl == UndefinedLength {
+		if vl == undefinedLength {
 			offsets := readBasicOffsetTable(d) // TODO(saito) Use the offset table.
 			if len(offsets) > 1 {
 				vlog.Errorf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", offsets)
@@ -321,7 +321,7 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 		}
 		// TODO(saito) handle multi-frame image.
 	} else if vr == "SQ" { // Sequence
-		if vl == UndefinedLength {
+		if vl == undefinedLength {
 			// Format:
 			//  Sequence := ItemSet* SequenceDelimitationItem
 			//  ItemSet := Item Any* ItemDelimitationItem (when Item.VL is undefined) or
@@ -359,7 +359,7 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 			}
 		}
 	} else if vr == "NA" { // Item (component of SQ)
-		if vl == UndefinedLength {
+		if vl == undefinedLength {
 			// Format: Item Any* ItemDelimitationItem
 			for {
 				subelem := ReadDataElement(d)
@@ -384,7 +384,7 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 			d.PopLimit()
 		}
 	} else { // List of scalar
-		if vl == UndefinedLength {
+		if vl == undefinedLength {
 			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
 			return nil
 		}
@@ -455,7 +455,7 @@ func ReadDataElement(d *dicomio.Decoder) *DicomElement {
 	return elem
 }
 
-const UndefinedLength uint32 = 0xfffffffe // must be even.
+const undefinedLength uint32 = 0xfffffffe // must be even.
 
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
@@ -477,7 +477,7 @@ func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	vl := buffer.ReadUInt32()
 	// Rectify Undefined Length VL
 	if vl == 0xffffffff {
-		vl = UndefinedLength
+		vl = undefinedLength
 	}
 	// Error when encountering odd length
 	if vl > 0 && vl%2 != 0 {
@@ -508,14 +508,14 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 			case "UC", "UR", "UT":
 				buffer.SetError(errors.New("UC, UR and UT may not have an Undefined Length, i.e.,a Value Length of FFFFFFFFH."))
 			default:
-				vl = UndefinedLength
+				vl = undefinedLength
 			}
 		}
 	default:
 		vl = uint32(buffer.ReadUInt16())
 		// Rectify Undefined Length VL
 		if vl == 0xffff {
-			vl = UndefinedLength
+			vl = undefinedLength
 		}
 	}
 	// Error when encountering odd length
@@ -525,10 +525,9 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	return vr, vl
 }
 
-
-// LookupElementByName finds an element with the given DicomElement.Name in
+// LookupElementByName finds an element with the given Element.Name in
 // "elems" If not found, returns an error.
-func LookupElementByName(elems []DicomElement, name string) (*DicomElement, error) {
+func LookupElementByName(elems []Element, name string) (*Element, error) {
 	t, err := LookupTagByName(name)
 	if err != nil {
 		return nil, err
@@ -541,9 +540,9 @@ func LookupElementByName(elems []DicomElement, name string) (*DicomElement, erro
 	return nil, fmt.Errorf("Could not find element named '%s' in dicom file", name)
 }
 
-// LookupElementByTag finds an element with the given DicomElement.Tag in
+// LookupElementByTag finds an element with the given Element.Tag in
 // "elems" If not found, returns an error.
-func LookupElementByTag(elems []DicomElement, tag Tag) (*DicomElement, error) {
+func LookupElementByTag(elems []Element, tag Tag) (*Element, error) {
 	for _, elem := range elems {
 		if elem.Tag == tag {
 			return &elem, nil

@@ -6,7 +6,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-func mustReadFile(path string) *DicomFile {
+func mustReadFile(path string) *DataSet {
 	file, err := os.Open(path)
 	if err != nil {
 		vlog.Fatalf("%s: failed to open", path, err)

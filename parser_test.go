@@ -12,13 +12,13 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.I
 	e := dicomio.NewEncoder(bo, implicit)
 	var values []interface{}
 	values = append(values, string("FooHah"))
-	dicom.EncodeDataElement(e, &dicom.DicomElement{
+	dicom.EncodeDataElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0018, 0x9755},
 		Value: values})
 	values = nil
 	values = append(values, uint32(1234))
 	values = append(values, uint32(2345))
-	dicom.EncodeDataElement(e, &dicom.DicomElement{
+	dicom.EncodeDataElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0020, 0x9057},
 		Value: values})
 

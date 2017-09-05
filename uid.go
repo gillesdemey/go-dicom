@@ -22,10 +22,10 @@ const (
 )
 
 type UIDInfo struct {
-	Name   string
-	Type   UIDType
-	Part   string
-	Status string
+	Name   string  // The UID string, e.g.,"1.2.840.10008.1.2.1".
+	Type   UIDType // "SOP Class", "Transfer Syntax", etc.
+	Part   string  // Not used.
+	Status string  // "" if active. "Retired", if netired.
 }
 
 var uidDict = map[string]UIDInfo{
