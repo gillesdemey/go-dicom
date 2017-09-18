@@ -4023,6 +4023,8 @@ var (
 	TagPriority                             = standardTag(0, 0x0700)
 	TagCommandDataSetType                   = standardTag(0, 0x0800)
 	TagStatus                               = standardTag(0, 0x0900)
+	TagOffendingElement                     = standardTag(0, 0x0901)
+	TagErrorComment                         = standardTag(0, 0x0902)
 	TagAffectedSOPInstanceUID               = standardTag(0, 0x1000)
 	TagMoveOriginatorApplicationEntityTitle = standardTag(0, 0x1030)
 	TagMoveOriginatorMessageID              = standardTag(0, 0x1031)
