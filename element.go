@@ -179,6 +179,9 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 	tag := readTag(d)
 	// Item is always encoded implicit. PS3.6 7.5
 	vr, vl := readImplicit(d, tag)
+	if d.Error() != nil {
+		return nil, true
+	}
 	if tag == tagSequenceDelimitationItem {
 		if vl != 0 {
 			d.SetError(fmt.Errorf("SequenceDelimitationItem's VL != 0: %v", vl))
@@ -186,7 +189,7 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 		return nil, true
 	}
 	if tag != TagItem {
-		d.SetError(fmt.Errorf("Expect item in pixeldata but found %v", tag))
+		d.SetError(fmt.Errorf("Expect Item in pixeldata but found tag %v", TagString(tag)))
 		return nil, false
 	}
 	if vl == undefinedLength {
@@ -198,6 +201,11 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 		return nil, true
 	}
 	return d.ReadBytes(int(vl)), false
+}
+
+type ImageData struct {
+	Offsets []uint32 // BasicOFfsetTable
+	Frames  [][]byte // Parsed images
 }
 
 // Read the basic offset table. This is the first Item object embedded inside
@@ -289,11 +297,6 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 	if d.Error() != nil {
 		return nil
 	}
-	if vr == "OX" {
-		// TODO(saito) Figure out how to converct ox to a concrete
-		// type. I can't find one in the spec.
-		vr = "OW"
-	}
 	elem := &Element{
 		Tag:             tag,
 		VR:              vr,
@@ -319,11 +322,11 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 		// The total byte size of Item(ImageData*) equal the total of
 		// the bytesizes found in BasicOffsetTable.
 		if vl == undefinedLength {
-			offsets := readBasicOffsetTable(d) // TODO(saito) Use the offset table.
-			if len(offsets) > 1 {
-				vlog.Errorf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", offsets)
+			var image ImageData
+			image.Offsets = readBasicOffsetTable(d) // TODO(saito) Use the offset table.
+			if len(image.Offsets) > 1 {
+				vlog.Errorf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", image.Offsets)
 			}
-			var bytes []byte
 			for d.Len() > 0 {
 				chunk, endOfItems := readRawItem(d)
 				if d.Error() != nil {
@@ -332,12 +335,14 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 				if endOfItems {
 					break
 				}
-				bytes = append(bytes, chunk...)
+				image.Frames = append(image.Frames, chunk)
 			}
-			data = append(data, bytes)
+			data = append(data, image)
 		} else {
 			vlog.Errorf("Warning: defined-length pixel data not supported: tag %v, VR=%v, VL=%v", tag.String(), vr, vl)
-			data = append(data, d.ReadBytes(int(vl)))
+			var image ImageData
+			image.Frames = append(image.Frames, d.ReadBytes(int(vl)))
+			data = append(data, image)
 		}
 		// TODO(saito) handle multi-frame image.
 	} else if vr == "SQ" { // Sequence
@@ -475,7 +480,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 	return elem
 }
 
-const undefinedLength uint32 = 0xfffffffe // must be even.
+const undefinedLength uint32 = 0xffffffff
 
 // Read a DICOM data element's tag value
 // ie. (0002,0000)
@@ -500,7 +505,7 @@ func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 		vl = undefinedLength
 	}
 	// Error when encountering odd length
-	if vl > 0 && vl%2 != 0 {
+	if vl != undefinedLength && vl%2 != 0 {
 		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading implicit VR '%v' for tag %s", vl, vr, TagString(tag)))
 	}
 	return vr, vl
@@ -538,8 +543,7 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 			vl = undefinedLength
 		}
 	}
-	// Error when encountering odd length
-	if vl > 0 && vl%2 != 0 {
+	if vl != undefinedLength && vl%2 != 0 {
 		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag)))
 	}
 	return vr, vl

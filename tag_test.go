@@ -10,7 +10,7 @@ func TestLookupTag(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if elem.Name != "PixelData" || elem.VR != "OX" {
+	if elem.Name != "PixelData" || elem.VR != "OW" {
 		t.Errorf("Wrong element name: %s", elem.Name)
 	}
 	elem, err = LookupTag(Tag{0, 0x1002})

@@ -1,8 +1,12 @@
 package dicom
 
 import (
+	"encoding/binary"
+	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/yasushi-saito/go-dicom/dicomio"
 	"v.io/x/lib/vlog"
 )
 
@@ -35,6 +39,41 @@ func TestAllFiles(t *testing.T) {
 	for _, name := range names {
 		vlog.Infof("Reading %s", name)
 		_ = mustReadFile("examples/" + name)
+	}
+}
+
+func TestWriteFile(t *testing.T) {
+	path := "examples/IM-0001-0001.dcm"
+	data := mustReadFile(path)
+	transferSyntax, err := data.LookupElementByName("TransferSyntaxUID")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vlog.Errorf("%v: transfersyntax: %v", path, UIDString(transferSyntax.MustGetString()))
+	sopClass, err := data.LookupElementByName("SOPClassUID")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sopInstance, err := data.LookupElementByName("SOPInstanceUID")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := dicomio.NewEncoder(nil, dicomio.UnknownVR)
+	WriteFileHeader(e, ImplicitVRLittleEndian,
+		sopClass.MustGetString(),
+		sopInstance.MustGetString())
+	e.PushTransferSyntax(binary.LittleEndian, dicomio.ImplicitVR)
+	for _, elem := range data.Elements {
+		EncodeDataElement(e, &elem)
+	}
+	e.PopTransferSyntax()
+	bytes, err := e.Finish()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ioutil.WriteFile("/tmp/test.dcm", bytes, 0644)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

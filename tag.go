@@ -4066,9 +4066,20 @@ func maybeInitTagDict() {
 		if err != nil {
 			continue // we don't support groups yet
 		}
+		vr := strings.ToUpper(row[1])
+		if vr == "XS" {
+			// Its generally safe to treat XS as unsigned.  See
+			// https://github.com/dgobbi/vtk-dicom/issues/38 for
+			// some discussions.
+			vr = "US"
+		} else if vr == "OX" {
+			// TODO(saito) I'm less sure about the OX rule. Where is
+			// this crap defined in the standard??
+			vr = "OW"
+		}
 		singletonDict[tag] = TagInfo{
 			Tag:     tag,
-			VR:      strings.ToUpper(row[1]),
+			VR:      vr,
 			Name:    row[2],
 			VM:      row[3],
 			Version: row[4],
