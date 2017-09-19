@@ -21,43 +21,63 @@ type Element struct {
 	// Tag is a pair of <group, element>. See tags.go for possible values.
 	Tag Tag
 
+	// List of values in the element. Their types depends on value
+	// representation (VR) of the Tag; Cf. tag.go.
+	//
+	// If VR=="SQ", Value[i] is a *Element, with Tag=TagItem.
+	// If VR=="NA" (i.e., Tag=tagItem), each Value[i] is a *Element.
+	//    a value's Tag can be any (including TagItem, which represents a nested Item)
+	// If VR=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
+	// If VR=="LT", then len(Value)==1, and Value[0] is []byte.
+	// If VR=="AT", then Value[] is a list of Tags.
+	// If VR=="US", Value[] is a list of uint16s
+	// If VR=="UL", Value[] is a list of uint32s
+	// If VR=="SS", Value[] is a list of int16s
+	// If VR=="SL", Value[] is a list of int32s
+	// If VR=="FL", Value[] is a list of float32s
+	// If VR=="FD", Value[] is a list of float64s
+	// If VR=="AT", Value[] is a list of Tag's.
+	// Else, Value[] is a list of strings.
+	Value []interface{} // Value Multiplicity PS 3.5 6.4
+
+	// Note: the following fields are not interesting to most people, but
+	// are filled for completeness.  You can ignore them.
+
 	// VR defines the encoding of Value[] in two-letter alphabets, e.g.,
 	// "AE", "UL". See P3.5 6.2.
 	//
-	// In a conformant DICOM file, the VR value of an element is determined
+	// dicom.ReadElement() will fill this field with the VR of the tag,
+	// either read from input stream (for explicit repl), or from the dicom
+	// tag table (for implicit decl). This field need not be set in
+	// WriteElement().
+	//
+	// Note: In a conformant DICOM file, the VR value of an element is determined
 	// by its Tag, so this field is redundant.  Still, a non-conformant file
 	// with with explicitVR encoding may have an element with VR that's
 	// different from the standard's. In such case, this library honors the
 	// VR value found in the file, and this field stores the VR used for
 	// parsing Values[].
-	//
-	// TODO(saito) Rename to VR, VL.
 	VR string
 
 	// UndefinedLength is true if, in the DICOM file, the element is encoded
 	// as having undefined length, and is delimited by end-sequence or
-	// end-item element.  This flag is meaningful only if Vr=="SQ" or
-	// Vr=="NA". If you don't understand what this description means, just
+	// end-item element.  This flag is meaningful only if VR=="SQ" or
+	// VR=="NA". If you don't understand what this description means, just
 	// ignore this field.
 	UndefinedLength bool
+}
 
-	// List of values in the element. Their types depends on VR:
-	//
-	// If Vr=="SQ", Value[i] is a *Element, with Tag=TagItem.
-	// If Vr=="NA" (i.e., Tag=tagItem), each Value[i] is a *Element.
-	//    a value's Tag can be any (including TagItem, which represents a nested Item)
-	// If Vr=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
-	// If Vr=="LT", then len(Value)==1, and Value[0] is []byte.
-	// If Vr=="AT", then Value[] is a list of Tags.
-	// If Vr=="US", Value[] is a list of uint16s
-	// If Vr=="UL", Value[] is a list of uint32s
-	// If Vr=="SS", Value[] is a list of int16s
-	// If Vr=="SL", Value[] is a list of int32s
-	// If Vr=="FL", Value[] is a list of float32s
-	// If Vr=="FD", Value[] is a list of float64s
-	// If Vr=="AT", Value[] is a list of Tag's.
-	// Else, Value[] is a list of strings.
-	Value []interface{} // Value Multiplicity PS 3.5 6.4
+// Convenience function for creating a new Element with the given tag and
+// values. "values" is usually just a single value.
+func NewElement(tag Tag, values ...interface{}) *Element {
+	e := Element{
+		Tag:   tag,
+		Value: make([]interface{}, len(values)),
+	}
+	for i, v := range values {
+		e.Value[i] = v
+	}
+	return &e
 }
 
 // GetString() gets a uint32 value from an element.  It returns an error if the

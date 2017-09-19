@@ -21,413 +21,440 @@ const (
 	UIDTypeCodingScheme              UIDType = "Coding Scheme"
 )
 
+// Commonly used UID constants.
+var (
+	PatientRootQRFind = standardUID("1.2.840.10008.5.1.4.1.2.1.1")
+
+	// https://www.dicomlibrary.com/dicom/transfer-syntax/
+	ImplicitVRLittleEndian         = standardUID("1.2.840.10008.1.2")
+	ExplicitVRLittleEndian         = standardUID("1.2.840.10008.1.2.1")
+	ExplicitVRBigEndian            = standardUID("1.2.840.10008.1.2.2")
+	DeflatedExplicitVRLittleEndian = standardUID("1.2.840.10008.1.2.1.99")
+)
+
 type UIDInfo struct {
+	UID    string  // "1.2.840.10008.x.y.z"
 	Name   string  // The UID string, e.g.,"1.2.840.10008.1.2.1".
 	Type   UIDType // "SOP Class", "Transfer Syntax", etc.
 	Part   string  // Not used.
 	Status string  // "" if active. "Retired", if netired.
 }
 
-var uidDict = map[string]UIDInfo{
-	"1.2.840.10008.1.1":                UIDInfo{"Verification SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.1.2":                UIDInfo{"Implicit VR Little Endian", UIDTypeTransferSyntax, "Default Transfer Syntax for DICOM", ""},
-	"1.2.840.10008.1.2.1":              UIDInfo{"Explicit VR Little Endian", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.1.99":           UIDInfo{"Deflated Explicit VR Little Endian", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.2":              UIDInfo{"Explicit VR Big Endian", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.50":           UIDInfo{"JPEG Baseline (Process 1)", UIDTypeTransferSyntax, "Default Transfer Syntax for Lossy JPEG 8 Bit Image Compression", ""},
-	"1.2.840.10008.1.2.4.51":           UIDInfo{"JPEG Extended (Process 2 and 4)", UIDTypeTransferSyntax, "Default Transfer Syntax for Lossy JPEG 12 Bit Image Compression (Process 4 only)", ""},
-	"1.2.840.10008.1.2.4.52":           UIDInfo{"JPEG Extended (Process 3 and 5)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.53":           UIDInfo{"JPEG Spectral Selection, Non-Hierarchical (Process 6 and 8)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.54":           UIDInfo{"JPEG Spectral Selection, Non-Hierarchical (Process 7 and 9)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.55":           UIDInfo{"JPEG Full Progression, Non-Hierarchical (Process 10 and 12)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.56":           UIDInfo{"JPEG Full Progression, Non-Hierarchical (Process 11 and 13)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.57":           UIDInfo{"JPEG Lossless, Non-Hierarchical (Process 14)", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.58":           UIDInfo{"JPEG Lossless, Non-Hierarchical (Process 15)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.59":           UIDInfo{"JPEG Extended, Hierarchical (Process 16 and 18)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.60":           UIDInfo{"JPEG Extended, Hierarchical (Process 17 and 19)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.61":           UIDInfo{"JPEG Spectral Selection, Hierarchical (Process 20 and 22)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.62":           UIDInfo{"JPEG Spectral Selection, Hierarchical (Process 21 and 23)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.63":           UIDInfo{"JPEG Full Progression, Hierarchical (Process 24 and 26)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.64":           UIDInfo{"JPEG Full Progression, Hierarchical (Process 25 and 27)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.65":           UIDInfo{"JPEG Lossless, Hierarchical (Process 28)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.66":           UIDInfo{"JPEG Lossless, Hierarchical (Process 29)", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.2.4.70":           UIDInfo{"JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1])", UIDTypeTransferSyntax, "Default Transfer Syntax for Lossless JPEG Image Compression", ""},
-	"1.2.840.10008.1.2.4.80":           UIDInfo{"JPEG-LS Lossless Image Compression", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.81":           UIDInfo{"JPEG-LS Lossy (Near-Lossless) Image Compression", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.90":           UIDInfo{"JPEG 2000 Image Compression (Lossless Only)", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.91":           UIDInfo{"JPEG 2000 Image Compression", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.92":           UIDInfo{"JPEG 2000 Part 2 Multi-component Image Compression (Lossless Only)", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.93":           UIDInfo{"JPEG 2000 Part 2 Multi-component Image Compression", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.94":           UIDInfo{"JPIP Referenced", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.95":           UIDInfo{"JPIP Referenced Deflate", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.100":          UIDInfo{"MPEG2 Main Profile / Main Level", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.101":          UIDInfo{"MPEG2 Main Profile / High Level", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.102":          UIDInfo{"MPEG-4 AVC/H.264 High Profile / Level 4.1", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.103":          UIDInfo{"MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.104":          UIDInfo{"MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.105":          UIDInfo{"MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.106":          UIDInfo{"MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.107":          UIDInfo{"HEVC/H.265 Main Profile / Level 5.1", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.4.108":          UIDInfo{"HEVC/H.265 Main 10 Profile / Level 5.1", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.5":              UIDInfo{"RLE Lossless", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.6.1":            UIDInfo{"RFC 2557 MIME encapsulation", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.2.6.2":            UIDInfo{"XML Encoding", UIDTypeTransferSyntax, "", ""},
-	"1.2.840.10008.1.3.10":             UIDInfo{"Media Storage Directory Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.1.4.1.1":            UIDInfo{"Talairach Brain Atlas Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.2":            UIDInfo{"SPM2 T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.3":            UIDInfo{"SPM2 T2 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.4":            UIDInfo{"SPM2 PD Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.5":            UIDInfo{"SPM2 EPI Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.6":            UIDInfo{"SPM2 FIL T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.7":            UIDInfo{"SPM2 PET Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.8":            UIDInfo{"SPM2 TRANSM Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.9":            UIDInfo{"SPM2 SPECT Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.10":           UIDInfo{"SPM2 GRAY Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.11":           UIDInfo{"SPM2 WHITE Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.12":           UIDInfo{"SPM2 CSF Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.13":           UIDInfo{"SPM2 BRAINMASK Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.14":           UIDInfo{"SPM2 AVG305T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.15":           UIDInfo{"SPM2 AVG152T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.16":           UIDInfo{"SPM2 AVG152T2 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.17":           UIDInfo{"SPM2 AVG152PD Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.1.18":           UIDInfo{"SPM2 SINGLESUBJT1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.2.1":            UIDInfo{"ICBM 452 T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.4.2.2":            UIDInfo{"ICBM Single Subject MRI Frame of Reference", UIDTypeWellKnownFrameOfReference, "", ""},
-	"1.2.840.10008.1.5.1":              UIDInfo{"Hot Iron Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.2":              UIDInfo{"PET Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.3":              UIDInfo{"Hot Metal Blue Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.4":              UIDInfo{"PET 20 Step Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.5":              UIDInfo{"Spring Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.6":              UIDInfo{"Summer Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.7":              UIDInfo{"Fall Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.5.8":              UIDInfo{"Winter Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.9":                UIDInfo{"Basic Study Content Notification SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.1.20":               UIDInfo{"Papyrus 3 Implicit VR Little Endian", UIDTypeTransferSyntax, "", "Retired"},
-	"1.2.840.10008.1.20.1":             UIDInfo{"Storage Commitment Push Model SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.1.20.1.1":           UIDInfo{"Storage Commitment Push Model SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.20.2":             UIDInfo{"Storage Commitment Pull Model SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.1.20.2.1":           UIDInfo{"Storage Commitment Pull Model SOP Instance", UIDTypeWellKnownSOPInstance, "", "Retired"},
-	"1.2.840.10008.1.40":               UIDInfo{"Procedural Event Logging SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.1.40.1":             UIDInfo{"Procedural Event Logging SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.1.42":               UIDInfo{"Substance Administration Logging SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.1.42.1":             UIDInfo{"Substance Administration Logging SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.2.6.1":              UIDInfo{"DICOM UID Registry", "DICOM UIDs as Coding Scheme", "", ""},
-	"1.2.840.10008.2.16.4":             UIDInfo{"DICOM Controlled Terminology", UIDTypeCodingScheme, "", ""},
-	"1.2.840.10008.2.16.5":             UIDInfo{"Adult Mouse Anatomy Ontology", UIDTypeCodingScheme, "", ""},
-	"1.2.840.10008.2.16.6":             UIDInfo{"Uberon Ontology", UIDTypeCodingScheme, "", ""},
-	"1.2.840.10008.2.16.7":             UIDInfo{"Integrated Taxonomic Information System (ITIS) Taxonomic Serial Number (TSN)", UIDTypeCodingScheme, "", ""},
-	"1.2.840.10008.2.16.8":             UIDInfo{"Mouse Genome Initiative (MGI)", UIDTypeCodingScheme, "", ""},
-	"1.2.840.10008.2.16.9":             UIDInfo{"PubChem Compound CID", UIDTypeCodingScheme, "", ""},
-	"1.2.840.10008.3.1.1.1":            UIDInfo{"DICOM Application Context Name", "Application Context Name", "", ""},
-	"1.2.840.10008.3.1.2.1.1":          UIDInfo{"Detached Patient Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.3.1.2.1.4":          UIDInfo{"Detached Patient Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.3.1.2.2.1":          UIDInfo{"Detached Visit Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.3.1.2.3.1":          UIDInfo{"Detached Study Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.3.1.2.3.2":          UIDInfo{"Study Component Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.3.1.2.3.3":          UIDInfo{"Modality Performed Procedure Step SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.3.1.2.3.4":          UIDInfo{"Modality Performed Procedure Step Retrieve SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.3.1.2.3.5":          UIDInfo{"Modality Performed Procedure Step Notification SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.3.1.2.5.1":          UIDInfo{"Detached Results Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.3.1.2.5.4":          UIDInfo{"Detached Results Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.3.1.2.5.5":          UIDInfo{"Detached Study Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.3.1.2.6.1":          UIDInfo{"Detached Interpretation Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.4.2":                UIDInfo{"Storage Service Class", "Service Class", "", ""},
-	"1.2.840.10008.5.1.1.1":            UIDInfo{"Basic Film Session SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.2":            UIDInfo{"Basic Film Box SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.4":            UIDInfo{"Basic Grayscale Image Box SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.4.1":          UIDInfo{"Basic Color Image Box SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.4.2":          UIDInfo{"Referenced Image Box SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.9":            UIDInfo{"Basic Grayscale Print Management Meta SOP Class", "Meta SOP Class", "", ""},
-	"1.2.840.10008.5.1.1.9.1":          UIDInfo{"Referenced Grayscale Print Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.5.1.1.14":           UIDInfo{"Print Job SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.15":           UIDInfo{"Basic Annotation Box SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.16":           UIDInfo{"Printer SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.16.376":       UIDInfo{"Printer Configuration Retrieval SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.17":           UIDInfo{"Printer SOP Instance", "Well-known Printer SOP Instance", "", ""},
-	"1.2.840.10008.5.1.1.17.376":       UIDInfo{"Printer Configuration Retrieval SOP Instance", "Well-known Printer SOP Instance", "", ""},
-	"1.2.840.10008.5.1.1.18":           UIDInfo{"Basic Color Print Management Meta SOP Class", "Meta SOP Class", "", ""},
-	"1.2.840.10008.5.1.1.18.1":         UIDInfo{"Referenced Color Print Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.5.1.1.22":           UIDInfo{"VOI LUT Box SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.23":           UIDInfo{"Presentation LUT SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.24":           UIDInfo{"Image Overlay Box SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.24.1":         UIDInfo{"Basic Print Image Overlay Box SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.25":           UIDInfo{"Print Queue SOP Instance", "Well-known Print Queue SOP Instance", "", "Retired"},
-	"1.2.840.10008.5.1.1.26":           UIDInfo{"Print Queue Management SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.27":           UIDInfo{"Stored Print Storage SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.29":           UIDInfo{"Hardcopy Grayscale Image Storage SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.30":           UIDInfo{"Hardcopy Color Image Storage SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.31":           UIDInfo{"Pull Print Request SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.1.32":           UIDInfo{"Pull Stored Print Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.5.1.1.33":           UIDInfo{"Media Creation Management SOP Class UID", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.40":           UIDInfo{"Display System SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.1.40.1":         UIDInfo{"Display System SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1":        UIDInfo{"Computed Radiography Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1.1":      UIDInfo{"Digital X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1.1.1":    UIDInfo{"Digital X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1.2":      UIDInfo{"Digital Mammography X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1.2.1":    UIDInfo{"Digital Mammography X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1.3":      UIDInfo{"Digital Intra-Oral X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.1.3.1":    UIDInfo{"Digital Intra-Oral X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.2":        UIDInfo{"CT Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.2.1":      UIDInfo{"Enhanced CT Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.2.2":      UIDInfo{"Legacy Converted Enhanced CT Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.3":        UIDInfo{"Ultrasound Multi-frame Image Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.3.1":      UIDInfo{"Ultrasound Multi-frame Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.4":        UIDInfo{"MR Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.4.1":      UIDInfo{"Enhanced MR Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.4.2":      UIDInfo{"MR Spectroscopy Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.4.3":      UIDInfo{"Enhanced MR Color Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.4.4":      UIDInfo{"Legacy Converted Enhanced MR Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.5":        UIDInfo{"Nuclear Medicine Image Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.6":        UIDInfo{"Ultrasound Image Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.6.1":      UIDInfo{"Ultrasound Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.6.2":      UIDInfo{"Enhanced US Volume Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.7":        UIDInfo{"Secondary Capture Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.7.1":      UIDInfo{"Multi-frame Single Bit Secondary Capture Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.7.2":      UIDInfo{"Multi-frame Grayscale Byte Secondary Capture Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.7.3":      UIDInfo{"Multi-frame Grayscale Word Secondary Capture Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.7.4":      UIDInfo{"Multi-frame True Color Secondary Capture Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.8":        UIDInfo{"Standalone Overlay Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.9":        UIDInfo{"Standalone Curve Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.9.1":      UIDInfo{"Waveform Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.9.1.1":    UIDInfo{"12-lead ECG Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.1.2":    UIDInfo{"General ECG Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.1.3":    UIDInfo{"Ambulatory ECG Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.2.1":    UIDInfo{"Hemodynamic Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.3.1":    UIDInfo{"Cardiac Electrophysiology Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.4.1":    UIDInfo{"Basic Voice Audio Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.4.2":    UIDInfo{"General Audio Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.5.1":    UIDInfo{"Arterial Pulse Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.9.6.1":    UIDInfo{"Respiratory Waveform Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.10":       UIDInfo{"Standalone Modality LUT Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.11":       UIDInfo{"Standalone VOI LUT Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.11.1":     UIDInfo{"Grayscale Softcopy Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.2":     UIDInfo{"Color Softcopy Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.3":     UIDInfo{"Pseudo-Color Softcopy Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.4":     UIDInfo{"Blending Softcopy Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.5":     UIDInfo{"XA/XRF Grayscale Softcopy Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.6":     UIDInfo{"Grayscale Planar MPR Volumetric Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.7":     UIDInfo{"Compositing Planar MPR Volumetric Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.8":     UIDInfo{"Advanced Blending Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.9":     UIDInfo{"Volume Rendering Volumetric Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.10":    UIDInfo{"Segmented Volume Rendering Volumetric Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.11.11":    UIDInfo{"Multiple Volume Rendering Volumetric Presentation State Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.12.1":     UIDInfo{"X-Ray Angiographic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.12.1.1":   UIDInfo{"Enhanced XA Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.12.2":     UIDInfo{"X-Ray Radiofluoroscopic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.12.2.1":   UIDInfo{"Enhanced XRF Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.12.3":     UIDInfo{"X-Ray Angiographic Bi-Plane Image Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.12.77":    UIDInfo{"", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.13.1.1":   UIDInfo{"X-Ray 3D Angiographic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.13.1.2":   UIDInfo{"X-Ray 3D Craniofacial Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.13.1.3":   UIDInfo{"Breast Tomosynthesis Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.13.1.4":   UIDInfo{"Breast Projection X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.13.1.5":   UIDInfo{"Breast Projection X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.14.1":     UIDInfo{"Intravascular Optical Coherence Tomography Image Storage - For Presentation", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.14.2":     UIDInfo{"Intravascular Optical Coherence Tomography Image Storage - For Processing", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.20":       UIDInfo{"Nuclear Medicine Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.30":       UIDInfo{"Parametric Map Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.40":       UIDInfo{"", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.66":       UIDInfo{"Raw Data Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.66.1":     UIDInfo{"Spatial Registration Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.66.2":     UIDInfo{"Spatial Fiducials Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.66.3":     UIDInfo{"Deformable Spatial Registration Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.66.4":     UIDInfo{"Segmentation Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.66.5":     UIDInfo{"Surface Segmentation Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.66.6":     UIDInfo{"Tractography Results Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.67":       UIDInfo{"Real World Value Mapping Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.68.1":     UIDInfo{"Surface Scan Mesh Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.68.2":     UIDInfo{"Surface Scan Point Cloud Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1":     UIDInfo{"VL Image Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.77.2":     UIDInfo{"VL Multi-frame Image Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.77.1.1":   UIDInfo{"VL Endoscopic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.1.1": UIDInfo{"Video Endoscopic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.2":   UIDInfo{"VL Microscopic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.2.1": UIDInfo{"Video Microscopic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.3":   UIDInfo{"VL Slide-Coordinates Microscopic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.4":   UIDInfo{"VL Photographic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.4.1": UIDInfo{"Video Photographic Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.1": UIDInfo{"Ophthalmic Photography 8 Bit Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.2": UIDInfo{"Ophthalmic Photography 16 Bit Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.3": UIDInfo{"Stereometric Relationship Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.4": UIDInfo{"Ophthalmic Tomography Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.5": UIDInfo{"Wide Field Ophthalmic Photography Stereographic Projection Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.6": UIDInfo{"Wide Field Ophthalmic Photography 3D Coordinates Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.7": UIDInfo{"Ophthalmic Optical Coherence Tomography En Face Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.5.8": UIDInfo{"Ophthalmic Optical Coherence Tomography B-scan Volume Analysis Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.77.1.6":   UIDInfo{"VL Whole Slide Microscopy Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.1":     UIDInfo{"Lensometry Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.2":     UIDInfo{"Autorefraction Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.3":     UIDInfo{"Keratometry Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.4":     UIDInfo{"Subjective Refraction Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.5":     UIDInfo{"Visual Acuity Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.6":     UIDInfo{"Spectacle Prescription Report Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.7":     UIDInfo{"Ophthalmic Axial Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.78.8":     UIDInfo{"Intraocular Lens Calculations Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.79.1":     UIDInfo{"Macular Grid Thickness and Volume Report Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.80.1":     UIDInfo{"Ophthalmic Visual Field Static Perimetry Measurements Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.81.1":     UIDInfo{"Ophthalmic Thickness Map Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.82.1":     UIDInfo{"Corneal Topography Map Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.1":     UIDInfo{"Text SR Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.88.2":     UIDInfo{"Audio SR Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.88.3":     UIDInfo{"Detail SR Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.88.4":     UIDInfo{"Comprehensive SR Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.88.11":    UIDInfo{"Basic Text SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.22":    UIDInfo{"Enhanced SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.33":    UIDInfo{"Comprehensive SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.34":    UIDInfo{"Comprehensive 3D SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.35":    UIDInfo{"Extensible SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.40":    UIDInfo{"Procedure Log Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.50":    UIDInfo{"Mammography CAD SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.59":    UIDInfo{"Key Object Selection Document Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.65":    UIDInfo{"Chest CAD SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.67":    UIDInfo{"X-Ray Radiation Dose SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.68":    UIDInfo{"Radiopharmaceutical Radiation Dose SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.69":    UIDInfo{"Colon CAD SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.70":    UIDInfo{"Implantation Plan SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.71":    UIDInfo{"Acquisition Context SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.72":    UIDInfo{"Simplified Adult Echo SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.88.73":    UIDInfo{"Patient Radiation Dose SR Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.90.1":     UIDInfo{"Content Assessment Results Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.104.1":    UIDInfo{"Encapsulated PDF Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.104.2":    UIDInfo{"Encapsulated CDA Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.128":      UIDInfo{"Positron Emission Tomography Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.128.1":    UIDInfo{"Legacy Converted Enhanced PET Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.129":      UIDInfo{"Standalone PET Curve Storage", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.1.130":      UIDInfo{"Enhanced PET Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.131":      UIDInfo{"Basic Structured Display Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.200.1":    UIDInfo{"CT Defined Procedure Protocol Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.200.2":    UIDInfo{"CT Performed Procedure Protocol Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.200.3":    UIDInfo{"Protocol Approval Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.200.4":    UIDInfo{"Protocol Approval Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.200.5":    UIDInfo{"Protocol Approval Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.200.6":    UIDInfo{"Protocol Approval Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.1":    UIDInfo{"RT Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.2":    UIDInfo{"RT Dose Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.3":    UIDInfo{"RT Structure Set Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.4":    UIDInfo{"RT Beams Treatment Record Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.5":    UIDInfo{"RT Plan Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.6":    UIDInfo{"RT Brachy Treatment Record Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.7":    UIDInfo{"RT Treatment Summary Record Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.8":    UIDInfo{"RT Ion Plan Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.481.9":    UIDInfo{"RT Ion Beams Treatment Record Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.1":    UIDInfo{"DICOS CT Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.2.1":  UIDInfo{"DICOS Digital X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.2.2":  UIDInfo{"DICOS Digital X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.3":    UIDInfo{"DICOS Threat Detection Report Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.4":    UIDInfo{"DICOS 2D AIT Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.5":    UIDInfo{"DICOS 3D AIT Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.501.6":    UIDInfo{"DICOS Quadrupole Resonance (QR) Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.601.1":    UIDInfo{"Eddy Current Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.1.601.2":    UIDInfo{"Eddy Current Multi-frame Image Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.1.1":      UIDInfo{"Patient Root Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.1.2":      UIDInfo{"Patient Root Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.1.3":      UIDInfo{"Patient Root Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.2.1":      UIDInfo{"Study Root Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.2.2":      UIDInfo{"Study Root Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.2.3":      UIDInfo{"Study Root Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.3.1":      UIDInfo{"Patient/Study Only Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.2.3.2":      UIDInfo{"Patient/Study Only Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.2.3.3":      UIDInfo{"Patient/Study Only Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.1.2.4.2":      UIDInfo{"Composite Instance Root Retrieve - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.4.3":      UIDInfo{"Composite Instance Root Retrieve - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.1.2.5.3":      UIDInfo{"Composite Instance Retrieve Without Bulk Data - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.20.1":         UIDInfo{"Defined Procedure Protocol Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.20.2":         UIDInfo{"Defined Procedure Protocol Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.20.3":         UIDInfo{"Defined Procedure Protocol Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.31":           UIDInfo{"Modality Worklist Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.32":           UIDInfo{"General Purpose Worklist Management Meta SOP Class", "Meta SOP Class", "", "Retired"},
-	"1.2.840.10008.5.1.4.32.1":         UIDInfo{"General Purpose Worklist Information Model - FIND", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.32.2":         UIDInfo{"General Purpose Scheduled Procedure Step SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.32.3":         UIDInfo{"General Purpose Performed Procedure Step SOP Class", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.33":           UIDInfo{"Instance Availability Notification SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.1":         UIDInfo{"RT Beams Delivery Instruction Storage - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.2":         UIDInfo{"RT Conventional Machine Verification - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.3":         UIDInfo{"RT Ion Machine Verification - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.4":         UIDInfo{"Unified Worklist and Procedure Step Service Class - Trial", "Service Class", "", "Retired"},
-	"1.2.840.10008.5.1.4.34.4.1":       UIDInfo{"Unified Procedure Step - Push SOP Class - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.4.2":       UIDInfo{"Unified Procedure Step - Watch SOP Class - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.4.3":       UIDInfo{"Unified Procedure Step - Pull SOP Class - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.4.4":       UIDInfo{"Unified Procedure Step - Event SOP Class - Trial", UIDTypeSOPClass, "", "Retired"},
-	"1.2.840.10008.5.1.4.34.5":         UIDInfo{"UPS Global Subscription SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.5.1.4.34.5.1":       UIDInfo{"UPS Filtered Global Subscription SOP Instance", UIDTypeWellKnownSOPInstance, "", ""},
-	"1.2.840.10008.5.1.4.34.6":         UIDInfo{"Unified Worklist and Procedure Step Service Class", "Service Class", "", ""},
-	"1.2.840.10008.5.1.4.34.6.1":       UIDInfo{"Unified Procedure Step - Push SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.6.2":       UIDInfo{"Unified Procedure Step - Watch SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.6.3":       UIDInfo{"Unified Procedure Step - Pull SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.6.4":       UIDInfo{"Unified Procedure Step - Event SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.7":         UIDInfo{"RT Beams Delivery Instruction Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.8":         UIDInfo{"RT Conventional Machine Verification", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.9":         UIDInfo{"RT Ion Machine Verification", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.34.10":        UIDInfo{"RT Brachy Application Setup Delivery Instruction Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.37.1":         UIDInfo{"General Relevant Patient Information Query", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.37.2":         UIDInfo{"Breast Imaging Relevant Patient Information Query", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.37.3":         UIDInfo{"Cardiac Relevant Patient Information Query", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.38.1":         UIDInfo{"Hanging Protocol Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.38.2":         UIDInfo{"Hanging Protocol Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.38.3":         UIDInfo{"Hanging Protocol Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.38.4":         UIDInfo{"Hanging Protocol Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.39.1":         UIDInfo{"Color Palette Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.39.2":         UIDInfo{"Color Palette Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.39.3":         UIDInfo{"Color Palette Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.39.4":         UIDInfo{"Color Palette Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.41":           UIDInfo{"Product Characteristics Query SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.42":           UIDInfo{"Substance Approval Query SOP Class", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.43.1":         UIDInfo{"Generic Implant Template Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.43.2":         UIDInfo{"Generic Implant Template Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.43.3":         UIDInfo{"Generic Implant Template Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.43.4":         UIDInfo{"Generic Implant Template Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.44.1":         UIDInfo{"Implant Assembly Template Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.44.2":         UIDInfo{"Implant Assembly Template Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.44.3":         UIDInfo{"Implant Assembly Template Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.44.4":         UIDInfo{"Implant Assembly Template Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.45.1":         UIDInfo{"Implant Template Group Storage", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.45.2":         UIDInfo{"Implant Template Group Information Model - FIND", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.45.3":         UIDInfo{"Implant Template Group Information Model - MOVE", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.5.1.4.45.4":         UIDInfo{"Implant Template Group Information Model - GET", UIDTypeSOPClass, "", ""},
-	"1.2.840.10008.7.1.1":              UIDInfo{"Native DICOM Model", "Application Hosting Model", "", ""},
-	"1.2.840.10008.7.1.2":              UIDInfo{"Abstract Multi-Dimensional Image Model", "Application Hosting Model", "", ""},
-	"1.2.840.10008.8.1.1":              UIDInfo{"DICOM Content Mapping Resource", "Mapping Resource", "", ""},
-	"1.2.840.10008.15.0.3.1":           UIDInfo{"dicomDeviceName", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.2":           UIDInfo{"dicomDescription", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.3":           UIDInfo{"dicomManufacturer", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.4":           UIDInfo{"dicomManufacturerModelName", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.5":           UIDInfo{"dicomSoftwareVersion", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.6":           UIDInfo{"dicomVendorData", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.7":           UIDInfo{"dicomAETitle", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.8":           UIDInfo{"dicomNetworkConnectionReference", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.9":           UIDInfo{"dicomApplicationCluster", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.10":          UIDInfo{"dicomAssociationInitiator", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.11":          UIDInfo{"dicomAssociationAcceptor", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.12":          UIDInfo{"dicomHostname", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.13":          UIDInfo{"dicomPort", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.14":          UIDInfo{"dicomSOPClass", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.15":          UIDInfo{"dicomTransferRole", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.16":          UIDInfo{"dicomTransferSyntax", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.17":          UIDInfo{"dicomPrimaryDeviceType", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.18":          UIDInfo{"dicomRelatedDeviceReference", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.19":          UIDInfo{"dicomPreferredCalledAETitle", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.20":          UIDInfo{"dicomTLSCyphersuite", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.21":          UIDInfo{"dicomAuthorizedNodeCertificateReference", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.22":          UIDInfo{"dicomThisNodeCertificateReference", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.23":          UIDInfo{"dicomInstalled", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.24":          UIDInfo{"dicomStationName", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.25":          UIDInfo{"dicomDeviceSerialNumber", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.26":          UIDInfo{"dicomInstitutionName", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.27":          UIDInfo{"dicomInstitutionAddress", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.28":          UIDInfo{"dicomInstitutionDepartmentName", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.29":          UIDInfo{"dicomIssuerOfPatientID", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.30":          UIDInfo{"dicomPreferredCallingAETitle", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.3.31":          UIDInfo{"dicomSupportedCharacterSet", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.1":           UIDInfo{"dicomConfigurationRoot", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.2":           UIDInfo{"dicomDevicesRoot", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.3":           UIDInfo{"dicomUniqueAETitlesRegistryRoot", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.4":           UIDInfo{"dicomDevice", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.5":           UIDInfo{"dicomNetworkAE", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.6":           UIDInfo{"dicomNetworkConnection", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.7":           UIDInfo{"dicomUniqueAETitle", "LDAP OID", "", ""},
-	"1.2.840.10008.15.0.4.8":           UIDInfo{"dicomTransferCapability", "LDAP OID", "", ""},
-	"1.2.840.10008.15.1.1":             UIDInfo{"Universal Coordinated Time", "Synchronization Frame of Reference", "", ""},
+var uidDict map[string]UIDInfo
+
+func maybeInitUIDDict() {
+	if len(uidDict) > 0 {
+		return
+	}
+	uidDict = make(map[string]UIDInfo)
+	var add = func(uid, name string, uidType UIDType, part, status string) {
+		uidDict[uid] = UIDInfo{uid, name, uidType, part, status}
+	}
+
+	add("1.2.840.10008.1.1", "Verification SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.1.2", "Implicit VR Little Endian", UIDTypeTransferSyntax, "Default Transfer Syntax for DICOM", "")
+	add("1.2.840.10008.1.2.1", "Explicit VR Little Endian", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.1.99", "Deflated Explicit VR Little Endian", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.2", "Explicit VR Big Endian", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.50", "JPEG Baseline (Process 1)", UIDTypeTransferSyntax, "Default Transfer Syntax for Lossy JPEG 8 Bit Image Compression", "")
+	add("1.2.840.10008.1.2.4.51", "JPEG Extended (Process 2 and 4)", UIDTypeTransferSyntax, "Default Transfer Syntax for Lossy JPEG 12 Bit Image Compression (Process 4 only)", "")
+	add("1.2.840.10008.1.2.4.52", "JPEG Extended (Process 3 and 5)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.53", "JPEG Spectral Selection, Non-Hierarchical (Process 6 and 8)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.54", "JPEG Spectral Selection, Non-Hierarchical (Process 7 and 9)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.55", "JPEG Full Progression, Non-Hierarchical (Process 10 and 12)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.56", "JPEG Full Progression, Non-Hierarchical (Process 11 and 13)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.57", "JPEG Lossless, Non-Hierarchical (Process 14)", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.58", "JPEG Lossless, Non-Hierarchical (Process 15)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.59", "JPEG Extended, Hierarchical (Process 16 and 18)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.60", "JPEG Extended, Hierarchical (Process 17 and 19)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.61", "JPEG Spectral Selection, Hierarchical (Process 20 and 22)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.62", "JPEG Spectral Selection, Hierarchical (Process 21 and 23)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.63", "JPEG Full Progression, Hierarchical (Process 24 and 26)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.64", "JPEG Full Progression, Hierarchical (Process 25 and 27)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.65", "JPEG Lossless, Hierarchical (Process 28)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.66", "JPEG Lossless, Hierarchical (Process 29)", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.2.4.70", "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1])", UIDTypeTransferSyntax, "Default Transfer Syntax for Lossless JPEG Image Compression", "")
+	add("1.2.840.10008.1.2.4.80", "JPEG-LS Lossless Image Compression", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.81", "JPEG-LS Lossy (Near-Lossless) Image Compression", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.90", "JPEG 2000 Image Compression (Lossless Only)", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.91", "JPEG 2000 Image Compression", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.92", "JPEG 2000 Part 2 Multi-component Image Compression (Lossless Only)", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.93", "JPEG 2000 Part 2 Multi-component Image Compression", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.94", "JPIP Referenced", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.95", "JPIP Referenced Deflate", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.100", "MPEG2 Main Profile / Main Level", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.101", "MPEG2 Main Profile / High Level", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.102", "MPEG-4 AVC/H.264 High Profile / Level 4.1", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.103", "MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.104", "MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.105", "MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.106", "MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.107", "HEVC/H.265 Main Profile / Level 5.1", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.4.108", "HEVC/H.265 Main 10 Profile / Level 5.1", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.5", "RLE Lossless", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.6.1", "RFC 2557 MIME encapsulation", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.2.6.2", "XML Encoding", UIDTypeTransferSyntax, "", "")
+	add("1.2.840.10008.1.3.10", "Media Storage Directory Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.1.4.1.1", "Talairach Brain Atlas Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.2", "SPM2 T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.3", "SPM2 T2 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.4", "SPM2 PD Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.5", "SPM2 EPI Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.6", "SPM2 FIL T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.7", "SPM2 PET Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.8", "SPM2 TRANSM Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.9", "SPM2 SPECT Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.10", "SPM2 GRAY Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.11", "SPM2 WHITE Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.12", "SPM2 CSF Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.13", "SPM2 BRAINMASK Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.14", "SPM2 AVG305T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.15", "SPM2 AVG152T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.16", "SPM2 AVG152T2 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.17", "SPM2 AVG152PD Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.1.18", "SPM2 SINGLESUBJT1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.2.1", "ICBM 452 T1 Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.4.2.2", "ICBM Single Subject MRI Frame of Reference", UIDTypeWellKnownFrameOfReference, "", "")
+	add("1.2.840.10008.1.5.1", "Hot Iron Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.2", "PET Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.3", "Hot Metal Blue Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.4", "PET 20 Step Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.5", "Spring Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.6", "Summer Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.7", "Fall Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.5.8", "Winter Color Palette SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.9", "Basic Study Content Notification SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.1.20", "Papyrus 3 Implicit VR Little Endian", UIDTypeTransferSyntax, "", "Retired")
+	add("1.2.840.10008.1.20.1", "Storage Commitment Push Model SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.1.20.1.1", "Storage Commitment Push Model SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.20.2", "Storage Commitment Pull Model SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.1.20.2.1", "Storage Commitment Pull Model SOP Instance", UIDTypeWellKnownSOPInstance, "", "Retired")
+	add("1.2.840.10008.1.40", "Procedural Event Logging SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.1.40.1", "Procedural Event Logging SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.1.42", "Substance Administration Logging SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.1.42.1", "Substance Administration Logging SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.2.6.1", "DICOM UID Registry", "DICOM UIDs as Coding Scheme", "", "")
+	add("1.2.840.10008.2.16.4", "DICOM Controlled Terminology", UIDTypeCodingScheme, "", "")
+	add("1.2.840.10008.2.16.5", "Adult Mouse Anatomy Ontology", UIDTypeCodingScheme, "", "")
+	add("1.2.840.10008.2.16.6", "Uberon Ontology", UIDTypeCodingScheme, "", "")
+	add("1.2.840.10008.2.16.7", "Integrated Taxonomic Information System (ITIS) Taxonomic Serial Number (TSN)", UIDTypeCodingScheme, "", "")
+	add("1.2.840.10008.2.16.8", "Mouse Genome Initiative (MGI)", UIDTypeCodingScheme, "", "")
+	add("1.2.840.10008.2.16.9", "PubChem Compound CID", UIDTypeCodingScheme, "", "")
+	add("1.2.840.10008.3.1.1.1", "DICOM Application Context Name", "Application Context Name", "", "")
+	add("1.2.840.10008.3.1.2.1.1", "Detached Patient Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.3.1.2.1.4", "Detached Patient Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.3.1.2.2.1", "Detached Visit Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.3.1.2.3.1", "Detached Study Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.3.1.2.3.2", "Study Component Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.3.1.2.3.3", "Modality Performed Procedure Step SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.3.1.2.3.4", "Modality Performed Procedure Step Retrieve SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.3.1.2.3.5", "Modality Performed Procedure Step Notification SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.3.1.2.5.1", "Detached Results Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.3.1.2.5.4", "Detached Results Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.3.1.2.5.5", "Detached Study Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.3.1.2.6.1", "Detached Interpretation Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.4.2", "Storage Service Class", "Service Class", "", "")
+	add("1.2.840.10008.5.1.1.1", "Basic Film Session SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.2", "Basic Film Box SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.4", "Basic Grayscale Image Box SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.4.1", "Basic Color Image Box SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.4.2", "Referenced Image Box SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.9", "Basic Grayscale Print Management Meta SOP Class", "Meta SOP Class", "", "")
+	add("1.2.840.10008.5.1.1.9.1", "Referenced Grayscale Print Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.5.1.1.14", "Print Job SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.15", "Basic Annotation Box SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.16", "Printer SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.16.376", "Printer Configuration Retrieval SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.17", "Printer SOP Instance", "Well-known Printer SOP Instance", "", "")
+	add("1.2.840.10008.5.1.1.17.376", "Printer Configuration Retrieval SOP Instance", "Well-known Printer SOP Instance", "", "")
+	add("1.2.840.10008.5.1.1.18", "Basic Color Print Management Meta SOP Class", "Meta SOP Class", "", "")
+	add("1.2.840.10008.5.1.1.18.1", "Referenced Color Print Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.5.1.1.22", "VOI LUT Box SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.23", "Presentation LUT SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.24", "Image Overlay Box SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.24.1", "Basic Print Image Overlay Box SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.25", "Print Queue SOP Instance", "Well-known Print Queue SOP Instance", "", "Retired")
+	add("1.2.840.10008.5.1.1.26", "Print Queue Management SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.27", "Stored Print Storage SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.29", "Hardcopy Grayscale Image Storage SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.30", "Hardcopy Color Image Storage SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.31", "Pull Print Request SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.1.32", "Pull Stored Print Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.5.1.1.33", "Media Creation Management SOP Class UID", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.40", "Display System SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.1.40.1", "Display System SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1", "Computed Radiography Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1.1", "Digital X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1.1.1", "Digital X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1.2", "Digital Mammography X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1.2.1", "Digital Mammography X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1.3", "Digital Intra-Oral X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.1.3.1", "Digital Intra-Oral X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.2", "CT Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.2.1", "Enhanced CT Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.2.2", "Legacy Converted Enhanced CT Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.3", "Ultrasound Multi-frame Image Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.3.1", "Ultrasound Multi-frame Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.4", "MR Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.4.1", "Enhanced MR Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.4.2", "MR Spectroscopy Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.4.3", "Enhanced MR Color Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.4.4", "Legacy Converted Enhanced MR Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.5", "Nuclear Medicine Image Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.6", "Ultrasound Image Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.6.1", "Ultrasound Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.6.2", "Enhanced US Volume Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.7", "Secondary Capture Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.7.1", "Multi-frame Single Bit Secondary Capture Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.7.2", "Multi-frame Grayscale Byte Secondary Capture Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.7.3", "Multi-frame Grayscale Word Secondary Capture Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.7.4", "Multi-frame True Color Secondary Capture Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.8", "Standalone Overlay Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.9", "Standalone Curve Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.9.1", "Waveform Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.9.1.1", "12-lead ECG Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.1.2", "General ECG Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.1.3", "Ambulatory ECG Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.2.1", "Hemodynamic Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.3.1", "Cardiac Electrophysiology Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.4.1", "Basic Voice Audio Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.4.2", "General Audio Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.5.1", "Arterial Pulse Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.9.6.1", "Respiratory Waveform Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.10", "Standalone Modality LUT Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.11", "Standalone VOI LUT Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.11.1", "Grayscale Softcopy Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.2", "Color Softcopy Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.3", "Pseudo-Color Softcopy Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.4", "Blending Softcopy Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.5", "XA/XRF Grayscale Softcopy Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.6", "Grayscale Planar MPR Volumetric Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.7", "Compositing Planar MPR Volumetric Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.8", "Advanced Blending Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.9", "Volume Rendering Volumetric Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.10", "Segmented Volume Rendering Volumetric Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.11.11", "Multiple Volume Rendering Volumetric Presentation State Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.12.1", "X-Ray Angiographic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.12.1.1", "Enhanced XA Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.12.2", "X-Ray Radiofluoroscopic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.12.2.1", "Enhanced XRF Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.12.3", "X-Ray Angiographic Bi-Plane Image Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.12.77", "", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.13.1.1", "X-Ray 3D Angiographic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.13.1.2", "X-Ray 3D Craniofacial Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.13.1.3", "Breast Tomosynthesis Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.13.1.4", "Breast Projection X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.13.1.5", "Breast Projection X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.14.1", "Intravascular Optical Coherence Tomography Image Storage - For Presentation", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.14.2", "Intravascular Optical Coherence Tomography Image Storage - For Processing", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.20", "Nuclear Medicine Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.30", "Parametric Map Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.40", "", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.66", "Raw Data Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.66.1", "Spatial Registration Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.66.2", "Spatial Fiducials Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.66.3", "Deformable Spatial Registration Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.66.4", "Segmentation Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.66.5", "Surface Segmentation Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.66.6", "Tractography Results Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.67", "Real World Value Mapping Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.68.1", "Surface Scan Mesh Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.68.2", "Surface Scan Point Cloud Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1", "VL Image Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.77.2", "VL Multi-frame Image Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.77.1.1", "VL Endoscopic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.1.1", "Video Endoscopic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.2", "VL Microscopic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.2.1", "Video Microscopic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.3", "VL Slide-Coordinates Microscopic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.4", "VL Photographic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.4.1", "Video Photographic Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.1", "Ophthalmic Photography 8 Bit Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.2", "Ophthalmic Photography 16 Bit Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.3", "Stereometric Relationship Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.4", "Ophthalmic Tomography Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.5", "Wide Field Ophthalmic Photography Stereographic Projection Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.6", "Wide Field Ophthalmic Photography 3D Coordinates Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.7", "Ophthalmic Optical Coherence Tomography En Face Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.5.8", "Ophthalmic Optical Coherence Tomography B-scan Volume Analysis Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.77.1.6", "VL Whole Slide Microscopy Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.1", "Lensometry Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.2", "Autorefraction Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.3", "Keratometry Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.4", "Subjective Refraction Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.5", "Visual Acuity Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.6", "Spectacle Prescription Report Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.7", "Ophthalmic Axial Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.78.8", "Intraocular Lens Calculations Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.79.1", "Macular Grid Thickness and Volume Report Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.80.1", "Ophthalmic Visual Field Static Perimetry Measurements Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.81.1", "Ophthalmic Thickness Map Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.82.1", "Corneal Topography Map Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.1", "Text SR Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.88.2", "Audio SR Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.88.3", "Detail SR Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.88.4", "Comprehensive SR Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.88.11", "Basic Text SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.22", "Enhanced SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.33", "Comprehensive SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.34", "Comprehensive 3D SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.35", "Extensible SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.40", "Procedure Log Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.50", "Mammography CAD SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.59", "Key Object Selection Document Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.65", "Chest CAD SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.67", "X-Ray Radiation Dose SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.68", "Radiopharmaceutical Radiation Dose SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.69", "Colon CAD SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.70", "Implantation Plan SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.71", "Acquisition Context SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.72", "Simplified Adult Echo SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.88.73", "Patient Radiation Dose SR Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.90.1", "Content Assessment Results Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.104.1", "Encapsulated PDF Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.104.2", "Encapsulated CDA Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.128", "Positron Emission Tomography Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.128.1", "Legacy Converted Enhanced PET Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.129", "Standalone PET Curve Storage", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.1.130", "Enhanced PET Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.131", "Basic Structured Display Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.200.1", "CT Defined Procedure Protocol Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.200.2", "CT Performed Procedure Protocol Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.200.3", "Protocol Approval Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.200.4", "Protocol Approval Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.200.5", "Protocol Approval Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.200.6", "Protocol Approval Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.1", "RT Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.2", "RT Dose Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.3", "RT Structure Set Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.4", "RT Beams Treatment Record Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.5", "RT Plan Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.6", "RT Brachy Treatment Record Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.7", "RT Treatment Summary Record Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.8", "RT Ion Plan Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.481.9", "RT Ion Beams Treatment Record Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.1", "DICOS CT Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.2.1", "DICOS Digital X-Ray Image Storage - For Presentation", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.2.2", "DICOS Digital X-Ray Image Storage - For Processing", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.3", "DICOS Threat Detection Report Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.4", "DICOS 2D AIT Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.5", "DICOS 3D AIT Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.501.6", "DICOS Quadrupole Resonance (QR) Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.601.1", "Eddy Current Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.1.601.2", "Eddy Current Multi-frame Image Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.1.1", "Patient Root Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.1.2", "Patient Root Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.1.3", "Patient Root Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.2.1", "Study Root Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.2.2", "Study Root Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.2.3", "Study Root Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.3.1", "Patient/Study Only Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.2.3.2", "Patient/Study Only Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.2.3.3", "Patient/Study Only Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.1.2.4.2", "Composite Instance Root Retrieve - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.4.3", "Composite Instance Root Retrieve - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.1.2.5.3", "Composite Instance Retrieve Without Bulk Data - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.20.1", "Defined Procedure Protocol Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.20.2", "Defined Procedure Protocol Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.20.3", "Defined Procedure Protocol Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.31", "Modality Worklist Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.32", "General Purpose Worklist Management Meta SOP Class", "Meta SOP Class", "", "Retired")
+	add("1.2.840.10008.5.1.4.32.1", "General Purpose Worklist Information Model - FIND", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.32.2", "General Purpose Scheduled Procedure Step SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.32.3", "General Purpose Performed Procedure Step SOP Class", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.33", "Instance Availability Notification SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.1", "RT Beams Delivery Instruction Storage - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.2", "RT Conventional Machine Verification - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.3", "RT Ion Machine Verification - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.4", "Unified Worklist and Procedure Step Service Class - Trial", "Service Class", "", "Retired")
+	add("1.2.840.10008.5.1.4.34.4.1", "Unified Procedure Step - Push SOP Class - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.4.2", "Unified Procedure Step - Watch SOP Class - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.4.3", "Unified Procedure Step - Pull SOP Class - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.4.4", "Unified Procedure Step - Event SOP Class - Trial", UIDTypeSOPClass, "", "Retired")
+	add("1.2.840.10008.5.1.4.34.5", "UPS Global Subscription SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.5.1.4.34.5.1", "UPS Filtered Global Subscription SOP Instance", UIDTypeWellKnownSOPInstance, "", "")
+	add("1.2.840.10008.5.1.4.34.6", "Unified Worklist and Procedure Step Service Class", "Service Class", "", "")
+	add("1.2.840.10008.5.1.4.34.6.1", "Unified Procedure Step - Push SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.6.2", "Unified Procedure Step - Watch SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.6.3", "Unified Procedure Step - Pull SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.6.4", "Unified Procedure Step - Event SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.7", "RT Beams Delivery Instruction Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.8", "RT Conventional Machine Verification", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.9", "RT Ion Machine Verification", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.34.10", "RT Brachy Application Setup Delivery Instruction Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.37.1", "General Relevant Patient Information Query", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.37.2", "Breast Imaging Relevant Patient Information Query", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.37.3", "Cardiac Relevant Patient Information Query", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.38.1", "Hanging Protocol Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.38.2", "Hanging Protocol Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.38.3", "Hanging Protocol Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.38.4", "Hanging Protocol Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.39.1", "Color Palette Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.39.2", "Color Palette Query/Retrieve Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.39.3", "Color Palette Query/Retrieve Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.39.4", "Color Palette Query/Retrieve Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.41", "Product Characteristics Query SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.42", "Substance Approval Query SOP Class", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.43.1", "Generic Implant Template Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.43.2", "Generic Implant Template Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.43.3", "Generic Implant Template Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.43.4", "Generic Implant Template Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.44.1", "Implant Assembly Template Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.44.2", "Implant Assembly Template Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.44.3", "Implant Assembly Template Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.44.4", "Implant Assembly Template Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.45.1", "Implant Template Group Storage", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.45.2", "Implant Template Group Information Model - FIND", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.45.3", "Implant Template Group Information Model - MOVE", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.5.1.4.45.4", "Implant Template Group Information Model - GET", UIDTypeSOPClass, "", "")
+	add("1.2.840.10008.7.1.1", "Native DICOM Model", "Application Hosting Model", "", "")
+	add("1.2.840.10008.7.1.2", "Abstract Multi-Dimensional Image Model", "Application Hosting Model", "", "")
+	add("1.2.840.10008.8.1.1", "DICOM Content Mapping Resource", "Mapping Resource", "", "")
+	add("1.2.840.10008.15.0.3.1", "dicomDeviceName", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.2", "dicomDescription", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.3", "dicomManufacturer", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.4", "dicomManufacturerModelName", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.5", "dicomSoftwareVersion", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.6", "dicomVendorData", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.7", "dicomAETitle", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.8", "dicomNetworkConnectionReference", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.9", "dicomApplicationCluster", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.10", "dicomAssociationInitiator", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.11", "dicomAssociationAcceptor", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.12", "dicomHostname", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.13", "dicomPort", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.14", "dicomSOPClass", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.15", "dicomTransferRole", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.16", "dicomTransferSyntax", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.17", "dicomPrimaryDeviceType", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.18", "dicomRelatedDeviceReference", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.19", "dicomPreferredCalledAETitle", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.20", "dicomTLSCyphersuite", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.21", "dicomAuthorizedNodeCertificateReference", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.22", "dicomThisNodeCertificateReference", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.23", "dicomInstalled", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.24", "dicomStationName", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.25", "dicomDeviceSerialNumber", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.26", "dicomInstitutionName", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.27", "dicomInstitutionAddress", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.28", "dicomInstitutionDepartmentName", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.29", "dicomIssuerOfPatientID", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.30", "dicomPreferredCallingAETitle", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.3.31", "dicomSupportedCharacterSet", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.1", "dicomConfigurationRoot", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.2", "dicomDevicesRoot", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.3", "dicomUniqueAETitlesRegistryRoot", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.4", "dicomDevice", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.5", "dicomNetworkAE", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.6", "dicomNetworkConnection", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.7", "dicomUniqueAETitle", "LDAP OID", "", "")
+	add("1.2.840.10008.15.0.4.8", "dicomTransferCapability", "LDAP OID", "", "")
+	add("1.2.840.10008.15.1.1", "Universal Coordinated Time", "Synchronization Frame of Reference", "", "")
+}
+
+func standardUID(uid string) string {
+	maybeInitUIDDict()
+	return MustLookupUID(uid).UID
 }
 
 // Find information about the given uid (string starting with 1.2.840).  Returns

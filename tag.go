@@ -4013,6 +4013,8 @@ var (
 	TagImplementationVersionName      = standardTag(2, 0x13)
 	TagTransferSyntaxUID              = standardTag(2, 0x10)
 	TagSpecificCharacterSet           = standardTag(8, 5)
+	TagQueryRetrievalLevel            = standardTag(8, 0x52)
+	TagPatientName                    = standardTag(0x10, 0x10)
 
 	// Standard DIMSE tags
 	TagCommandGroupLength                   = standardTag(0, 0x0000)
