@@ -3,6 +3,7 @@ package dicom
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/yasushi-saito/go-dicom/dicomio"
 	"v.io/x/lib/vlog"
@@ -303,4 +304,32 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 		encodeElementHeader(e, elem.Tag, vr, uint32(len(bytes)))
 		e.WriteBytes(bytes)
 	}
+}
+
+// Write writes the DICOM dataset "ds" into the stream "out".
+//
+//  ds := ... read or create dicom.Dataset ...
+//  out, err := os.Create("test.dcm")
+//  err := dicom.Write(out, ds)
+func Write(out io.Writer, ds *DataSet) error {
+	e := dicomio.NewEncoder(out, nil, dicomio.UnknownVR)
+	sopClass, err := ds.LookupElementByName("SOPClassUID")
+	if err != nil {
+		return err
+	}
+	sopInstance, err := ds.LookupElementByName("SOPInstanceUID")
+	if err != nil {
+		return err
+	}
+	// TODO(saito) Set the transfer syntax!
+	WriteFileHeader(e,
+		ImplicitVRLittleEndian, sopClass.MustGetString(),
+		sopInstance.MustGetString())
+	e.PushTransferSyntax(binary.LittleEndian, dicomio.ImplicitVR)
+	// TODO(saito) Remove tags with group=2.
+	for _, elem := range ds.Elements {
+		WriteDataElement(e, &elem)
+	}
+	e.PopTransferSyntax()
+	return e.Error()
 }

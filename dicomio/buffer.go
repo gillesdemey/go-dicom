@@ -29,6 +29,8 @@ type Encoder struct {
 	oldTransferSyntaxes []transferSyntaxStackEntry
 }
 
+// Create a new Encoder that writes to an in-memory buffer. The contents can be
+// obtained via Bytes() method.
 func NewBytesEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
 		err:      nil,
@@ -38,6 +40,7 @@ func NewBytesEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	}
 }
 
+// Create a new encoder that writes to "out".
 func NewEncoder(out io.Writer, bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
 		err:      nil,
@@ -70,7 +73,9 @@ func (d *Encoder) PopTransferSyntax() {
 	d.oldTransferSyntaxes = d.oldTransferSyntaxes[:len(d.oldTransferSyntaxes)-1]
 }
 
-// Set the error to be reported by future Error() or Finish() calls.
+// SetError sets the error to be reported by future Error() calls.  If called
+// multiple times with different errors, Error() will return one of them, but
+// exactly which is unspecified.
 //
 // REQUIRES: err != nil
 func (e *Encoder) SetError(err error) {
@@ -79,10 +84,14 @@ func (e *Encoder) SetError(err error) {
 	}
 }
 
+// Error returns an error set by SetError(), if any.  Returns nil if SetError()
+// has never been called.
 func (e *Encoder) Error() error { return e.err }
 
-// Finish() must be called after all the data are encoded.  It returns the
-// serialized payload, or error if any.
+// Bytes returns the encoded data.
+//
+// REQUIRES: Encoder was created by NewBytesEncoder (not NewEncoder).
+// REQUIRES: e.Error() == nil.
 func (e *Encoder) Bytes() []byte {
 	doassert(len(e.oldTransferSyntaxes) == 0)
 	if e.err != nil {
