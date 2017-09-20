@@ -6,35 +6,52 @@ import (
 	"io"
 
 	"github.com/yasushi-saito/go-dicom/dicomio"
-	"v.io/x/lib/vlog"
+	_ "v.io/x/lib/vlog"
 )
 
-// Inverse of ParseFileHeader. Errors are reported via e.Error()
-func WriteFileHeader(e *dicomio.Encoder,
-	transferSyntaxUID string,
-	sopClassUID string,
-	sopInstanceUID string) {
+// Produce a DICOM file header. metaElems[] is be a list of elements to be
+// embedded in the header part. Every element in metaElems[] must have
+// Tag.Group==2. Errors are reported via e.Error().
+//
+// Consult the following page for the DICOM file header format.
+//
+// http://dicom.nema.org/dicom/2013/output/chtml/part10/chapter_7.html
+func WriteFileHeader(e *dicomio.Encoder, metaElems []Element) {
 	e.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer e.PopTransferSyntax()
-	encodeSingleValue := func(encoder *dicomio.Encoder, tag Tag, v interface{}) {
-		elem := Element{
-			Tag:             tag,
-			VR:              "", // autodetect
-			UndefinedLength: false,
-			Value:           []interface{}{v},
-		}
-		WriteDataElement(encoder, &elem)
-	}
 
-	// Encode the meta info first.
 	subEncoder := dicomio.NewBytesEncoder(binary.LittleEndian, dicomio.ExplicitVR)
-	encodeSingleValue(subEncoder, TagFileMetaInformationVersion, []byte("0 1"))
-	encodeSingleValue(subEncoder, TagTransferSyntaxUID, transferSyntaxUID)
-	encodeSingleValue(subEncoder, TagMediaStorageSOPClassUID, sopClassUID)
-	encodeSingleValue(subEncoder, TagMediaStorageSOPInstanceUID, sopInstanceUID)
-	encodeSingleValue(subEncoder, TagImplementationClassUID, GoDICOMImplementationClassUID)
-	encodeSingleValue(subEncoder, TagImplementationVersionName, GoDICOMImplementationVersionName)
-	// TODO(saito) add more
+	tagsUsed := make(map[Tag]bool)
+
+	writeRequiredMetaElem := func(tag Tag) {
+		if elem, err := LookupElementByTag(metaElems, tag); err == nil {
+			WriteDataElement(subEncoder, elem)
+		} else {
+			subEncoder.SetError(fmt.Errorf("%v not found in metaelems: %v", TagString(tag), err))
+		}
+		tagsUsed[tag] = true
+	}
+	writeOptionalMetaElem := func(tag Tag, defaultValue interface{}) {
+		if elem, err := LookupElementByTag(metaElems, TagFileMetaInformationVersion); err == nil {
+			WriteDataElement(subEncoder, elem)
+		} else {
+			WriteDataElement(subEncoder, NewElement(tag, defaultValue))
+		}
+		tagsUsed[tag] = true
+	}
+	writeOptionalMetaElem(TagFileMetaInformationVersion, []byte("0 1"))
+	writeRequiredMetaElem(TagTransferSyntaxUID)
+	writeRequiredMetaElem(TagMediaStorageSOPClassUID)
+	writeRequiredMetaElem(TagMediaStorageSOPInstanceUID)
+	writeOptionalMetaElem(TagImplementationClassUID, GoDICOMImplementationClassUID)
+	writeOptionalMetaElem(TagImplementationVersionName, GoDICOMImplementationVersionName)
+	for _, elem := range metaElems {
+		if elem.Tag.Group == TagMetadataGroup {
+			if _, ok := tagsUsed[elem.Tag]; !ok {
+				WriteDataElement(subEncoder, &elem)
+			}
+		}
+	}
 	if subEncoder.Error() != nil {
 		e.SetError(subEncoder.Error())
 		return
@@ -42,7 +59,7 @@ func WriteFileHeader(e *dicomio.Encoder,
 	metaBytes := subEncoder.Bytes()
 	e.WriteZeros(128)
 	e.WriteString("DICM")
-	encodeSingleValue(e, TagMetaElementGroupLength, uint32(len(metaBytes)))
+	WriteDataElement(e, NewElement(TagMetaElementGroupLength, uint32(len(metaBytes))))
 	e.WriteBytes(metaBytes)
 }
 
@@ -129,9 +146,6 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			e.WriteBytes(image.Frames[0])
 		}
 		return
-	}
-	if elem.Tag.Group == 0x20 && elem.Tag.Element == 0x32 {
-		vlog.Errorf("XXXXXTAG: #v:%d, %v", len(elem.Value), elem)
 	}
 	if vr == "SQ" {
 		if elem.UndefinedLength {
@@ -328,22 +342,27 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 //  err := dicom.Write(out, ds)
 func Write(out io.Writer, ds *DataSet) error {
 	e := dicomio.NewEncoder(out, nil, dicomio.UnknownVR)
-	sopClass, err := ds.LookupElementByName("SOPClassUID")
+	var metaElems []Element
+	for _, e := range ds.Elements {
+		if e.Tag.Group == TagMetadataGroup {
+			metaElems = append(metaElems, e)
+		}
+	}
+	WriteFileHeader(e, metaElems)
+	if e.Error() != nil {
+		return e.Error()
+	}
+
+	endian, implicit, err := getTransferSyntax(ds)
 	if err != nil {
 		return err
 	}
-	sopInstance, err := ds.LookupElementByName("SOPInstanceUID")
-	if err != nil {
-		return err
-	}
-	// TODO(saito) Set the transfer syntax!
-	WriteFileHeader(e,
-		ImplicitVRLittleEndian, sopClass.MustGetString(),
-		sopInstance.MustGetString())
-	e.PushTransferSyntax(binary.LittleEndian, dicomio.ImplicitVR)
+	e.PushTransferSyntax(endian, implicit)
 	// TODO(saito) Remove tags with group=2.
 	for _, elem := range ds.Elements {
-		WriteDataElement(e, &elem)
+		if elem.Tag.Group != TagMetadataGroup {
+			WriteDataElement(e, &elem)
+		}
 	}
 	e.PopTransferSyntax()
 	return e.Error()

@@ -271,6 +271,7 @@ func ParseFileHeader(d *dicomio.Decoder) []Element {
 			break
 		}
 		metaElems = append(metaElems, *elem)
+		vlog.Errorf("Meta elem: %v, len %v", elem.String(), d.Len())
 	}
 	return metaElems
 }
@@ -325,7 +326,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 			var image ImageData
 			image.Offsets = readBasicOffsetTable(d) // TODO(saito) Use the offset table.
 			if len(image.Offsets) > 1 {
-				vlog.Errorf("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", image.Offsets)
+				vlog.Infof("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", image.Offsets)
 			}
 			for d.Len() > 0 {
 				chunk, endOfItems := readRawItem(d)
@@ -559,6 +560,7 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 		}
 	}
 	if vl != undefinedLength && vl%2 != 0 {
+		panic("aoeu")
 		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag)))
 	}
 	return vr, vl

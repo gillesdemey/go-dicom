@@ -8,8 +8,8 @@ import subprocess
 import sys
 import tempfile
 
-#sys.path.append(os.path.join(os.environ['HOME'], 'pydicom'))
-#sys.path.append(os.path.join(os.environ['HOME'], 'pynetdicom3'))
+sys.path.append(os.path.join(os.environ['HOME'], 'dicom/pydicom'))
+sys.path.append(os.path.join(os.environ['HOME'], 'dicom/pynetdicom3'))
 import pydicom
 from typing import IO
 

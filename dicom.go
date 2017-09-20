@@ -70,15 +70,7 @@ func Parse(in io.Reader, bytes int64) (*DataSet, error) {
 	file := &DataSet{Elements: metaElems}
 
 	// Change the transfer syntax for the rest of the file.
-	elem, err := LookupElementByTag(metaElems, TagTransferSyntaxUID)
-	if err != nil {
-		return nil, err
-	}
-	transferSyntaxUID, err := elem.GetString()
-	if err != nil {
-		return nil, err
-	}
-	endian, implicit, err := ParseTransferSyntaxUID(transferSyntaxUID)
+	endian, implicit, err := getTransferSyntax(file)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +108,18 @@ func Parse(in io.Reader, bytes int64) (*DataSet, error) {
 		file.Elements = append(file.Elements, *elem)
 	}
 	return file, buffer.Finish()
+}
+
+func getTransferSyntax(ds *DataSet) (bo binary.ByteOrder, implicit dicomio.IsImplicitVR, err error) {
+	elem, err := ds.LookupElementByTag(TagTransferSyntaxUID)
+	if err != nil {
+		return nil, dicomio.UnknownVR, err
+	}
+	transferSyntaxUID, err := elem.GetString()
+	if err != nil {
+		return nil, dicomio.UnknownVR, err
+	}
+	return ParseTransferSyntaxUID(transferSyntaxUID)
 }
 
 func (f *DataSet) LookupElementByName(name string) (*Element, error) {
