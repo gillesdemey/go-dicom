@@ -433,7 +433,22 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 				tag := Tag{d.ReadUInt16(), d.ReadUInt16()}
 				data = append(data, tag)
 			}
-		} else if vr == "OW" || vr == "OB" {
+		} else if vr == "OW" {
+			if vl%2 != 0 {
+				d.SetError(fmt.Errorf("%v: OW requires even length, but found %v", TagString(tag), vl))
+			} else {
+				n := int(vl / 2)
+				e := dicomio.NewBytesEncoder(dicomio.NativeByteOrder, dicomio.UnknownVR)
+				for i := 0; i < n; i++ {
+					v := d.ReadUInt16()
+					e.WriteUInt16(v)
+				}
+				doassert(e.Error() == nil)
+				// TODO(saito) Check that size is even. Byte swap??
+				// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
+				data = append(data, e.Bytes())
+			}
+		} else if vr == "OB" {
 			// TODO(saito) Check that size is even. Byte swap??
 			// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
 			data = append(data, d.ReadBytes(int(vl)))

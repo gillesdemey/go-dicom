@@ -272,9 +272,24 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 					TagString(elem.Tag), elem.Value[0]))
 				break
 			}
-			sube.WriteBytes(bytes)
-			if len(bytes)%2 == 1 {
-				sube.WriteByte(0)
+			if vr == "OW" {
+				if len(bytes)%2 != 0 {
+					e.SetError(fmt.Errorf("%v: expect a binary string of even length, but found length %v",
+						TagString(elem.Tag), len(bytes)))
+					break
+				}
+				d := dicomio.NewBytesDecoder(bytes, dicomio.NativeByteOrder, dicomio.UnknownVR)
+				n := int(len(bytes) / 2)
+				for i := 0; i < n; i++ {
+					v := d.ReadUInt16()
+					sube.WriteUInt16(v)
+				}
+				doassert(d.Finish() == nil)
+			} else { // vr=="OB"
+				sube.WriteBytes(bytes)
+				if len(bytes)%2 == 1 {
+					sube.WriteByte(0)
+				}
 			}
 		case "AT", "NA":
 			fallthrough

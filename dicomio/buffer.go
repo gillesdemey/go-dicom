@@ -8,6 +8,10 @@ import (
 	"io"
 )
 
+// TODO(saito) Auto-detect the native byte order. For now, to assume that every
+// machine in the world is little endian is not too horrible.
+var NativeByteOrder = binary.LittleEndian
+
 type transferSyntaxStackEntry struct {
 	bo       binary.ByteOrder
 	implicit IsImplicitVR
