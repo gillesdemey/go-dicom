@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/yasushi-saito/go-dicom"
+	"github.com/yasushi-saito/go-dicom/dicomuid"
 	"io/ioutil"
 	"log"
 	"sort"
@@ -72,7 +73,7 @@ func printScalar(vr string, i interface{}, indent int) string {
 	case string:
 		if vr == "UI" {
 			// Resolve UID
-			e, err := dicom.LookupUID(v)
+			e, err := dicomuid.Lookup(v)
 			if err == nil {
 				v = e.Name
 			}

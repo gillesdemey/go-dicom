@@ -1,18 +1,19 @@
-package dicom
+package dicomio
 
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/yasushi-saito/go-dicom/dicomio"
+
+	"github.com/yasushi-saito/go-dicom/dicomuid"
 	"v.io/x/lib/vlog"
 )
 
 // Standard list of transfer syntaxes.
 var StandardTransferSyntaxes = []string{
-	ImplicitVRLittleEndian,
-	ExplicitVRLittleEndian,
-	ExplicitVRBigEndian,
-	DeflatedExplicitVRLittleEndian,
+	dicomuid.ImplicitVRLittleEndian,
+	dicomuid.ExplicitVRLittleEndian,
+	dicomuid.ExplicitVRBigEndian,
+	dicomuid.DeflatedExplicitVRLittleEndian,
 }
 
 // Given an UID that represents a transfer syntax, return the canonical transfer
@@ -25,24 +26,24 @@ var StandardTransferSyntaxes = []string{
 func CanonicalTransferSyntaxUID(uid string) (string, error) {
 	// defaults are explicit VR, little endian
 	switch uid {
-	case ImplicitVRLittleEndian:
+	case dicomuid.ImplicitVRLittleEndian:
 		fallthrough
-	case ExplicitVRLittleEndian:
+	case dicomuid.ExplicitVRLittleEndian:
 		fallthrough
-	case ExplicitVRBigEndian:
+	case dicomuid.ExplicitVRBigEndian:
 		fallthrough
-	case DeflatedExplicitVRLittleEndian:
+	case dicomuid.DeflatedExplicitVRLittleEndian:
 		return uid, nil
 	default:
-		e, err := LookupUID(uid)
+		e, err := dicomuid.Lookup(uid)
 		if err != nil {
 			return "", err
 		}
-		if e.Type != UIDTypeTransferSyntax {
+		if e.Type != dicomuid.UIDTypeTransferSyntax {
 			return "", fmt.Errorf("UID '%s' is not a transfer syntax (is %s)", uid, e.Type)
 		}
 		// The default is ExplicitVRLittleEndian
-		return ExplicitVRLittleEndian, nil
+		return dicomuid.ExplicitVRLittleEndian, nil
 	}
 }
 
@@ -50,22 +51,22 @@ func CanonicalTransferSyntaxUID(uid string) (string, error) {
 // any UID that refers to a transfer syntax. It can be, e.g., 1.2.840.10008.1.2
 // (it will return LittleEndian, ImplicitVR) or 1.2.840.10008.1.2.4.54 (it will
 // return (LittleEndian, ExplicitVR).
-func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit dicomio.IsImplicitVR, err error) {
+func ParseTransferSyntaxUID(uid string) (bo binary.ByteOrder, implicit IsImplicitVR, err error) {
 	canonical, err := CanonicalTransferSyntaxUID(uid)
 	if err != nil {
-		return nil, dicomio.UnknownVR, err
+		return nil, UnknownVR, err
 	}
 	switch canonical {
-	case ImplicitVRLittleEndian:
-		return binary.LittleEndian, dicomio.ImplicitVR, nil
-	case DeflatedExplicitVRLittleEndian:
+	case dicomuid.ImplicitVRLittleEndian:
+		return binary.LittleEndian, ImplicitVR, nil
+	case dicomuid.DeflatedExplicitVRLittleEndian:
 		fallthrough
-	case ExplicitVRLittleEndian:
-		return binary.LittleEndian, dicomio.ExplicitVR, nil
-	case ExplicitVRBigEndian:
-		return binary.BigEndian, dicomio.ExplicitVR, nil
+	case dicomuid.ExplicitVRLittleEndian:
+		return binary.LittleEndian, ExplicitVR, nil
+	case dicomuid.ExplicitVRBigEndian:
+		return binary.BigEndian, ExplicitVR, nil
 	default:
 		vlog.Fatal(canonical, uid)
-		return binary.BigEndian, dicomio.ExplicitVR, nil
+		return binary.BigEndian, ExplicitVR, nil
 	}
 }

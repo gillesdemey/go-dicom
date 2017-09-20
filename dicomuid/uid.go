@@ -1,4 +1,4 @@
-package dicom
+package dicomuid
 
 // List of standard UIDs, as defined in P3.6.
 //
@@ -454,12 +454,12 @@ func maybeInitUIDDict() {
 
 func standardUID(uid string) string {
 	maybeInitUIDDict()
-	return MustLookupUID(uid).UID
+	return MustLookup(uid).UID
 }
 
 // Find information about the given uid (string starting with 1.2.840).  Returns
 // an error unless uid is the one defined in the DICOM standard, P3.6.
-func LookupUID(uid string) (UIDInfo, error) {
+func Lookup(uid string) (UIDInfo, error) {
 	e, ok := uidDict[uid]
 	if !ok {
 		return UIDInfo{}, fmt.Errorf("UID '%s' not found in dictionary", uid)
@@ -468,8 +468,8 @@ func LookupUID(uid string) (UIDInfo, error) {
 }
 
 // Similar to LookupUID, but crashes the process on error.
-func MustLookupUID(uid string) UIDInfo {
-	e, err := LookupUID(uid)
+func MustLookup(uid string) UIDInfo {
+	e, err := Lookup(uid)
 	if err != nil {
 		vlog.Fatal(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"github.com/yasushi-saito/go-dicom"
 	"github.com/yasushi-saito/go-dicom/dicomio"
+	"github.com/yasushi-saito/go-dicom/dicomuid"
 	"testing"
 )
 
@@ -78,7 +79,7 @@ func TestReadWriteFileHeader(t *testing.T) {
 	dicom.WriteFileHeader(
 		e,
 		[]dicom.Element{
-			*dicom.NewElement(dicom.TagTransferSyntaxUID, dicom.ImplicitVRLittleEndian),
+			*dicom.NewElement(dicom.TagTransferSyntaxUID, dicomuid.ImplicitVRLittleEndian),
 			*dicom.NewElement(dicom.TagMediaStorageSOPClassUID, "1.2.840.10008.5.1.4.1.1.1.2"),
 			*dicom.NewElement(dicom.TagMediaStorageSOPInstanceUID, "1.2.3.4.5.6.7"),
 		})
@@ -92,7 +93,7 @@ func TestReadWriteFileHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if elem.MustGetString() != dicom.ImplicitVRLittleEndian {
+	if elem.MustGetString() != dicomuid.ImplicitVRLittleEndian {
 		t.Error(elem)
 	}
 	elem, err = dicom.LookupElementByTag(elems, dicom.TagMediaStorageSOPClassUID)

@@ -184,20 +184,20 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 	}
 	if tag == tagSequenceDelimitationItem {
 		if vl != 0 {
-			d.SetError(fmt.Errorf("SequenceDelimitationItem's VL != 0: %v", vl))
+			d.SetErrorf("SequenceDelimitationItem's VL != 0: %v", vl)
 		}
 		return nil, true
 	}
 	if tag != TagItem {
-		d.SetError(fmt.Errorf("Expect Item in pixeldata but found tag %v", TagString(tag)))
+		d.SetErrorf("Expect Item in pixeldata but found tag %v", TagString(tag))
 		return nil, false
 	}
 	if vl == undefinedLength {
-		d.SetError(fmt.Errorf("Expect defined-length item in pixeldata"))
+		d.SetErrorf("Expect defined-length item in pixeldata")
 		return nil, false
 	}
 	if vr != "NA" {
-		d.SetError(fmt.Errorf("Expect NA item, but found %s", vr))
+		d.SetErrorf("Expect NA item, but found %s", vr)
 		return nil, true
 	}
 	return d.ReadBytes(int(vl)), false
@@ -213,7 +213,7 @@ type ImageData struct {
 func readBasicOffsetTable(d *dicomio.Decoder) []uint32 {
 	data, endOfData := readRawItem(d)
 	if endOfData {
-		d.SetError(fmt.Errorf("basic offset table not found"))
+		d.SetErrorf("basic offset table not found")
 	}
 	if len(data) == 0 {
 		return []uint32{0}
@@ -249,15 +249,15 @@ func ParseFileHeader(d *dicomio.Decoder) []Element {
 		return nil
 	}
 	if metaElem.Tag != TagMetaElementGroupLength {
-		d.SetError(fmt.Errorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String()))
+		d.SetErrorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String())
 	}
 	metaLength, err := metaElem.GetUInt32()
 	if err != nil {
-		d.SetError(fmt.Errorf("Failed to read uint32 in MetaElementGroupLength: %v", err))
+		d.SetErrorf("Failed to read uint32 in MetaElementGroupLength: %v", err)
 		return nil
 	}
 	if d.Len() <= 0 {
-		d.SetError(fmt.Errorf("No data element found"))
+		d.SetErrorf("No data element found")
 		return nil
 	}
 	metaElems := []Element{*metaElem}
@@ -361,7 +361,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 					break
 				}
 				if item.Tag != TagItem {
-					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagString(item.Tag)))
+					d.SetErrorf("Found non-Item element in seq w/ undefined length: %v", TagString(item.Tag))
 					break
 				}
 				data = append(data, item)
@@ -378,7 +378,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 					break
 				}
 				if item.Tag != TagItem {
-					d.SetError(fmt.Errorf("Found non-Item element in seq w/ undefined length: %v", TagString(item.Tag)))
+					d.SetErrorf("Found non-Item element in seq w/ undefined length: %v", TagString(item.Tag))
 					break
 				}
 				data = append(data, item)
@@ -411,7 +411,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 		}
 	} else { // List of scalar
 		if vl == undefinedLength {
-			d.SetError(fmt.Errorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag)))
+			d.SetErrorf("Undefined length disallowed for VR=%s, tag %s", vr, TagString(tag))
 			return nil
 		}
 		d.PushLimit(int64(vl))
@@ -436,7 +436,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 			}
 		} else if vr == "OW" {
 			if vl%2 != 0 {
-				d.SetError(fmt.Errorf("%v: OW requires even length, but found %v", TagString(tag), vl))
+				d.SetErrorf("%v: OW requires even length, but found %v", TagString(tag), vl)
 			} else {
 				n := int(vl / 2)
 				e := dicomio.NewBytesEncoder(dicomio.NativeByteOrder, dicomio.UnknownVR)
@@ -522,7 +522,7 @@ func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	}
 	// Error when encountering odd length
 	if vl != undefinedLength && vl%2 != 0 {
-		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading implicit VR '%v' for tag %s", vl, vr, TagString(tag)))
+		buffer.SetErrorf("Encountered odd length (vl=%v) when reading implicit VR '%v' for tag %s", vl, vr, TagString(tag))
 	}
 	return vr, vl
 }
@@ -561,7 +561,7 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	}
 	if vl != undefinedLength && vl%2 != 0 {
 		panic("aoeu")
-		buffer.SetError(fmt.Errorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag)))
+		buffer.SetErrorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag))
 	}
 	return vr, vl
 }

@@ -44,6 +44,16 @@ func NewBytesEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	}
 }
 
+func NewBytesEncoderWithTransferSyntax(transferSyntaxUID string) *Encoder {
+	endian, implicit, err := ParseTransferSyntaxUID(transferSyntaxUID)
+	if err == nil {
+		return NewBytesEncoder(endian, implicit)
+	}
+	e := NewBytesEncoder(binary.LittleEndian, ExplicitVR)
+	e.SetErrorf("%v: Unknown transfer syntax uid", transferSyntaxUID)
+	return e
+}
+
 // Create a new encoder that writes to "out".
 func NewEncoder(out io.Writer, bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
@@ -86,6 +96,10 @@ func (e *Encoder) SetError(err error) {
 	if e.err == nil {
 		e.err = err
 	}
+}
+
+func (e *Encoder) SetErrorf(format string, args ...interface{}) {
+	e.SetError(fmt.Errorf(format, args...))
 }
 
 // Error returns an error set by SetError(), if any.  Returns nil if SetError()
@@ -212,6 +226,16 @@ func NewBytesDecoder(data []byte, bo binary.ByteOrder, implicit IsImplicitVR) *D
 	return NewDecoder(bytes.NewBuffer(data), int64(len(data)), bo, implicit)
 }
 
+func NewBytesDecoderWithTransferSyntax(data []byte, transferSyntaxUID string) *Decoder {
+	endian, implicit, err := ParseTransferSyntaxUID(transferSyntaxUID)
+	if err == nil {
+		return NewBytesDecoder(data, endian, implicit)
+	}
+	d := NewBytesDecoder(data, binary.LittleEndian, ExplicitVR)
+	d.SetError(fmt.Errorf("%v: Unknown transfer syntax uid", transferSyntaxUID))
+	return d
+}
+
 // Set the error to be reported by future Error() or Finish() calls.
 //
 // REQUIRES: err != nil
@@ -219,6 +243,10 @@ func (d *Decoder) SetError(err error) {
 	if d.err == nil {
 		d.err = err
 	}
+}
+
+func (d *Decoder) SetErrorf(format string, args ...interface{}) {
+	d.SetError(fmt.Errorf(format, args...))
 }
 
 // Get the current transfer syntax.
@@ -232,6 +260,14 @@ func (d *Decoder) PushTransferSyntax(bo binary.ByteOrder, implicit IsImplicitVR)
 	d.oldTransferSyntaxes = append(d.oldTransferSyntaxes, transferSyntaxStackEntry{d.bo, d.implicit})
 	d.bo = bo
 	d.implicit = implicit
+}
+
+func (d *Decoder) PushTransferSyntaxByUID(uid string) {
+	endian, implicit, err := ParseTransferSyntaxUID(uid)
+	if err != nil {
+		d.SetError(err)
+	}
+	d.PushTransferSyntax(endian, implicit)
 }
 
 // Override the default (7bit ASCII) decoder used when converting a byte[] to a

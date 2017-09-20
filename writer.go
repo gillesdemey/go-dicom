@@ -10,8 +10,13 @@ import (
 )
 
 // Produce a DICOM file header. metaElems[] is be a list of elements to be
-// embedded in the header part. Every element in metaElems[] must have
-// Tag.Group==2. Errors are reported via e.Error().
+// embedded in the header part.  Every element in metaElems[] must have
+// Tag.Group==2. It must contain at least the following three elements:
+// TagTransferSyntaxUID, TagMediaStorageSOPClassUID,
+// TagMediaStorageSOPInstanceUID. The list may contain other meta elements as
+// long as their Tag.Group==2; they are added to the header.
+//
+// Errors are reported via e.Error().
 //
 // Consult the following page for the DICOM file header format.
 //
@@ -27,7 +32,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []Element) {
 		if elem, err := LookupElementByTag(metaElems, tag); err == nil {
 			WriteDataElement(subEncoder, elem)
 		} else {
-			subEncoder.SetError(fmt.Errorf("%v not found in metaelems: %v", TagString(tag), err))
+			subEncoder.SetErrorf("%v not found in metaelems: %v", TagString(tag), err)
 		}
 		tagsUsed[tag] = true
 	}
@@ -118,8 +123,8 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 		}
 	} else {
 		if err == nil && entry.VR != vr {
-			e.SetError(fmt.Errorf("VR value mismatch for tag %s. Element.VR=%v, but tag's VR is %v",
-				TagString(elem.Tag), vr, entry.VR))
+			e.SetErrorf("VR value mismatch for tag %s. Element.VR=%v, but tag's VR is %v",
+				TagString(elem.Tag), vr, entry.VR)
 			return
 		}
 	}
@@ -164,7 +169,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				subelem, ok := value.(*Element)
 				if !ok || subelem.Tag != TagItem {
-					e.SetError(fmt.Errorf("SQ element must be an Item, but found %v", value))
+					e.SetErrorf("SQ element must be an Item, but found %v", value)
 					return
 				}
 				WriteDataElement(sube, subelem)
@@ -183,7 +188,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				subelem, ok := value.(*Element)
 				if !ok {
-					e.SetError(fmt.Errorf("Item values must be a dicom.Element, but found %v", value))
+					e.SetErrorf("Item values must be a dicom.Element, but found %v", value)
 					return
 				}
 				WriteDataElement(e, subelem)
@@ -194,7 +199,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				subelem, ok := value.(*Element)
 				if !ok {
-					e.SetError(fmt.Errorf("Item values must be a dicom.Element, but found %v", value))
+					e.SetErrorf("Item values must be a dicom.Element, but found %v", value)
 					return
 				}
 				WriteDataElement(sube, subelem)
@@ -209,7 +214,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 		}
 	} else {
 		if elem.UndefinedLength {
-			e.SetError(fmt.Errorf("Encoding undefined-length element not yet supported: %v", elem))
+			e.SetErrorf("Encoding undefined-length element not yet supported: %v", elem)
 			return
 		}
 		sube := dicomio.NewBytesEncoder(e.TransferSyntax())
@@ -218,8 +223,8 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				v, ok := value.(uint16)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: expect uint16, but found %v",
-						TagString(elem.Tag), value))
+					e.SetErrorf("%v: expect uint16, but found %v",
+						TagString(elem.Tag), value)
 					continue
 				}
 				sube.WriteUInt16(v)
@@ -228,8 +233,8 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				v, ok := value.(uint32)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: expect uint32, but found %v",
-						TagString(elem.Tag), value))
+					e.SetErrorf("%v: expect uint32, but found %v",
+						TagString(elem.Tag), value)
 					continue
 				}
 				sube.WriteUInt32(v)
@@ -238,8 +243,8 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				v, ok := value.(int32)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: expect int32, but found %v",
-						TagString(elem.Tag), value))
+					e.SetErrorf("%v: expect int32, but found %v",
+						TagString(elem.Tag), value)
 					continue
 				}
 				sube.WriteInt32(v)
@@ -248,8 +253,8 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				v, ok := value.(int16)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: expect int16, but found %v",
-						TagString(elem.Tag), value))
+					e.SetErrorf("%v: expect int16, but found %v",
+						TagString(elem.Tag), value)
 					continue
 				}
 				sube.WriteInt16(v)
@@ -258,8 +263,8 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				v, ok := value.(float32)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: expect float32, but found %v",
-						TagString(elem.Tag), value))
+					e.SetErrorf("%v: expect float32, but found %v",
+						TagString(elem.Tag), value)
 					continue
 				}
 				sube.WriteFloat32(v)
@@ -268,28 +273,28 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, value := range elem.Value {
 				v, ok := value.(float64)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: expect float64, but found %v",
-						TagString(elem.Tag), value))
+					e.SetErrorf("%v: expect float64, but found %v",
+						TagString(elem.Tag), value)
 					continue
 				}
 				sube.WriteFloat64(v)
 			}
 		case "OW", "OB": // TODO(saito) Check that size is even. Byte swap??
 			if len(elem.Value) != 1 {
-				e.SetError(fmt.Errorf("%v: expect a single value but found %v",
-					TagString(elem.Tag), elem.Value))
+				e.SetErrorf("%v: expect a single value but found %v",
+					TagString(elem.Tag), elem.Value)
 				break
 			}
 			bytes, ok := elem.Value[0].([]byte)
 			if !ok {
-				e.SetError(fmt.Errorf("%v: expect a binary string but found %v",
-					TagString(elem.Tag), elem.Value[0]))
+				e.SetErrorf("%v: expect a binary string but found %v",
+					TagString(elem.Tag), elem.Value[0])
 				break
 			}
 			if vr == "OW" {
 				if len(bytes)%2 != 0 {
-					e.SetError(fmt.Errorf("%v: expect a binary string of even length, but found length %v",
-						TagString(elem.Tag), len(bytes)))
+					e.SetErrorf("%v: expect a binary string of even length, but found length %v",
+						TagString(elem.Tag), len(bytes))
 					break
 				}
 				d := dicomio.NewBytesDecoder(bytes, dicomio.NativeByteOrder, dicomio.UnknownVR)
@@ -312,7 +317,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for i, value := range elem.Value {
 				substr, ok := value.(string)
 				if !ok {
-					e.SetError(fmt.Errorf("%v: Non-string value found", TagString(elem.Tag)))
+					e.SetErrorf("%v: Non-string value found", TagString(elem.Tag))
 					continue
 				}
 				if i > 0 {
@@ -335,7 +340,12 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 	}
 }
 
-// Write writes the DICOM dataset "ds" into the stream "out".
+// Write writes the dataset into the stream in DICOM file format, complete with
+// the magic header and metadata elements.
+//
+// The transfer syntax (byte order, etc) of the file is determined by the TransferSyntax
+// element in "ds". If ds is missing that or a few other essential elements, this function
+// returns an error.
 //
 //  ds := ... read or create dicom.Dataset ...
 //  out, err := os.Create("test.dcm")

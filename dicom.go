@@ -119,7 +119,7 @@ func getTransferSyntax(ds *DataSet) (bo binary.ByteOrder, implicit dicomio.IsImp
 	if err != nil {
 		return nil, dicomio.UnknownVR, err
 	}
-	return ParseTransferSyntaxUID(transferSyntaxUID)
+	return dicomio.ParseTransferSyntaxUID(transferSyntaxUID)
 }
 
 func (f *DataSet) LookupElementByName(name string) (*Element, error) {
