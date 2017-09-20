@@ -9,7 +9,7 @@ import (
 
 func testWriteDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.IsImplicitVR) {
 	// Encode two scalar elements.
-	e := dicomio.NewEncoder(bo, implicit)
+	e := dicomio.NewBytesEncoder(bo, implicit)
 	var values []interface{}
 	values = append(values, string("FooHah"))
 	dicom.WriteDataElement(e, &dicom.Element{
@@ -21,12 +21,7 @@ func testWriteDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.Is
 	dicom.WriteDataElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0020, 0x9057},
 		Value: values})
-
-	data, err := e.Finish()
-	if err != nil {
-		t.Error(err)
-	}
-
+	data := e.Bytes()
 	// Read them back.
 	d := dicomio.NewBytesDecoder(data, bo, implicit)
 	elem0 := dicom.ReadDataElement(d)
@@ -79,15 +74,12 @@ func TestWriteDataElementBigEndianExplicit(t *testing.T) {
 }
 
 func TestReadWriteFileHeader(t *testing.T) {
-	e := dicomio.NewEncoder(binary.LittleEndian, dicomio.ImplicitVR)
+	e := dicomio.NewBytesEncoder(binary.LittleEndian, dicomio.ImplicitVR)
 	dicom.WriteFileHeader(
 		e, dicom.ImplicitVRLittleEndian,
 		"1.2.840.10008.5.1.4.1.1.1.2",
 		"1.2.3.4.5.6.7")
-	bytes, err := e.Finish()
-	if err != nil {
-		t.Fatal(err)
-	}
+	bytes := e.Bytes()
 	d := dicomio.NewBytesDecoder(bytes, binary.LittleEndian, dicomio.ImplicitVR)
 	elems := dicom.ParseFileHeader(d)
 	if err := d.Finish(); err != nil {

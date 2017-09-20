@@ -9,18 +9,14 @@ import (
 )
 
 func TestBasic(t *testing.T) {
-	e := dicomio.NewEncoder(binary.BigEndian, dicomio.UnknownVR)
+	e := dicomio.NewBytesEncoder(binary.BigEndian, dicomio.UnknownVR)
 	e.WriteByte(10)
 	e.WriteByte(11)
 	e.WriteUInt16(0x123)
 	e.WriteUInt32(0x234)
 	e.WriteZeros(12)
 	e.WriteString("abcde")
-
-	encoded, err := e.Finish()
-	if err != nil {
-		t.Fatal(encoded)
-	}
+	encoded := e.Bytes()
 	d := dicomio.NewDecoder(
 		bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, dicomio.ImplicitVR)
@@ -53,13 +49,9 @@ func TestBasic(t *testing.T) {
 }
 
 func TestSkip(t *testing.T) {
-	e := dicomio.NewEncoder(binary.BigEndian, dicomio.UnknownVR)
+	e := dicomio.NewBytesEncoder(binary.BigEndian, dicomio.UnknownVR)
 	e.WriteString("abcdefghijk")
-	encoded, err := e.Finish()
-	if err != nil {
-		t.Fatal(encoded)
-	}
-
+	encoded := e.Bytes()
 	d := dicomio.NewBytesDecoder(encoded, binary.BigEndian, dicomio.UnknownVR)
 	d.Skip(3)
 	if d.Len() != 8 {
@@ -71,12 +63,9 @@ func TestSkip(t *testing.T) {
 }
 
 func TestPartialData(t *testing.T) {
-	e := dicomio.NewEncoder(binary.BigEndian, dicomio.UnknownVR)
+	e := dicomio.NewBytesEncoder(binary.BigEndian, dicomio.UnknownVR)
 	e.WriteByte(10)
-	encoded, err := e.Finish()
-	if err != nil {
-		t.Fatal(encoded)
-	}
+	encoded := e.Bytes()
 	// Read uint16, when there's only one byte in buffer.
 	d := dicomio.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, dicomio.ImplicitVR)
@@ -86,14 +75,11 @@ func TestPartialData(t *testing.T) {
 }
 
 func TestLimit(t *testing.T) {
-	e := dicomio.NewEncoder(binary.BigEndian, dicomio.UnknownVR)
+	e := dicomio.NewBytesEncoder(binary.BigEndian, dicomio.UnknownVR)
 	e.WriteByte(10)
 	e.WriteByte(11)
 	e.WriteByte(12)
-	encoded, err := e.Finish()
-	if err != nil {
-		t.Error(encoded)
-	}
+	encoded := e.Bytes()
 	// Allow reading only the first two bytes
 	d := dicomio.NewDecoder(bytes.NewBuffer(encoded), int64(len(encoded)),
 		binary.BigEndian, dicomio.ImplicitVR)

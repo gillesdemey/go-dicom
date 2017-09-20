@@ -17,7 +17,8 @@ type Encoder struct {
 	err error
 
 	// TODO(saito) Change to take the io.Writer instead of bytes.Buffer.
-	buf *bytes.Buffer
+	//buf *bytes.Buffer
+	out io.Writer
 	bo  binary.ByteOrder
 
 	// "implicit" isn't used by Encoder internally. It's there for the user
@@ -28,10 +29,19 @@ type Encoder struct {
 	oldTransferSyntaxes []transferSyntaxStackEntry
 }
 
-func NewEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
+func NewBytesEncoder(bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
 		err:      nil,
-		buf:      &bytes.Buffer{},
+		out:      &bytes.Buffer{},
+		bo:       bo,
+		implicit: implicit,
+	}
+}
+
+func NewEncoder(out io.Writer, bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
+	return &Encoder{
+		err:      nil,
+		out:      out,
 		bo:       bo,
 		implicit: implicit,
 	}
@@ -69,55 +79,60 @@ func (e *Encoder) SetError(err error) {
 	}
 }
 
+func (e *Encoder) Error() error { return e.err }
+
 // Finish() must be called after all the data are encoded.  It returns the
 // serialized payload, or error if any.
-func (e *Encoder) Finish() ([]byte, error) {
+func (e *Encoder) Bytes() []byte {
 	doassert(len(e.oldTransferSyntaxes) == 0)
-	return e.buf.Bytes(), e.err
+	if e.err != nil {
+		panic(e.err)
+	}
+	return e.out.(*bytes.Buffer).Bytes()
 }
 
 func (e *Encoder) WriteByte(v byte) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteUInt16(v uint16) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteUInt32(v uint32) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteInt16(v int16) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteInt32(v int32) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteFloat32(v float32) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteFloat64(v float64) {
-	binary.Write(e.buf, e.bo, &v)
+	binary.Write(e.out, e.bo, &v)
 }
 
 func (e *Encoder) WriteString(v string) {
-	e.buf.Write([]byte(v))
+	e.out.Write([]byte(v))
 }
 
 // Encode an array of zero bytes.
 func (e *Encoder) WriteZeros(len int) {
 	// TODO(saito) reuse the buffer!
 	zeros := make([]byte, len)
-	e.buf.Write(zeros)
+	e.out.Write(zeros)
 }
 
 // Copy the given data to the output.
 func (e *Encoder) WriteBytes(v []byte) {
-	e.buf.Write(v)
+	e.out.Write(v)
 }
 
 type IsImplicitVR int

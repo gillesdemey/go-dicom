@@ -26,7 +26,7 @@ func WriteFileHeader(e *dicomio.Encoder,
 	}
 
 	// Encode the meta info first.
-	subEncoder := dicomio.NewEncoder(binary.LittleEndian, dicomio.ExplicitVR)
+	subEncoder := dicomio.NewBytesEncoder(binary.LittleEndian, dicomio.ExplicitVR)
 	encodeSingleValue(subEncoder, TagFileMetaInformationVersion, []byte("0 1"))
 	encodeSingleValue(subEncoder, TagTransferSyntaxUID, transferSyntaxUID)
 	encodeSingleValue(subEncoder, TagMediaStorageSOPClassUID, sopClassUID)
@@ -34,12 +34,11 @@ func WriteFileHeader(e *dicomio.Encoder,
 	encodeSingleValue(subEncoder, TagImplementationClassUID, GoDICOMImplementationClassUID)
 	encodeSingleValue(subEncoder, TagImplementationVersionName, GoDICOMImplementationVersionName)
 	// TODO(saito) add more
-	metaBytes, err := subEncoder.Finish()
-	if err != nil {
-		e.SetError(err)
+	if subEncoder.Error() != nil {
+		e.SetError(subEncoder.Error())
 		return
 	}
-
+	metaBytes := subEncoder.Bytes()
 	e.WriteZeros(128)
 	e.WriteString("DICM")
 	encodeSingleValue(e, TagMetaElementGroupLength, uint32(len(metaBytes)))
@@ -78,15 +77,11 @@ func writeRawItem(e *dicomio.Encoder, data []byte) {
 
 func writeBasicOffsetTable(e *dicomio.Encoder, offsets []uint32) {
 	byteOrder, _ := e.TransferSyntax()
-	subEncoder := dicomio.NewEncoder(byteOrder, dicomio.ImplicitVR)
+	subEncoder := dicomio.NewBytesEncoder(byteOrder, dicomio.ImplicitVR)
 	for _, offset := range offsets {
 		subEncoder.WriteUInt32(offset)
 	}
-	data, err := subEncoder.Finish()
-	if err != nil {
-		panic(err)
-	}
-	writeRawItem(e, data)
+	writeRawItem(e, subEncoder.Bytes())
 }
 
 // WriteDataElement encodes one data element.  Errors are reported through
@@ -150,7 +145,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			}
 			encodeElementHeader(e, tagSequenceDelimitationItem, "" /*not used*/, 0)
 		} else {
-			sube := dicomio.NewEncoder(e.TransferSyntax())
+			sube := dicomio.NewBytesEncoder(e.TransferSyntax())
 			for _, value := range elem.Value {
 				subelem, ok := value.(*Element)
 				if !ok || subelem.Tag != TagItem {
@@ -159,11 +154,11 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 				}
 				WriteDataElement(sube, subelem)
 			}
-			bytes, err := sube.Finish()
-			if err != nil {
-				e.SetError(err)
+			if sube.Error() != nil {
+				e.SetError(sube.Error())
 				return
 			}
+			bytes := sube.Bytes()
 			encodeElementHeader(e, elem.Tag, vr, uint32(len(bytes)))
 			e.WriteBytes(bytes)
 		}
@@ -180,7 +175,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			}
 			encodeElementHeader(e, tagItemDelimitationItem, "" /*not used*/, 0)
 		} else {
-			sube := dicomio.NewEncoder(e.TransferSyntax())
+			sube := dicomio.NewBytesEncoder(e.TransferSyntax())
 			for _, value := range elem.Value {
 				subelem, ok := value.(*Element)
 				if !ok {
@@ -189,11 +184,11 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 				}
 				WriteDataElement(sube, subelem)
 			}
-			bytes, err := sube.Finish()
-			if err != nil {
-				e.SetError(err)
+			if sube.Error() != nil {
+				e.SetError(sube.Error())
 				return
 			}
+			bytes := sube.Bytes()
 			encodeElementHeader(e, elem.Tag, vr, uint32(len(bytes)))
 			e.WriteBytes(bytes)
 		}
@@ -202,8 +197,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			e.SetError(fmt.Errorf("Encoding undefined-length element not yet supported: %v", elem))
 			return
 		}
-		sube := dicomio.NewEncoder(e.TransferSyntax())
-
+		sube := dicomio.NewBytesEncoder(e.TransferSyntax())
 		switch vr {
 		case "US":
 			for _, value := range elem.Value {
@@ -301,11 +295,11 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 				sube.WriteByte(0)
 			}
 		}
-		bytes, err := sube.Finish()
-		if err != nil {
-			e.SetError(err)
+		if sube.Error() != nil {
+			e.SetError(sube.Error())
 			return
 		}
+		bytes := sube.Bytes()
 		encodeElementHeader(e, elem.Tag, vr, uint32(len(bytes)))
 		e.WriteBytes(bytes)
 	}
