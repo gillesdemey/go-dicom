@@ -7,18 +7,18 @@ import (
 	"testing"
 )
 
-func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.IsImplicitVR) {
+func testWriteDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.IsImplicitVR) {
 	// Encode two scalar elements.
 	e := dicomio.NewEncoder(bo, implicit)
 	var values []interface{}
 	values = append(values, string("FooHah"))
-	dicom.EncodeDataElement(e, &dicom.Element{
+	dicom.WriteDataElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0018, 0x9755},
 		Value: values})
 	values = nil
 	values = append(values, uint32(1234))
 	values = append(values, uint32(2345))
-	dicom.EncodeDataElement(e, &dicom.Element{
+	dicom.WriteDataElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0020, 0x9057},
 		Value: values})
 
@@ -66,16 +66,16 @@ func testEncodeDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.I
 	}
 }
 
-func TestEncodeDataElementImplicit(t *testing.T) {
-	testEncodeDataElement(t, binary.LittleEndian, dicomio.ImplicitVR)
+func TestWriteDataElementImplicit(t *testing.T) {
+	testWriteDataElement(t, binary.LittleEndian, dicomio.ImplicitVR)
 }
 
-func TestEncodeDataElementExplicit(t *testing.T) {
-	testEncodeDataElement(t, binary.LittleEndian, dicomio.ExplicitVR)
+func TestWriteDataElementExplicit(t *testing.T) {
+	testWriteDataElement(t, binary.LittleEndian, dicomio.ExplicitVR)
 }
 
-func TestEncodeDataElementBigEndianExplicit(t *testing.T) {
-	testEncodeDataElement(t, binary.BigEndian, dicomio.ExplicitVR)
+func TestWriteDataElementBigEndianExplicit(t *testing.T) {
+	testWriteDataElement(t, binary.BigEndian, dicomio.ExplicitVR)
 }
 
 func TestReadWriteFileHeader(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/yasushi-saito/go-dicom/dicomio"
@@ -64,16 +65,22 @@ func TestWriteFile(t *testing.T) {
 		sopInstance.MustGetString())
 	e.PushTransferSyntax(binary.LittleEndian, dicomio.ImplicitVR)
 	for _, elem := range data.Elements {
-		EncodeDataElement(e, &elem)
+		WriteDataElement(e, &elem)
 	}
 	e.PopTransferSyntax()
 	bytes, err := e.Finish()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ioutil.WriteFile("/tmp/test.dcm", bytes, 0644)
+	dstPath := "/tmp/test.dcm"
+	err = ioutil.WriteFile(dstPath, bytes, 0644)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	data2 := mustReadFile(dstPath)
+	if !reflect.DeepEqual(data, data2) {
+		t.Error("Files aren't equal")
 	}
 }
 
