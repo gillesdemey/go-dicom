@@ -182,7 +182,7 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 	if d.Error() != nil {
 		return nil, true
 	}
-	if tag == tagSequenceDelimitationItem {
+	if tag == TagSequenceDelimitationItem {
 		if vl != 0 {
 			d.SetErrorf("SequenceDelimitationItem's VL != 0: %v", vl)
 		}
@@ -248,7 +248,7 @@ func ParseFileHeader(d *dicomio.Decoder) []*Element {
 	if d.Error() != nil {
 		return nil
 	}
-	if metaElem.Tag != TagMetaElementGroupLength {
+	if metaElem.Tag != TagFileMetaInformationGroupLength {
 		d.SetErrorf("MetaElementGroupLength not found; insteadfound %s", metaElem.Tag.String())
 	}
 	metaLength, err := metaElem.GetUInt32()
@@ -357,7 +357,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 				if d.Error() != nil {
 					break
 				}
-				if item.Tag == tagSequenceDelimitationItem {
+				if item.Tag == TagSequenceDelimitationItem {
 					break
 				}
 				if item.Tag != TagItem {
@@ -392,7 +392,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 				if d.Error() != nil {
 					break
 				}
-				if subelem.Tag == tagItemDelimitationItem {
+				if subelem.Tag == TagItemDelimitationItem {
 					break
 				}
 				data = append(data, subelem)
