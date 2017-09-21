@@ -232,7 +232,7 @@ func readBasicOffsetTable(d *dicomio.Decoder) []uint32 {
 
 // Consume the DICOM magic header and metadata elements (whose elements with tag
 // group==2) from a Dicom file. Errors are reported through d.Error().
-func ParseFileHeader(d *dicomio.Decoder) []Element {
+func ParseFileHeader(d *dicomio.Decoder) []*Element {
 	d.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer d.PopTransferSyntax()
 	d.Skip(128) // skip preamble
@@ -260,7 +260,7 @@ func ParseFileHeader(d *dicomio.Decoder) []Element {
 		d.SetErrorf("No data element found")
 		return nil
 	}
-	metaElems := []Element{*metaElem}
+	metaElems := []*Element{metaElem}
 
 	// Read meta tags
 	d.PushLimit(int64(metaLength))
@@ -270,7 +270,7 @@ func ParseFileHeader(d *dicomio.Decoder) []Element {
 		if d.Error() != nil {
 			break
 		}
-		metaElems = append(metaElems, *elem)
+		metaElems = append(metaElems, elem)
 		vlog.Errorf("Meta elem: %v, len %v", elem.String(), d.Len())
 	}
 	return metaElems
@@ -568,14 +568,14 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 
 // LookupElementByName finds an element with the given Element.Name in
 // "elems" If not found, returns an error.
-func LookupElementByName(elems []Element, name string) (*Element, error) {
+func LookupElementByName(elems []*Element, name string) (*Element, error) {
 	t, err := LookupTagByName(name)
 	if err != nil {
 		return nil, err
 	}
 	for _, elem := range elems {
 		if elem.Tag == t.Tag {
-			return &elem, nil
+			return elem, nil
 		}
 	}
 	return nil, fmt.Errorf("Could not find element named '%s' in dicom file", name)
@@ -583,10 +583,10 @@ func LookupElementByName(elems []Element, name string) (*Element, error) {
 
 // LookupElementByTag finds an element with the given Element.Tag in
 // "elems" If not found, returns an error.
-func LookupElementByTag(elems []Element, tag Tag) (*Element, error) {
+func LookupElementByTag(elems []*Element, tag Tag) (*Element, error) {
 	for _, elem := range elems {
 		if elem.Tag == tag {
-			return &elem, nil
+			return elem, nil
 		}
 	}
 	return nil, fmt.Errorf("Could not find element with tag %s in dicom file",

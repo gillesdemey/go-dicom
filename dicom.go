@@ -46,7 +46,7 @@ const GoDICOMImplementationVersionName = "GODICOM_1_1"
 type DataSet struct {
 	// Elements in the file, in order of appearance.  Unlike pydicom,
 	// Elements also contains meta elements (those with tag.group==2).
-	Elements []Element
+	Elements []*Element
 }
 
 func doassert(x bool) {
@@ -105,7 +105,7 @@ func Parse(in io.Reader, bytes int64) (*DataSet, error) {
 				}
 			}
 		}
-		file.Elements = append(file.Elements, *elem)
+		file.Elements = append(file.Elements, elem)
 	}
 	return file, buffer.Finish()
 }

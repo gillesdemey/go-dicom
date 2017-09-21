@@ -21,7 +21,7 @@ import (
 // Consult the following page for the DICOM file header format.
 //
 // http://dicom.nema.org/dicom/2013/output/chtml/part10/chapter_7.html
-func WriteFileHeader(e *dicomio.Encoder, metaElems []Element) {
+func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 	e.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer e.PopTransferSyntax()
 
@@ -53,7 +53,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []Element) {
 	for _, elem := range metaElems {
 		if elem.Tag.Group == TagMetadataGroup {
 			if _, ok := tagsUsed[elem.Tag]; !ok {
-				WriteDataElement(subEncoder, &elem)
+				WriteDataElement(subEncoder, elem)
 			}
 		}
 	}
@@ -352,7 +352,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 //  err := dicom.Write(out, ds)
 func Write(out io.Writer, ds *DataSet) error {
 	e := dicomio.NewEncoder(out, nil, dicomio.UnknownVR)
-	var metaElems []Element
+	var metaElems []*Element
 	for _, e := range ds.Elements {
 		if e.Tag.Group == TagMetadataGroup {
 			metaElems = append(metaElems, e)
@@ -371,7 +371,7 @@ func Write(out io.Writer, ds *DataSet) error {
 	// TODO(saito) Remove tags with group=2.
 	for _, elem := range ds.Elements {
 		if elem.Tag.Group != TagMetadataGroup {
-			WriteDataElement(e, &elem)
+			WriteDataElement(e, elem)
 		}
 	}
 	e.PopTransferSyntax()

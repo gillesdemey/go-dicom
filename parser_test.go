@@ -78,10 +78,10 @@ func TestReadWriteFileHeader(t *testing.T) {
 	e := dicomio.NewBytesEncoder(binary.LittleEndian, dicomio.ImplicitVR)
 	dicom.WriteFileHeader(
 		e,
-		[]dicom.Element{
-			*dicom.NewElement(dicom.TagTransferSyntaxUID, dicomuid.ImplicitVRLittleEndian),
-			*dicom.NewElement(dicom.TagMediaStorageSOPClassUID, "1.2.840.10008.5.1.4.1.1.1.2"),
-			*dicom.NewElement(dicom.TagMediaStorageSOPInstanceUID, "1.2.3.4.5.6.7"),
+		[]*dicom.Element{
+			dicom.NewElement(dicom.TagTransferSyntaxUID, dicomuid.ImplicitVRLittleEndian),
+			dicom.NewElement(dicom.TagMediaStorageSOPClassUID, "1.2.840.10008.5.1.4.1.1.1.2"),
+			dicom.NewElement(dicom.TagMediaStorageSOPInstanceUID, "1.2.3.4.5.6.7"),
 		})
 	bytes := e.Bytes()
 	d := dicomio.NewBytesDecoder(bytes, binary.LittleEndian, dicomio.ImplicitVR)

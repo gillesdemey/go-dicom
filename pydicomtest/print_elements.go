@@ -20,7 +20,7 @@ var (
 
 // Sorter
 type elemSorter struct {
-	elems []dicom.Element
+	elems []*dicom.Element
 }
 
 func (e *elemSorter) Len() int {
@@ -127,7 +127,7 @@ func printElement(elem *dicom.Element, indent int) {
 		}
 		fmt.Printf(" %dB\n", n)
 	} else if elem.VR == "SQ" {
-		var childElems []dicom.Element
+		var childElems []*dicom.Element
 		if len(elem.Value) == 1 {
 			// If SQ contains one Item, unwrap the item.
 			items := elem.Value[0].(*dicom.Element)
@@ -135,7 +135,7 @@ func printElement(elem *dicom.Element, indent int) {
 				log.Panicf("A SQ item must be of type Item, but found %v", items)
 			}
 			for _, item := range items.Value {
-				childElems = append(childElems, *item.(*dicom.Element))
+				childElems = append(childElems, item.(*dicom.Element))
 			}
 		} else {
 			for _, v := range elem.Value {
@@ -143,22 +143,22 @@ func printElement(elem *dicom.Element, indent int) {
 				if child.Tag != dicom.TagItem {
 					log.Panicf("A SQ item must be of type Item, but found %v", child)
 				}
-				childElems = append(childElems, *child)
+				childElems = append(childElems, child)
 			}
 		}
 		fmt.Print("\n")
 		printElements(childElems, indent+1)
 	} else if elem.VR == "NA" {
-		var childElems []dicom.Element
+		var childElems []*dicom.Element
 		if len(elem.Value) == 1 {
 			items := elem.Value[0].(*dicom.Element)
 			for _, item := range items.Value {
-				childElems = append(childElems, *item.(*dicom.Element))
+				childElems = append(childElems, item.(*dicom.Element))
 			}
 		} else {
 			for _, v := range elem.Value {
 				child := v.(*dicom.Element)
-				childElems = append(childElems, *child)
+				childElems = append(childElems, child)
 			}
 		}
 		fmt.Print("\n")
@@ -184,9 +184,9 @@ func printElement(elem *dicom.Element, indent int) {
 	}
 }
 
-func printElements(elems []dicom.Element, indent int) {
+func printElements(elems []*dicom.Element, indent int) {
 	sort.Sort(&elemSorter{elems: elems})
 	for _, elem := range elems {
-		printElement(&elem, indent)
+		printElement(elem, indent)
 	}
 }
