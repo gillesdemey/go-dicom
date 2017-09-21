@@ -24,6 +24,8 @@ const (
 // Commonly used UID constants.
 var (
 	PatientRootQRFind = standardUID("1.2.840.10008.5.1.4.1.2.1.1")
+	StudyRootQRFind = standardUID("1.2.840.10008.5.1.4.1.2.2.1")
+	ModalityWorklistInformationFind = standardUID("1.2.840.10008.5.1.4.31")
 
 	// https://www.dicomlibrary.com/dicom/transfer-syntax/
 	ImplicitVRLittleEndian         = standardUID("1.2.840.10008.1.2")
