@@ -64,7 +64,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 	metaBytes := subEncoder.Bytes()
 	e.WriteZeros(128)
 	e.WriteString("DICM")
-	WriteDataElement(e, NewElement(TagMetaElementGroupLength, uint32(len(metaBytes))))
+	WriteDataElement(e, NewElement(TagFileMetaInformationGroupLength, uint32(len(metaBytes))))
 	e.WriteBytes(metaBytes)
 }
 
@@ -144,7 +144,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			for _, image := range image.Frames {
 				writeRawItem(e, image)
 			}
-			encodeElementHeader(e, tagSequenceDelimitationItem, "" /*not used*/, 0)
+			encodeElementHeader(e, TagSequenceDelimitationItem, "" /*not used*/, 0)
 		} else {
 			doassert(len(image.Frames) == 1) // TODO
 			encodeElementHeader(e, elem.Tag, vr, uint32(len(image.Frames[0])))
@@ -163,7 +163,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 				}
 				WriteDataElement(e, subelem)
 			}
-			encodeElementHeader(e, tagSequenceDelimitationItem, "" /*not used*/, 0)
+			encodeElementHeader(e, TagSequenceDelimitationItem, "" /*not used*/, 0)
 		} else {
 			sube := dicomio.NewBytesEncoder(e.TransferSyntax())
 			for _, value := range elem.Value {
@@ -193,7 +193,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 				}
 				WriteDataElement(e, subelem)
 			}
-			encodeElementHeader(e, tagItemDelimitationItem, "" /*not used*/, 0)
+			encodeElementHeader(e, TagItemDelimitationItem, "" /*not used*/, 0)
 		} else {
 			sube := dicomio.NewBytesEncoder(e.TransferSyntax())
 			for _, value := range elem.Value {
