@@ -24,19 +24,20 @@ type Element struct {
 	// List of values in the element. Their types depends on value
 	// representation (VR) of the Tag; Cf. tag.go.
 	//
-	// If VR=="SQ", Value[i] is a *Element, with Tag=TagItem.
-	// If VR=="NA" (i.e., Tag=tagItem), each Value[i] is a *Element.
+	// If Tag==TagPixelData, len(Value)==1, and Value[0] is ImageData.
+	// Else if Tag==TagItem, each Value[i] is a *Element.
 	//    a value's Tag can be any (including TagItem, which represents a nested Item)
-	// If VR=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
-	// If VR=="LT", then len(Value)==1, and Value[0] is []byte.
-	// If VR=="AT", then Value[] is a list of Tags.
-	// If VR=="US", Value[] is a list of uint16s
-	// If VR=="UL", Value[] is a list of uint32s
-	// If VR=="SS", Value[] is a list of int16s
-	// If VR=="SL", Value[] is a list of int32s
-	// If VR=="FL", Value[] is a list of float32s
-	// If VR=="FD", Value[] is a list of float64s
-	// If VR=="AT", Value[] is a list of Tag's.
+	// Else if VR=="SQ", Value[i] is a *Element, with Tag=TagItem.
+	// Else if VR=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
+	// Else if VR=="LT", then len(Value)==1, and Value[0] is []byte.
+	// Else if VR=="AT", then Value[] is a list of Tags.
+	// Else if VR=="US", Value[] is a list of uint16s
+	// Else if VR=="UL", Value[] is a list of uint32s
+	// Else if VR=="SS", Value[] is a list of int16s
+	// Else if VR=="SL", Value[] is a list of int32s
+	// Else if VR=="FL", Value[] is a list of float32s
+	// Else if VR=="FD", Value[] is a list of float64s
+	// Else if VR=="AT", Value[] is a list of Tag's.
 	// Else, Value[] is a list of strings.
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
 
@@ -80,7 +81,7 @@ func NewElement(tag Tag, values ...interface{}) *Element {
 	return &e
 }
 
-// GetString() gets a uint32 value from an element.  It returns an error if the
+// GetUInt32() gets a uint32 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint32.
 func (e *Element) GetUInt32() (uint32, error) {
 	if len(e.Value) != 1 {
@@ -93,7 +94,7 @@ func (e *Element) GetUInt32() (uint32, error) {
 	return v, nil
 }
 
-// GetString() gets a uint16 value from an element.  It returns an error if the
+// GetUInt16() gets a uint16 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint16.
 func (e *Element) GetUInt16() (uint16, error) {
 	if len(e.Value) != 1 {
@@ -130,8 +131,8 @@ func (e *Element) MustGetString() string {
 	return v
 }
 
-// Get the element value as list of strings. Returns an error if the value is of
-// any other type.
+// GetStrings() returns the list of strings stored in the elment. Returns an
+// error if the value is of any other type.
 func (e *Element) GetStrings() ([]string, error) {
 	var values []string
 	for _, v := range e.Value {
@@ -203,8 +204,9 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 	return d.ReadBytes(int(vl)), false
 }
 
+// Payload for PixelData element.
 type ImageData struct {
-	Offsets []uint32 // BasicOFfsetTable
+	Offsets []uint32 // BasicOffsetTable
 	Frames  [][]byte // Parsed images
 }
 

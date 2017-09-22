@@ -353,22 +353,20 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 func Write(out io.Writer, ds *DataSet) error {
 	e := dicomio.NewEncoder(out, nil, dicomio.UnknownVR)
 	var metaElems []*Element
-	for _, e := range ds.Elements {
-		if e.Tag.Group == TagMetadataGroup {
-			metaElems = append(metaElems, e)
+	for _, elem := range ds.Elements {
+		if elem.Tag.Group == TagMetadataGroup {
+			metaElems = append(metaElems, elem)
 		}
 	}
 	WriteFileHeader(e, metaElems)
 	if e.Error() != nil {
 		return e.Error()
 	}
-
 	endian, implicit, err := getTransferSyntax(ds)
 	if err != nil {
 		return err
 	}
 	e.PushTransferSyntax(endian, implicit)
-	// TODO(saito) Remove tags with group=2.
 	for _, elem := range ds.Elements {
 		if elem.Tag.Group != TagMetadataGroup {
 			WriteDataElement(e, elem)
