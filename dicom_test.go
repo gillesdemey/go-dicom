@@ -36,7 +36,7 @@ func TestAllFiles(t *testing.T) {
 	}
 	for _, name := range names {
 		vlog.Infof("Reading %s", name)
-		_ = mustReadFile("examples/" + name, dicom.ReadOptions{})
+		_ = mustReadFile("examples/"+name, dicom.ReadOptions{})
 	}
 }
 
@@ -86,6 +86,23 @@ func TestReadDataSet(t *testing.T) {
 	}
 	if l := len(data.Elements); l != 98 {
 		t.Errorf("Error parsing DICOM file, wrong number of elements: %d", l)
+	}
+	elem, err = data.LookupElementByTag(dicom.TagPixelData)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// Test ReadOptions.DropPixelData.
+func TestDropPixelData(t *testing.T) {
+	data := mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{DropPixelData: true})
+	_, err := data.LookupElementByTag(dicom.TagPatientName)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = data.LookupElementByTag(dicom.TagPixelData)
+	if err == nil {
+		t.Errorf("PixelData should not be present")
 	}
 }
 

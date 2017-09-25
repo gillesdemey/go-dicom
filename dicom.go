@@ -69,12 +69,12 @@ type ReadOptions struct {
 	DropPixelData bool
 }
 
-// ParseDataSetInBytes is a shorthand for Parse(bytes.NewBuffer(data), len(data)).
+// ReadDataSetInBytes is a shorthand for Parse(bytes.NewBuffer(data), len(data)).
 func ReadDataSetInBytes(data []byte, options ReadOptions) (*DataSet, error) {
 	return ReadDataSet(bytes.NewBuffer(data), int64(len(data)), options)
 }
 
-// Parse a DICOM file stored in "io", up to "bytes". Returns a DICOM file struct
+// ReadDataSet reads a DICOM file from "io", up to "bytes". Returns a DICOM file struct.
 func ReadDataSet(in io.Reader, bytes int64, options ReadOptions) (*DataSet, error) {
 	buffer := dicomio.NewDecoder(in, bytes, binary.LittleEndian, dicomio.ExplicitVR)
 	metaElems := ParseFileHeader(buffer)
@@ -125,7 +125,7 @@ func ReadDataSet(in io.Reader, bytes int64, options ReadOptions) (*DataSet, erro
 		}
 		file.Elements = append(file.Elements, elem)
 	}
-	return file, buffer.Finish()
+	return file, buffer.Error()
 }
 
 func getTransferSyntax(ds *DataSet) (bo binary.ByteOrder, implicit dicomio.IsImplicitVR, err error) {
