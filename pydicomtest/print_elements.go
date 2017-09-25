@@ -55,7 +55,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	data, err := dicom.ParseBytes(bytes)
+	data, err := dicom.ReadDataSetInBytes(bytes, dicom.ReadOptions{})
 	if err != nil {
 		panic(err)
 	}

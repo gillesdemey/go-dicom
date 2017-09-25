@@ -1,23 +1,24 @@
-package dicom
+package dicom_test
 
 import (
 	"os"
 	"testing"
 
+	"github.com/yasushi-saito/go-dicom"
 	"v.io/x/lib/vlog"
 )
 
-func mustReadFile(path string) *DataSet {
+func mustReadFile(path string, options dicom.ReadOptions) *dicom.DataSet {
 	file, err := os.Open(path)
 	if err != nil {
-		vlog.Fatalf("%s: failed to open", path, err)
+		vlog.Fatalf("%s: failed to open: %v", path, err)
 	}
 	defer file.Close()
 	st, err := file.Stat()
 	if err != nil {
-		vlog.Fatalf("%s: failed to stat", path, err)
+		vlog.Fatalf("%s: failed to stat: %v", path, err)
 	}
-	data, err := Parse(file, st.Size())
+	data, err := dicom.ReadDataSet(file, st.Size(), options)
 	if err != nil {
 		vlog.Fatalf("%s: failed to read: %v", path, err)
 	}
@@ -35,32 +36,32 @@ func TestAllFiles(t *testing.T) {
 	}
 	for _, name := range names {
 		vlog.Infof("Reading %s", name)
-		_ = mustReadFile("examples/" + name)
+		_ = mustReadFile("examples/" + name, dicom.ReadOptions{})
 	}
 }
 
 func TestWriteFile(t *testing.T) {
 	path := "examples/IM-0001-0001.dcm"
-	data := mustReadFile(path)
+	data := mustReadFile(path, dicom.ReadOptions{})
 
 	dstPath := "/tmp/test.dcm"
 	out, err := os.Create(dstPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = Write(out, data)
+	err = dicom.WriteDataSet(out, data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = mustReadFile(dstPath)
+	_ = mustReadFile(dstPath, dicom.ReadOptions{})
 	// TODO(saito) Fix below.
 	// if !reflect.DeepEqual(data, data2) {
 	// 	t.Error("Files aren't equal")
 	// }
 }
 
-func TestParseFile(t *testing.T) {
-	data := mustReadFile("examples/IM-0001-0001.dcm")
+func TestReadDataSet(t *testing.T) {
+	data := mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{})
 	elem, err := data.LookupElementByName("PatientName")
 	if err != nil {
 		t.Error(err)
@@ -90,6 +91,6 @@ func TestParseFile(t *testing.T) {
 
 func BenchmarkParseSingle(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = mustReadFile("examples/IM-0001-0001.dcm")
+		_ = mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{})
 	}
 }

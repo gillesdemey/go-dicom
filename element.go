@@ -16,7 +16,7 @@ const (
 	privateGroupName = "Private Data"
 )
 
-// A DICOM element
+// Element represents a single DICOM element.
 type Element struct {
 	// Tag is a pair of <group, element>. See tags.go for possible values.
 	Tag Tag
@@ -68,8 +68,9 @@ type Element struct {
 	UndefinedLength bool
 }
 
-// Convenience function for creating a new Element with the given tag and
-// values. "values" is usually just a single value.
+// NewElement is a utility function that creates a new Element with the given
+// tag and values. The type of each element in values[] must match the VR (value
+// representation) of the tag (see tag_definition.go).
 func NewElement(tag Tag, values ...interface{}) *Element {
 	e := Element{
 		Tag:   tag,
@@ -81,7 +82,7 @@ func NewElement(tag Tag, values ...interface{}) *Element {
 	return &e
 }
 
-// GetUInt32() gets a uint32 value from an element.  It returns an error if the
+// GetUInt32 gets a uint32 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint32.
 func (e *Element) GetUInt32() (uint32, error) {
 	if len(e.Value) != 1 {
@@ -94,7 +95,7 @@ func (e *Element) GetUInt32() (uint32, error) {
 	return v, nil
 }
 
-// GetUInt16() gets a uint16 value from an element.  It returns an error if the
+// GetUInt16 gets a uint16 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint16.
 func (e *Element) GetUInt16() (uint16, error) {
 	if len(e.Value) != 1 {
@@ -107,7 +108,7 @@ func (e *Element) GetUInt16() (uint16, error) {
 	return v, nil
 }
 
-// GetString() gets a string value from an element.  It returns an error if the
+// GetString gets a string value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a string.
 func (e *Element) GetString() (string, error) {
 	if len(e.Value) != 1 {
@@ -120,7 +121,7 @@ func (e *Element) GetString() (string, error) {
 	return v, nil
 }
 
-// MustGetString() is similar to GetString(), but panics on error.
+// MustGetString is similar to GetString(), but panics on error.
 //
 // TODO(saito): Add other variants of MustGet<type>.
 func (e *Element) MustGetString() string {
@@ -131,8 +132,8 @@ func (e *Element) MustGetString() string {
 	return v
 }
 
-// GetStrings() returns the list of strings stored in the elment. Returns an
-// error if the value is of any other type.
+// GetStrings returns the list of strings stored in the elment. Returns an error
+// if the VR of e.Tag is not a string.
 func (e *Element) GetStrings() ([]string, error) {
 	var values []string
 	for _, v := range e.Value {
@@ -147,24 +148,25 @@ func (e *Element) GetStrings() ([]string, error) {
 
 func elementString(e *Element, nestLevel int) string {
 	doassert(nestLevel < 10)
-	s := strings.Repeat(" ", nestLevel)
+	indent := strings.Repeat(" ", nestLevel)
+	s := indent
 	sVl := ""
 	if e.UndefinedLength {
-		sVl = "UNDEF"
+		sVl = "u"
 	}
 	s = fmt.Sprintf("%s %s %s %s ", s, TagString(e.Tag), e.VR, sVl)
-	if e.VR != "SQ" {
+	if e.VR == "SQ" || e.Tag == TagItem {
+		s += fmt.Sprintf(" (#%d)[\n", len(e.Value))
+		for _, v := range e.Value {
+			s += elementString(v.(*Element), nestLevel+1) + "\n"
+		}
+		s += indent + "]"
+	} else {
 		sv := fmt.Sprintf("%v", e.Value)
-		if len(sv) > 50 {
-			sv = sv[1:50] + "(...)"
+		if len(sv) > 1024 {
+			sv = sv[1:1024] + "(...)"
 		}
 		s += sv
-	} else {
-		s += " seq:\n"
-		for _, v := range e.Value {
-			item := v.(*Element)
-			s += elementString(item, nestLevel+1)
-		}
 	}
 	return s
 }
@@ -232,8 +234,9 @@ func readBasicOffsetTable(d *dicomio.Decoder) []uint32 {
 	return offsets
 }
 
-// Consume the DICOM magic header and metadata elements (whose elements with tag
-// group==2) from a Dicom file. Errors are reported through d.Error().
+// ParseFileHeader consumes the DICOM magic header and metadata elements (whose
+// elements with tag group==2) from a Dicom file. Errors are reported through
+// d.Error().
 func ParseFileHeader(d *dicomio.Decoder) []*Element {
 	d.PushTransferSyntax(binary.LittleEndian, dicomio.ExplicitVR)
 	defer d.PopTransferSyntax()
@@ -246,7 +249,7 @@ func ParseFileHeader(d *dicomio.Decoder) []*Element {
 	}
 
 	// (0002,0000) MetaElementGroupLength
-	metaElem := ReadDataElement(d)
+	metaElem := ReadElement(d, ReadOptions{})
 	if d.Error() != nil {
 		return nil
 	}
@@ -268,20 +271,23 @@ func ParseFileHeader(d *dicomio.Decoder) []*Element {
 	d.PushLimit(int64(metaLength))
 	defer d.PopLimit()
 	for d.Len() > 0 {
-		elem := ReadDataElement(d)
+		elem := ReadElement(d, ReadOptions{})
 		if d.Error() != nil {
 			break
 		}
 		metaElems = append(metaElems, elem)
-		vlog.Errorf("Meta elem: %v, len %v", elem.String(), d.Len())
+		vlog.VI(2).Infof("Meta elem: %v, len %v", elem.String(), d.Len())
 	}
 	return metaElems
 }
 
-// Read a DICOM data element. Errors are reported through d.Error(). The caller
-// must check d.Error() before using the returned value.
-func ReadDataElement(d *dicomio.Decoder) *Element {
+// ReadDataElement reads one DICOM data element. Errors are reported through
+// d.Error(). The caller must check d.Error() before using the returned value.
+func ReadElement(d *dicomio.Decoder, options ReadOptions) *Element {
 	tag := readTag(d)
+	if tag == TagPixelData && options.DropPixelData {
+		return nil
+	}
 	// The elements for group 0xFFFE should be Encoded as Implicit VR.
 	// DICOM Standard 09. PS 3.6 - Section 7.5: "Nesting of Data Sets"
 
@@ -289,12 +295,12 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 	if tag.Group == itemSeqGroup {
 		implicit = dicomio.ImplicitVR
 	}
-	var vr string     // Value Representation
-	var vl uint32 = 0 // Value Length
+	var vr string // Value Representation
+	var vl uint32 // Value Length
 	if implicit == dicomio.ImplicitVR {
 		vr, vl = readImplicit(d, tag)
 	} else {
-		doassert(implicit == dicomio.ExplicitVR)
+		doassert(implicit == dicomio.ExplicitVR, implicit)
 		vr, vl = readExplicit(d, tag)
 	}
 	if d.Error() != nil {
@@ -355,7 +361,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 			//  ItemSet := Item Any* ItemDelimitationItem (when Item.VL is undefined) or
 			//             Item Any*N                     (when Item.VL has a defined value)
 			for {
-				item := ReadDataElement(d)
+				item := ReadElement(d, options)
 				if d.Error() != nil {
 					break
 				}
@@ -375,7 +381,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 			d.PushLimit(int64(vl))
 			defer d.PopLimit()
 			for d.Len() > 0 {
-				item := ReadDataElement(d)
+				item := ReadElement(d, options)
 				if d.Error() != nil {
 					break
 				}
@@ -386,11 +392,11 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 				data = append(data, item)
 			}
 		}
-	} else if vr == "NA" { // Item (component of SQ)
+	} else if tag == TagItem { // Item (component of SQ)
 		if vl == undefinedLength {
 			// Format: Item Any* ItemDelimitationItem
 			for {
-				subelem := ReadDataElement(d)
+				subelem := ReadElement(d, options)
 				if d.Error() != nil {
 					break
 				}
@@ -403,7 +409,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 			// Sequence of arbitary elements, for the  total of "vl" bytes.
 			d.PushLimit(int64(vl))
 			for d.Len() > 0 {
-				subelem := ReadDataElement(d)
+				subelem := ReadElement(d, options)
 				if d.Error() != nil {
 					break
 				}
@@ -446,7 +452,7 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 					v := d.ReadUInt16()
 					e.WriteUInt16(v)
 				}
-				doassert(e.Error() == nil)
+				doassert(e.Error() == nil, e.Error())
 				// TODO(saito) Check that size is even. Byte swap??
 				// TODO(saito) If OB's length is odd, is VL odd too? Need to check!
 				data = append(data, e.Bytes())
@@ -500,17 +506,15 @@ func ReadDataElement(d *dicomio.Decoder) *Element {
 
 const undefinedLength uint32 = 0xffffffff
 
-// Read a DICOM data element's tag value
-// ie. (0002,0000)
-// added  Value Multiplicity PS 3.5 6.4
+// Read a DICOM data element's tag value ie. (0002,0000) added Value
+// Multiplicity PS 3.5 6.4
 func readTag(buffer *dicomio.Decoder) Tag {
 	group := buffer.ReadUInt16()   // group
 	element := buffer.ReadUInt16() // element
 	return Tag{group, element}
 }
 
-// Read the VR from the DICOM ditionary
-// The VL is a 32-bit unsigned integer
+// Read the VR from the DICOM ditionary The VL is a 32-bit unsigned integer
 func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	vr := "UN"
 	if entry, err := LookupTag(tag); err == nil {
@@ -549,7 +553,7 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 		if vl == 0xffffffff {
 			switch vr {
 			case "UC", "UR", "UT":
-				buffer.SetError(errors.New("UC, UR and UT may not have an Undefined Length, i.e.,a Value Length of FFFFFFFFH."))
+				buffer.SetError(errors.New("UC, UR and UT may not have an Undefined Length, i.e.,a Value Length of FFFFFFFFH"))
 			default:
 				vl = undefinedLength
 			}
@@ -562,7 +566,6 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 		}
 	}
 	if vl != undefinedLength && vl%2 != 0 {
-		panic("aoeu")
 		buffer.SetErrorf("Encountered odd length (vl=%v) when reading explicit VR %v for tag %s", vl, vr, TagString(tag))
 	}
 	return vr, vl

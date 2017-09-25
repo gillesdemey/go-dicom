@@ -30,8 +30,10 @@ package dicom
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/yasushi-saito/go-dicom/dicomio"
+	"fmt"
 	"io"
+
+	"github.com/yasushi-saito/go-dicom/dicomio"
 )
 
 // UID prefix for go-dicom. Provided by
@@ -42,26 +44,38 @@ var GoDICOMImplementationClassUID = GoDICOMImplementationClassUIDPrefix + ".1.1"
 
 const GoDICOMImplementationVersionName = "GODICOM_1_1"
 
-// DataSet represents result of parsing a single DICOM file.
+// DataSet represents contents of one DICOM file.
 type DataSet struct {
-	// Elements in the file, in order of appearance.  Unlike pydicom,
-	// Elements also contains meta elements (those with tag.group==2).
+	// Elements in the file, in order of appearance.
+	//
+	// Note: unlike pydicom, Elements also contains meta elements (those
+	// with Tag.Group==2).
 	Elements []*Element
 }
 
-func doassert(x bool) {
-	if !x {
-		panic("doassert")
+func doassert(cond bool, values ...interface{}) {
+	if !cond {
+		var s string
+		for _, value := range values {
+			s += fmt.Sprintf("%v ", value)
+		}
+		panic(s)
 	}
 }
 
-// ParseBytes(buf) is a shorthand for Parse(bytes.NewBuffer(buf), len(buf)).
-func ParseBytes(data []byte) (*DataSet, error) {
-	return Parse(bytes.NewBuffer(data), int64(len(data)))
+// ReadOptions defines how DataSets and Elements are parsed.
+type ReadOptions struct {
+	// If true, skip the PixelData element (bulk images) in ReadDataSet.
+	DropPixelData bool
+}
+
+// ParseDataSetInBytes is a shorthand for Parse(bytes.NewBuffer(data), len(data)).
+func ReadDataSetInBytes(data []byte, options ReadOptions) (*DataSet, error) {
+	return ReadDataSet(bytes.NewBuffer(data), int64(len(data)), options)
 }
 
 // Parse a DICOM file stored in "io", up to "bytes". Returns a DICOM file struct
-func Parse(in io.Reader, bytes int64) (*DataSet, error) {
+func ReadDataSet(in io.Reader, bytes int64, options ReadOptions) (*DataSet, error) {
 	buffer := dicomio.NewDecoder(in, bytes, binary.LittleEndian, dicomio.ExplicitVR)
 	metaElems := ParseFileHeader(buffer)
 	if buffer.Error() != nil {
@@ -79,8 +93,12 @@ func Parse(in io.Reader, bytes int64) (*DataSet, error) {
 
 	// Read the list of elements.
 	for buffer.Len() > 0 {
-		elem := ReadDataElement(buffer)
+		elem := ReadElement(buffer, options)
 		if buffer.Error() != nil {
+			break
+		}
+		if elem == nil {
+			// element is a pixel data and was dropped by options
 			break
 		}
 		if elem.Tag == TagSpecificCharacterSet {

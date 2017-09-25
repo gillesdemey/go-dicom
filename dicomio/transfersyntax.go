@@ -16,30 +16,28 @@ var StandardTransferSyntaxes = []string{
 	dicomuid.DeflatedExplicitVRLittleEndian,
 }
 
-// Given an UID that represents a transfer syntax, return the canonical transfer
-// syntax UID with the same encoding, from the list StandardTransferSyntaxes.
-// Returns an error if the uid is not defined in DICOM standard, or it's not a
-// transfer syntax.
+// CanonicalTransferSyntaxUID return the canonical transfer syntax UID (e.g.,
+// dicomuid.ExplicitVRLittleEndian or dicomuid.ImplicitVRLittleEndian), given an
+// UID that represents any transfer syntax.  Returns an error if the uid is not
+// defined in DICOM standard, or if the uid does not represent a transfer
+// syntax.
 //
 // TODO(saito) Check the standard to see if we need to accept unknown UIDS as
 // explicit little endian.
 func CanonicalTransferSyntaxUID(uid string) (string, error) {
 	// defaults are explicit VR, little endian
 	switch uid {
-	case dicomuid.ImplicitVRLittleEndian:
-		fallthrough
-	case dicomuid.ExplicitVRLittleEndian:
-		fallthrough
-	case dicomuid.ExplicitVRBigEndian:
-		fallthrough
-	case dicomuid.DeflatedExplicitVRLittleEndian:
+	case dicomuid.ImplicitVRLittleEndian,
+		dicomuid.ExplicitVRLittleEndian,
+		dicomuid.ExplicitVRBigEndian,
+		dicomuid.DeflatedExplicitVRLittleEndian:
 		return uid, nil
 	default:
 		e, err := dicomuid.Lookup(uid)
 		if err != nil {
 			return "", err
 		}
-		if e.Type != dicomuid.UIDTypeTransferSyntax {
+		if e.Type != dicomuid.TypeTransferSyntax {
 			return "", fmt.Errorf("UID '%s' is not a transfer syntax (is %s)", uid, e.Type)
 		}
 		// The default is ExplicitVRLittleEndian

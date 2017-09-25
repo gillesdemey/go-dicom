@@ -69,7 +69,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 }
 
 func encodeElementHeader(e *dicomio.Encoder, tag Tag, vr string, vl uint32) {
-	doassert(vl == undefinedLength || vl%2 == 0)
+	doassert(vl == undefinedLength || vl%2 == 0, vl)
 	e.WriteUInt16(tag.Group)
 	e.WriteUInt16(tag.Element)
 
@@ -78,7 +78,7 @@ func encodeElementHeader(e *dicomio.Encoder, tag Tag, vr string, vl uint32) {
 		implicit = dicomio.ImplicitVR
 	}
 	if implicit == dicomio.ExplicitVR {
-		doassert(len(vr) == 2)
+		doassert(len(vr) == 2, vr)
 		e.WriteString(vr)
 		switch vr {
 		case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
@@ -88,7 +88,7 @@ func encodeElementHeader(e *dicomio.Encoder, tag Tag, vr string, vl uint32) {
 			e.WriteUInt16(uint16(vl))
 		}
 	} else {
-		doassert(implicit == dicomio.ImplicitVR)
+		doassert(implicit == dicomio.ImplicitVR, implicit)
 		e.WriteUInt32(vl)
 	}
 }
@@ -128,7 +128,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			return
 		}
 	}
-	doassert(vr != "")
+	doassert(vr != "", vr)
 	if elem.Tag == TagPixelData {
 		if len(elem.Value) != 1 {
 			// TODO(saito) Use of ImageData is a temp hack. Come up with a more proper solution.
@@ -146,7 +146,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 			}
 			encodeElementHeader(e, TagSequenceDelimitationItem, "" /*not used*/, 0)
 		} else {
-			doassert(len(image.Frames) == 1) // TODO
+			doassert(len(image.Frames) == 1, image.Frames) // TODO
 			encodeElementHeader(e, elem.Tag, vr, uint32(len(image.Frames[0])))
 			e.WriteBytes(image.Frames[0])
 		}
@@ -303,7 +303,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 					v := d.ReadUInt16()
 					sube.WriteUInt16(v)
 				}
-				doassert(d.Finish() == nil)
+				doassert(d.Finish() == nil, d.Error())
 			} else { // vr=="OB"
 				sube.WriteBytes(bytes)
 				if len(bytes)%2 == 1 {
@@ -350,7 +350,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 //  ds := ... read or create dicom.Dataset ...
 //  out, err := os.Create("test.dcm")
 //  err := dicom.Write(out, ds)
-func Write(out io.Writer, ds *DataSet) error {
+func WriteDataSet(out io.Writer, ds *DataSet) error {
 	e := dicomio.NewEncoder(out, nil, dicomio.UnknownVR)
 	var metaElems []*Element
 	for _, elem := range ds.Elements {

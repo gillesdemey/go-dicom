@@ -28,7 +28,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	data, err := dicom.Parse(file, st.Size())
+	data, err := dicom.ReadDataSet(file, st.Size(), dicom.ReadOptions{})
 	if err != nil {
 		panic(err)
 	}
