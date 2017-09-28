@@ -96,7 +96,7 @@ func Query(ds *DataSet, f *Element) (match bool, matchedElem *Element, err error
 	if f.Tag == TagQueryRetrieveLevel || f.Tag == TagSpecificCharacterSet {
 		return true, nil, nil
 	}
-	elem, err := ds.LookupElementByTag(f.Tag)
+	elem, err := ds.FindElementByTag(f.Tag)
 	if err != nil {
 		elem = nil
 	}

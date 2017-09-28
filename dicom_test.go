@@ -53,7 +53,7 @@ func TestWriteFile(t *testing.T) {
 
 func TestReadDataSet(t *testing.T) {
 	data := mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{})
-	elem, err := data.LookupElementByName("PatientName")
+	elem, err := data.FindElementByName("PatientName")
 	if err != nil {
 		t.Error(err)
 	}
@@ -64,7 +64,7 @@ func TestReadDataSet(t *testing.T) {
 	if pn != "TOUTATIX" {
 		t.Errorf("Incorrect patient name: %s", pn)
 	}
-	elem, err = data.LookupElementByName("TransferSyntaxUID")
+	elem, err = data.FindElementByName("TransferSyntaxUID")
 	if err != nil {
 		t.Error(err)
 	}
@@ -78,7 +78,7 @@ func TestReadDataSet(t *testing.T) {
 	if l := len(data.Elements); l != 98 {
 		t.Errorf("Error parsing DICOM file, wrong number of elements: %d", l)
 	}
-	elem, err = data.LookupElementByTag(dicom.TagPixelData)
+	elem, err = data.FindElementByTag(dicom.TagPixelData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,11 +87,11 @@ func TestReadDataSet(t *testing.T) {
 // Test ReadOptions.DropPixelData.
 func TestDropPixelData(t *testing.T) {
 	data := mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{DropPixelData: true})
-	_, err := data.LookupElementByTag(dicom.TagPatientName)
+	_, err := data.FindElementByTag(dicom.TagPatientName)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = data.LookupElementByTag(dicom.TagPixelData)
+	_, err = data.FindElementByTag(dicom.TagPixelData)
 	if err == nil {
 		t.Errorf("PixelData should not be present")
 	}

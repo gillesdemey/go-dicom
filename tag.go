@@ -84,9 +84,9 @@ func GetVRKind(vr string) VRKind {
 	}
 }
 
-// LookupTag finds information about the given tag. If the tag is not part of
+// FindTag finds information about the given tag. If the tag is not part of
 // the DICOM standard, or is retired from the standard, it returns an error.
-func LookupTag(tag Tag) (TagInfo, error) {
+func FindTag(tag Tag) (TagInfo, error) {
 	maybeInitTagDict()
 	entry, ok := tagDict[tag]
 	if !ok {
@@ -100,20 +100,20 @@ func LookupTag(tag Tag) (TagInfo, error) {
 	return entry, nil
 }
 
-// Like LookupTag, but panics on error.
-func MustLookupTag(tag Tag) TagInfo {
-	e, err := LookupTag(tag)
+// Like FindTag, but panics on error.
+func MustFindTag(tag Tag) TagInfo {
+	e, err := FindTag(tag)
 	if err != nil {
 		vlog.Fatalf("tag %s not found: %s", tag, err)
 	}
 	return e
 }
 
-// LookupTag finds information about the tag with the given name. If the tag is not part of
+// FindTag finds information about the tag with the given name. If the tag is not part of
 // the DICOM standard, or is retired from the standard, it returns an error.
 //
-//   Example: LookupTagByName("TransferSyntaxUID")
-func LookupTagByName(name string) (TagInfo, error) {
+//   Example: FindTagByName("TransferSyntaxUID")
+func FindTagByName(name string) (TagInfo, error) {
 	maybeInitTagDict()
 	for _, ent := range tagDict {
 		if ent.Name == name {
@@ -125,7 +125,7 @@ func LookupTagByName(name string) (TagInfo, error) {
 
 // TagString returns a human-readable diagnostic string for the tag
 func TagString(tag Tag) string {
-	e, err := LookupTag(tag)
+	e, err := FindTag(tag)
 	if err != nil {
 		return fmt.Sprintf("(%04x,%04x)[??]", tag.Group, tag.Element)
 	}

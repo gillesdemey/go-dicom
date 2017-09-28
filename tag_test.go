@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-func TestLookupTag(t *testing.T) {
-	elem, err := LookupTag(Tag{32736, 16})
+func TestFindTag(t *testing.T) {
+	elem, err := FindTag(Tag{32736, 16})
 	if err != nil {
 		t.Error(err)
 	}
 	if elem.Name != "PixelData" || elem.VR != "OW" {
 		t.Errorf("Wrong element name: %s", elem.Name)
 	}
-	elem, err = LookupTag(Tag{0, 0x1002})
+	elem, err = FindTag(Tag{0, 0x1002})
 	if err != nil {
 		t.Error(err)
 	}
@@ -21,7 +21,7 @@ func TestLookupTag(t *testing.T) {
 		t.Errorf("Wrong element name: %s", elem.Name)
 	}
 
-	elem, err = LookupTagByName("TransferSyntaxUID")
+	elem, err = FindTagByName("TransferSyntaxUID")
 	if err != nil {
 		t.Error(err)
 	}
@@ -47,7 +47,7 @@ func TestSplitTag(t *testing.T) {
 
 func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := LookupTag(Tag{2, 0}); err != nil {
+		if _, err := FindTag(Tag{2, 0}); err != nil {
 			fmt.Println(err)
 		}
 
@@ -56,7 +56,7 @@ func BenchmarkFindMetaGroupLengthTag(b *testing.B) {
 
 func BenchmarkFindPixelDataTag(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := LookupTag(Tag{32736, 16}); err != nil {
+		if _, err := FindTag(Tag{32736, 16}); err != nil {
 			fmt.Println(err)
 		}
 

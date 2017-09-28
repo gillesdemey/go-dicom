@@ -16,9 +16,9 @@ const (
 	privateGroupName = "Private Data"
 )
 
-// Element represents a single DICOM element. Use NewElement() to create a new
-// element. Avoid creating a struct manually, because setting the VR field is a
-// bit tricky.
+// Element represents a single DICOM element. Use NewElement() to create a
+// element denovo. Avoid creating a struct manually, because setting the VR
+// field is a bit tricky.
 type Element struct {
 	// Tag is a pair of <group, element>. See tags.go for possible values.
 	Tag Tag
@@ -46,34 +46,35 @@ type Element struct {
 	// are filled for completeness.  You can ignore them.
 
 	// VR defines the encoding of Value[] in two-letter alphabets, e.g.,
-	// "AE", "UL". See P3.5 6.2. This field must be set.
+	// "AE", "UL". See P3.5 6.2. This field MUST be set.
 	//
 	// dicom.ReadElement() will fill this field with the VR of the tag,
 	// either read from input stream (for explicit repl), or from the dicom
 	// tag table (for implicit decl). This field need not be set in
 	// WriteElement().
 	//
-	// Note: In a conformant DICOM file, the VR value of an element is determined
-	// by its Tag, so this field is redundant.  Still, a non-conformant file
-	// with with explicitVR encoding may have an element with VR that's
-	// different from the standard's. In such case, this library honors the
-	// VR value found in the file, and this field stores the VR used for
-	// parsing Values[].
+	// Note: In a conformant DICOM file, the VR value of an element is
+	// determined by its Tag, so this field is redundant.  This field is
+	// still required because a non-conformant file with with explicitVR
+	// encoding may have an element with VR that's different from the
+	// standard's. In such case, this library honors the VR value found in
+	// the file, and this field stores the VR used for parsing Values[].
 	VR string
 
 	// UndefinedLength is true if, in the DICOM file, the element is encoded
 	// as having undefined length, and is delimited by end-sequence or
 	// end-item element.  This flag is meaningful only if VR=="SQ" or
-	// VR=="NA". If you don't understand what this description means, just
-	// ignore this field.
+	// VR=="NA". Feel free to ignore this field if you don't understand what
+	// this means.  It's one of the pointless complexities in the DICOM
+	// standard.
 	UndefinedLength bool
 }
 
-// NewElement is a utility function that creates a new Element with the given
-// tag and values. The type of each element in values[] must match the VR (value
-// representation) of the tag (see tag_definition.go).
+// NewElement creates a new Element with the given tag and values. The type of
+// each each value must match the VR (value representation) of the tag (see
+// tag_definition.go).
 func NewElement(tag Tag, values ...interface{}) (*Element, error) {
-	ti, err := LookupTag(tag)
+	ti, err := FindTag(tag)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,6 @@ func NewElement(tag Tag, values ...interface{}) (*Element, error) {
 		VR:    ti.VR,
 		Value: make([]interface{}, len(values)),
 	}
-	// TODO(saito) Check that the values match VR.
 	vrKind := GetVRKind(ti.VR)
 	for i, v := range values {
 		var ok bool
@@ -112,6 +112,7 @@ func NewElement(tag Tag, values ...interface{}) (*Element, error) {
 			}
 		case VRItem:
 			_, ok = v.(*Element)
+			// TODO(saito) I'm missing a few legit VR types here.
 		}
 		if !ok {
 			return nil, fmt.Errorf("%v: wrong value type for NewElement: %v", TagString(tag), v)
@@ -195,6 +196,7 @@ func (e *Element) GetStrings() ([]string, error) {
 	return values, nil
 }
 
+// MustGetStrings is similar to GetStrings, but crashes the process on error.
 func (e *Element) MustGetStrings() []string {
 	values, err := e.GetStrings()
 	if err != nil {
@@ -202,6 +204,7 @@ func (e *Element) MustGetStrings() []string {
 	}
 	return values
 }
+
 // GetUint32s returns the list of uint32 values stored in the elment. Returns an
 // error if the VR of e.Tag is not a uint32.
 func (e *Element) GetUint32s() ([]uint32, error) {
@@ -216,6 +219,7 @@ func (e *Element) GetUint32s() ([]uint32, error) {
 	return values, nil
 }
 
+// MustGetUint32s is similar to GetUint32s, but crashes the process on error.
 func (e *Element) MustGetUint32s() []uint32 {
 	values, err := e.GetUint32s()
 	if err != nil {
@@ -600,7 +604,7 @@ func readTag(buffer *dicomio.Decoder) Tag {
 // Read the VR from the DICOM ditionary The VL is a 32-bit unsigned integer
 func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	vr := "UN"
-	if entry, err := LookupTag(tag); err == nil {
+	if entry, err := FindTag(tag); err == nil {
 		vr = entry.VR
 	}
 
@@ -620,13 +624,10 @@ func readImplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 // The VL depends on the VR value
 func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	vr := buffer.ReadString(2)
-	// buffer.p += 2
-
 	var vl uint32
 	if vr == "US" {
 		vl = 2
 	}
-
 	// long value representations
 	switch vr {
 	case "NA", "OB", "OD", "OF", "OL", "OW", "SQ", "UN", "UC", "UR", "UT":
@@ -654,10 +655,10 @@ func readExplicit(buffer *dicomio.Decoder, tag Tag) (string, uint32) {
 	return vr, vl
 }
 
-// LookupElementByName finds an element with the given Element.Name in
+// FindElementByName finds an element with the given Element.Name in
 // "elems" If not found, returns an error.
-func LookupElementByName(elems []*Element, name string) (*Element, error) {
-	t, err := LookupTagByName(name)
+func FindElementByName(elems []*Element, name string) (*Element, error) {
+	t, err := FindTagByName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -669,9 +670,9 @@ func LookupElementByName(elems []*Element, name string) (*Element, error) {
 	return nil, fmt.Errorf("Could not find element named '%s' in dicom file", name)
 }
 
-// LookupElementByTag finds an element with the given Element.Tag in
+// FindElementByTag finds an element with the given Element.Tag in
 // "elems" If not found, returns an error.
-func LookupElementByTag(elems []*Element, tag Tag) (*Element, error) {
+func FindElementByTag(elems []*Element, tag Tag) (*Element, error) {
 	for _, elem := range elems {
 		if elem.Tag == tag {
 			return elem, nil

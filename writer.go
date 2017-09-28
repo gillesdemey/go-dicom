@@ -29,7 +29,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 	tagsUsed := make(map[Tag]bool)
 
 	writeRequiredMetaElem := func(tag Tag) {
-		if elem, err := LookupElementByTag(metaElems, tag); err == nil {
+		if elem, err := FindElementByTag(metaElems, tag); err == nil {
 			WriteElement(subEncoder, elem)
 		} else {
 			subEncoder.SetErrorf("%v not found in metaelems: %v", TagString(tag), err)
@@ -37,7 +37,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 		tagsUsed[tag] = true
 	}
 	writeOptionalMetaElem := func(tag Tag, defaultValue interface{}) {
-		if elem, err := LookupElementByTag(metaElems, TagFileMetaInformationVersion); err == nil {
+		if elem, err := FindElementByTag(metaElems, TagFileMetaInformationVersion); err == nil {
 			WriteElement(subEncoder, elem)
 		} else {
 			WriteElement(subEncoder, MustNewElement(tag, defaultValue))
@@ -114,7 +114,7 @@ func writeBasicOffsetTable(e *dicomio.Encoder, offsets []uint32) {
 // is for UL, then each value must be uint32.
 func WriteElement(e *dicomio.Encoder, elem *Element) {
 	vr := elem.VR
-	entry, err := LookupTag(elem.Tag)
+	entry, err := FindTag(elem.Tag)
 	if vr == "" {
 		if err == nil {
 			vr = entry.VR

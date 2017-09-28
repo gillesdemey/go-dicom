@@ -5,19 +5,10 @@
 //   import (
 // 	"fmt"
 // 	"github.com/yasushi-saito/go-dicom"
-// 	"os"
 //   )
 //
 //   func main() {
-//     in, err := os.Open("myfile.dcm")
-//     if err != nil {
-//         panic(err)
-//     }
-//     st, err := in.Stat()
-//     if err != nil {
-//         panic(err)
-//     }
-//     data, err := dicom.Parse(in, st.Size())
+//     data, err := dicom.ReadDataSetFromFile("myfile.dcm", st.Size())
 //     if err != nil {
 //         panic(err)
 //     }
@@ -70,7 +61,7 @@ type ReadOptions struct {
 	DropPixelData bool
 }
 
-// ReadDataSetInBytes is a shorthand for Parse(bytes.NewBuffer(data), len(data)).
+// ReadDataSetInBytes is a shorthand for ReadDataSet(bytes.NewBuffer(data), len(data)).
 func ReadDataSetInBytes(data []byte, options ReadOptions) (*DataSet, error) {
 	return ReadDataSet(bytes.NewBuffer(data), int64(len(data)), options)
 }
@@ -145,7 +136,7 @@ func ReadDataSet(in io.Reader, bytes int64, options ReadOptions) (*DataSet, erro
 }
 
 func getTransferSyntax(ds *DataSet) (bo binary.ByteOrder, implicit dicomio.IsImplicitVR, err error) {
-	elem, err := ds.LookupElementByTag(TagTransferSyntaxUID)
+	elem, err := ds.FindElementByTag(TagTransferSyntaxUID)
 	if err != nil {
 		return nil, dicomio.UnknownVR, err
 	}
@@ -156,10 +147,10 @@ func getTransferSyntax(ds *DataSet) (bo binary.ByteOrder, implicit dicomio.IsImp
 	return dicomio.ParseTransferSyntaxUID(transferSyntaxUID)
 }
 
-func (f *DataSet) LookupElementByName(name string) (*Element, error) {
-	return LookupElementByName(f.Elements, name)
+func (f *DataSet) FindElementByName(name string) (*Element, error) {
+	return FindElementByName(f.Elements, name)
 }
 
-func (f *DataSet) LookupElementByTag(tag Tag) (*Element, error) {
-	return LookupElementByTag(f.Elements, tag)
+func (f *DataSet) FindElementByTag(tag Tag) (*Element, error) {
+	return FindElementByTag(f.Elements, tag)
 }

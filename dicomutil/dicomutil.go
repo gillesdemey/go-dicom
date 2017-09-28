@@ -6,7 +6,6 @@ import (
 	"github.com/yasushi-saito/go-dicom"
 	"io/ioutil"
 	"log"
-	"os"
 )
 
 var (
@@ -20,15 +19,7 @@ func main() {
 		log.Panic("dicomutil <dicomfile>")
 	}
 	path := flag.Arg(0)
-	file, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	st, err := file.Stat()
-	if err != nil {
-		panic(err)
-	}
-	data, err := dicom.ReadDataSet(file, st.Size(), dicom.ReadOptions{})
+	data, err := dicom.ReadDataSetFromFile(path, dicom.ReadOptions{})
 	if err != nil {
 		panic(err)
 	}
