@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yasushi-saito/go-dicom"
+	"github.com/yasushi-saito/go-dicom/dicomuid"
 	"v.io/x/lib/vlog"
 )
 
@@ -31,24 +32,66 @@ func TestAllFiles(t *testing.T) {
 	}
 }
 
-func TestWriteFile(t *testing.T) {
-	path := "examples/IM-0001-0001.dcm"
-	data := mustReadFile(path, dicom.ReadOptions{})
-
+func testWriteFile(t *testing.T, dcmPath, transferSyntaxUID string) {
+	data := mustReadFile(dcmPath, dicom.ReadOptions{})
 	dstPath := "/tmp/test.dcm"
 	out, err := os.Create(dstPath)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	for i := range data.Elements {
+		if data.Elements[i].Tag == dicom.TagTransferSyntaxUID {
+			newElem := dicom.MustNewElement(dicom.TagTransferSyntaxUID, transferSyntaxUID)
+			vlog.Infof("Setting transfer syntax UID from %v to %v",
+				data.Elements[i].MustGetString(), newElem.MustGetString())
+			data.Elements[i] = newElem
+		}
+	}
 	err = dicom.WriteDataSet(out, data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = mustReadFile(dstPath, dicom.ReadOptions{})
+	data2 := mustReadFile(dstPath, dicom.ReadOptions{})
+
+	if len(data.Elements) != len(data2.Elements) {
+		t.Errorf("Wrong # of elements: %v %v", len(data.Elements), len(data2.Elements))
+		for _, elem := range data.Elements {
+			if _, err := data2.FindElementByTag(elem.Tag); err != nil {
+				t.Errorf("Tag %v found in org, but not in new", dicom.TagString(elem.Tag))
+			}
+		}
+		for _, elem := range data2.Elements {
+			if _, err := data.FindElementByTag(elem.Tag); err != nil {
+				t.Errorf("Tag %v found in new, but not in org", dicom.TagString(elem.Tag))
+			}
+		}
+	}
+	for _, elem := range data.Elements {
+		elem2, err := data2.FindElementByTag(elem.Tag)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if elem.Tag == dicom.TagFileMetaInformationGroupLength {
+			// This element is expected to change when the file is transcoded.
+			continue
+		}
+		if elem.String() != elem2.String() {
+			t.Fatalf("Elem mismatch: %v %v", elem.String(), elem2.String())
+		}
+	}
 	// TODO(saito) Fix below.
-	// if !reflect.DeepEqual(data, data2) {
-	// 	t.Error("Files aren't equal")
-	// }
+	//if !reflect.DeepEqual(data, data2) {
+	//	t.Error("Files aren't equal")
+	//}
+}
+
+func TestWriteFile(t *testing.T) {
+	// path := "examples/IM-0001-0001.dcm"
+	//testWriteFile(t, "examples/CT-MONO2-16-ort.dcm", dicomuid.ExplicitVRBigEndian)
+	//testWriteFile(t, "examples/CT-MONO2-16-ort.dcm", dicomuid.ImplicitVRLittleEndian)
+	testWriteFile(t, "examples/CT-MONO2-16-ort.dcm", dicomuid.ExplicitVRLittleEndian)
 }
 
 func TestReadDataSet(t *testing.T) {
@@ -101,4 +144,7 @@ func BenchmarkParseSingle(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{})
 	}
+}
+
+func TestReencode(t *testing.T) {
 }

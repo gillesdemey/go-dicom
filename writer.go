@@ -27,7 +27,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 
 	subEncoder := dicomio.NewBytesEncoder(binary.LittleEndian, dicomio.ExplicitVR)
 	tagsUsed := make(map[Tag]bool)
-
+	tagsUsed[TagFileMetaInformationGroupLength] = true
 	writeRequiredMetaElem := func(tag Tag) {
 		if elem, err := FindElementByTag(metaElems, tag); err == nil {
 			WriteElement(subEncoder, elem)
@@ -37,7 +37,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 		tagsUsed[tag] = true
 	}
 	writeOptionalMetaElem := func(tag Tag, defaultValue interface{}) {
-		if elem, err := FindElementByTag(metaElems, TagFileMetaInformationVersion); err == nil {
+		if elem, err := FindElementByTag(metaElems, tag); err == nil {
 			WriteElement(subEncoder, elem)
 		} else {
 			WriteElement(subEncoder, MustNewElement(tag, defaultValue))

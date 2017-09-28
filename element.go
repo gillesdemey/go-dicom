@@ -1,6 +1,8 @@
 package dicom
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -297,6 +299,17 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 type ImageData struct {
 	Offsets []uint32 // BasicOffsetTable
 	Frames  [][]byte // Parsed images
+}
+
+func (data ImageData) String() string {
+	s := fmt.Sprintf("image{offsets: %v, frames: [", data.Offsets)
+	for i := 0; i < len(data.Frames); i++ {
+		csum := sha256.Sum256(data.Frames[i])
+		s += fmt.Sprintf("%d:{size:%d, csum:%v} ",
+			i, len(data.Frames[i]),
+			base64.URLEncoding.EncodeToString(csum[:]))
+	}
+	return s + "]}"
 }
 
 // Read the basic offset table. This is the first Item object embedded inside
