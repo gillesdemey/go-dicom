@@ -30,7 +30,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 
 	writeRequiredMetaElem := func(tag Tag) {
 		if elem, err := LookupElementByTag(metaElems, tag); err == nil {
-			WriteDataElement(subEncoder, elem)
+			WriteElement(subEncoder, elem)
 		} else {
 			subEncoder.SetErrorf("%v not found in metaelems: %v", TagString(tag), err)
 		}
@@ -38,9 +38,9 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 	}
 	writeOptionalMetaElem := func(tag Tag, defaultValue interface{}) {
 		if elem, err := LookupElementByTag(metaElems, TagFileMetaInformationVersion); err == nil {
-			WriteDataElement(subEncoder, elem)
+			WriteElement(subEncoder, elem)
 		} else {
-			WriteDataElement(subEncoder, NewElement(tag, defaultValue))
+			WriteElement(subEncoder, MustNewElement(tag, defaultValue))
 		}
 		tagsUsed[tag] = true
 	}
@@ -53,7 +53,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 	for _, elem := range metaElems {
 		if elem.Tag.Group == TagMetadataGroup {
 			if _, ok := tagsUsed[elem.Tag]; !ok {
-				WriteDataElement(subEncoder, elem)
+				WriteElement(subEncoder, elem)
 			}
 		}
 	}
@@ -64,7 +64,7 @@ func WriteFileHeader(e *dicomio.Encoder, metaElems []*Element) {
 	metaBytes := subEncoder.Bytes()
 	e.WriteZeros(128)
 	e.WriteString("DICM")
-	WriteDataElement(e, NewElement(TagFileMetaInformationGroupLength, uint32(len(metaBytes))))
+	WriteElement(e, MustNewElement(TagFileMetaInformationGroupLength, uint32(len(metaBytes))))
 	e.WriteBytes(metaBytes)
 }
 
@@ -112,7 +112,7 @@ func writeBasicOffsetTable(e *dicomio.Encoder, offsets []uint32) {
 //
 // REQUIRES: Each value in values[] must match the VR of the tag. E.g., if tag
 // is for UL, then each value must be uint32.
-func WriteDataElement(e *dicomio.Encoder, elem *Element) {
+func WriteElement(e *dicomio.Encoder, elem *Element) {
 	vr := elem.VR
 	entry, err := LookupTag(elem.Tag)
 	if vr == "" {
@@ -161,7 +161,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 					e.SetError(fmt.Errorf("SQ element must be an Item, but found %v", value))
 					return
 				}
-				WriteDataElement(e, subelem)
+				WriteElement(e, subelem)
 			}
 			encodeElementHeader(e, TagSequenceDelimitationItem, "" /*not used*/, 0)
 		} else {
@@ -172,7 +172,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 					e.SetErrorf("SQ element must be an Item, but found %v", value)
 					return
 				}
-				WriteDataElement(sube, subelem)
+				WriteElement(sube, subelem)
 			}
 			if sube.Error() != nil {
 				e.SetError(sube.Error())
@@ -191,7 +191,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 					e.SetErrorf("Item values must be a dicom.Element, but found %v", value)
 					return
 				}
-				WriteDataElement(e, subelem)
+				WriteElement(e, subelem)
 			}
 			encodeElementHeader(e, TagItemDelimitationItem, "" /*not used*/, 0)
 		} else {
@@ -202,7 +202,7 @@ func WriteDataElement(e *dicomio.Encoder, elem *Element) {
 					e.SetErrorf("Item values must be a dicom.Element, but found %v", value)
 					return
 				}
-				WriteDataElement(sube, subelem)
+				WriteElement(sube, subelem)
 			}
 			if sube.Error() != nil {
 				e.SetError(sube.Error())
@@ -369,7 +369,7 @@ func WriteDataSet(out io.Writer, ds *DataSet) error {
 	e.PushTransferSyntax(endian, implicit)
 	for _, elem := range ds.Elements {
 		if elem.Tag.Group != TagMetadataGroup {
-			WriteDataElement(e, elem)
+			WriteElement(e, elem)
 		}
 	}
 	e.PopTransferSyntax()

@@ -5,6 +5,7 @@ import (
 	"github.com/yasushi-saito/go-dicom"
 	"github.com/yasushi-saito/go-dicom/dicomio"
 	"github.com/yasushi-saito/go-dicom/dicomuid"
+	"reflect"
 	"testing"
 )
 
@@ -13,13 +14,13 @@ func testWriteDataElement(t *testing.T, bo binary.ByteOrder, implicit dicomio.Is
 	e := dicomio.NewBytesEncoder(bo, implicit)
 	var values []interface{}
 	values = append(values, string("FooHah"))
-	dicom.WriteDataElement(e, &dicom.Element{
+	dicom.WriteElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0018, 0x9755},
 		Value: values})
 	values = nil
 	values = append(values, uint32(1234))
 	values = append(values, uint32(2345))
-	dicom.WriteDataElement(e, &dicom.Element{
+	dicom.WriteElement(e, &dicom.Element{
 		Tag:   dicom.Tag{0x0020, 0x9057},
 		Value: values})
 	data := e.Bytes()
@@ -79,9 +80,9 @@ func TestReadWriteFileHeader(t *testing.T) {
 	dicom.WriteFileHeader(
 		e,
 		[]*dicom.Element{
-			dicom.NewElement(dicom.TagTransferSyntaxUID, dicomuid.ImplicitVRLittleEndian),
-			dicom.NewElement(dicom.TagMediaStorageSOPClassUID, "1.2.840.10008.5.1.4.1.1.1.2"),
-			dicom.NewElement(dicom.TagMediaStorageSOPInstanceUID, "1.2.3.4.5.6.7"),
+			dicom.MustNewElement(dicom.TagTransferSyntaxUID, dicomuid.ImplicitVRLittleEndian),
+			dicom.MustNewElement(dicom.TagMediaStorageSOPClassUID, "1.2.840.10008.5.1.4.1.1.1.2"),
+			dicom.MustNewElement(dicom.TagMediaStorageSOPInstanceUID, "1.2.3.4.5.6.7"),
 		})
 	bytes := e.Bytes()
 	d := dicomio.NewBytesDecoder(bytes, binary.LittleEndian, dicomio.ImplicitVR)
@@ -109,5 +110,21 @@ func TestReadWriteFileHeader(t *testing.T) {
 	}
 	if elem.MustGetString() != "1.2.3.4.5.6.7" {
 		t.Error(elem)
+	}
+}
+
+func TestNewElement(t *testing.T) {
+	elem, err := dicom.NewElement(dicom.TagTriggerSamplePosition, uint32(10), uint32(11))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elem.Tag != dicom.TagTriggerSamplePosition || !reflect.DeepEqual(elem.MustGetUint32s(), []uint32{10, 11}) {
+		t.Error(elem)
+	}
+
+	// Pass a wrong value type.
+	elem, err = dicom.NewElement(dicom.TagTriggerSamplePosition, "foo")
+	if err == nil {
+		t.Fatal("Should fail")
 	}
 }

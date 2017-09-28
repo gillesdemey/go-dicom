@@ -16,7 +16,9 @@ const (
 	privateGroupName = "Private Data"
 )
 
-// Element represents a single DICOM element.
+// Element represents a single DICOM element. Use NewElement() to create a new
+// element. Avoid creating a struct manually, because setting the VR field is a
+// bit tricky.
 type Element struct {
 	// Tag is a pair of <group, element>. See tags.go for possible values.
 	Tag Tag
@@ -30,7 +32,6 @@ type Element struct {
 	// Else if VR=="SQ", Value[i] is a *Element, with Tag=TagItem.
 	// Else if VR=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
 	// Else if VR=="LT", then len(Value)==1, and Value[0] is []byte.
-	// Else if VR=="AT", then Value[] is a list of Tags.
 	// Else if VR=="US", Value[] is a list of uint16s
 	// Else if VR=="UL", Value[] is a list of uint32s
 	// Else if VR=="SS", Value[] is a list of int16s
@@ -45,7 +46,7 @@ type Element struct {
 	// are filled for completeness.  You can ignore them.
 
 	// VR defines the encoding of Value[] in two-letter alphabets, e.g.,
-	// "AE", "UL". See P3.5 6.2.
+	// "AE", "UL". See P3.5 6.2. This field must be set.
 	//
 	// dicom.ReadElement() will fill this field with the VR of the tag,
 	// either read from input stream (for explicit repl), or from the dicom
@@ -71,15 +72,63 @@ type Element struct {
 // NewElement is a utility function that creates a new Element with the given
 // tag and values. The type of each element in values[] must match the VR (value
 // representation) of the tag (see tag_definition.go).
-func NewElement(tag Tag, values ...interface{}) *Element {
+func NewElement(tag Tag, values ...interface{}) (*Element, error) {
+	ti, err := LookupTag(tag)
+	if err != nil {
+		return nil, err
+	}
 	e := Element{
 		Tag:   tag,
+		VR:    ti.VR,
 		Value: make([]interface{}, len(values)),
 	}
+	// TODO(saito) Check that the values match VR.
+	vrKind := GetVRKind(ti.VR)
 	for i, v := range values {
+		var ok bool
+		switch vrKind {
+		case VRString:
+			_, ok = v.(string)
+		case VRBytes:
+			_, ok = v.([]byte)
+		case VRUInt16:
+			_, ok = v.(uint16)
+		case VRUInt32:
+			_, ok = v.(uint32)
+		case VRInt16:
+			_, ok = v.(int16)
+		case VRInt32:
+			_, ok = v.(int32)
+		case VRFloat32:
+			_, ok = v.(float32)
+		case VRFloat64:
+			_, ok = v.(float64)
+		case VRTag:
+			_, ok = v.(Tag)
+		case VRSequence:
+			subelem, ok := v.(*Element)
+			if ok {
+				ok = (subelem.Tag == TagItem)
+			}
+		case VRItem:
+			_, ok = v.(*Element)
+		}
+		if !ok {
+			return nil, fmt.Errorf("%v: wrong value type for NewElement: %v", TagString(tag), v)
+		}
 		e.Value[i] = v
 	}
-	return &e
+	return &e, nil
+}
+
+// MustNewElement is similar to NewElement, but it crashes the process on any
+// error.
+func MustNewElement(tag Tag, values ...interface{}) *Element {
+	elem, err := NewElement(tag, values...)
+	if err != nil {
+		vlog.Fatalf("Failed to create element with tag %v: %v", tag, err)
+	}
+	return elem
 }
 
 // GetUInt32 gets a uint32 value from an element.  It returns an error if the
@@ -135,7 +184,7 @@ func (e *Element) MustGetString() string {
 // GetStrings returns the list of strings stored in the elment. Returns an error
 // if the VR of e.Tag is not a string.
 func (e *Element) GetStrings() ([]string, error) {
-	var values []string
+	values := make([]string, 0, len(e.Value))
 	for _, v := range e.Value {
 		v, ok := v.(string)
 		if !ok {
@@ -144,6 +193,35 @@ func (e *Element) GetStrings() ([]string, error) {
 		values = append(values, v)
 	}
 	return values, nil
+}
+
+func (e *Element) MustGetStrings() []string {
+	values, err := e.GetStrings()
+	if err != nil {
+		panic(err)
+	}
+	return values
+}
+// GetUint32s returns the list of uint32 values stored in the elment. Returns an
+// error if the VR of e.Tag is not a uint32.
+func (e *Element) GetUint32s() ([]uint32, error) {
+	values := make([]uint32, 0, len(e.Value))
+	for _, v := range e.Value {
+		v, ok := v.(uint32)
+		if !ok {
+			return nil, fmt.Errorf("uint32 value not found in %v", e.String())
+		}
+		values = append(values, v)
+	}
+	return values, nil
+}
+
+func (e *Element) MustGetUint32s() []uint32 {
+	values, err := e.GetUint32s()
+	if err != nil {
+		panic(err)
+	}
+	return values
 }
 
 func elementString(e *Element, nestLevel int) string {
@@ -162,7 +240,12 @@ func elementString(e *Element, nestLevel int) string {
 		}
 		s += indent + "]"
 	} else {
-		sv := fmt.Sprintf("%v", e.Value)
+		var sv string
+		if len(e.Value) == 1 {
+			sv = fmt.Sprintf("%v", e.Value)
+		} else {
+			sv = fmt.Sprintf("(%d)%v", len(e.Value), e.Value)
+		}
 		if len(sv) > 1024 {
 			sv = sv[1:1024] + "(...)"
 		}
@@ -594,6 +677,5 @@ func LookupElementByTag(elems []*Element, tag Tag) (*Element, error) {
 			return elem, nil
 		}
 	}
-	return nil, fmt.Errorf("Could not find element with tag %s in dicom file",
-		tag.String())
+	return nil, fmt.Errorf("%s: element not found", TagString(tag))
 }

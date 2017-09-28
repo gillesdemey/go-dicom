@@ -9,16 +9,7 @@ import (
 )
 
 func mustReadFile(path string, options dicom.ReadOptions) *dicom.DataSet {
-	file, err := os.Open(path)
-	if err != nil {
-		vlog.Fatalf("%s: failed to open: %v", path, err)
-	}
-	defer file.Close()
-	st, err := file.Stat()
-	if err != nil {
-		vlog.Fatalf("%s: failed to stat: %v", path, err)
-	}
-	data, err := dicom.ReadDataSet(file, st.Size(), options)
+	data, err := dicom.ReadDataSetFromFile(path, options)
 	if err != nil {
 		vlog.Fatalf("%s: failed to read: %v", path, err)
 	}

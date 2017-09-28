@@ -31,7 +31,6 @@ func (t *Tag) String() string {
 
 type TagInfo struct {
 	Tag Tag
-
 	// Data encoding "UL", "CS", etc.
 	VR string
 	// Human-readable name of the tag, e.g., "CommandDataSetType"
@@ -41,6 +40,49 @@ type TagInfo struct {
 }
 
 const TagMetadataGroup = 2
+
+// VRKind defines the golang encoding of a VR.
+type VRKind int
+
+const (
+	VRString VRKind = iota
+	VRBytes
+	VRUInt16
+	VRUInt32
+	VRInt16
+	VRInt32
+	VRFloat32
+	VRFloat64
+	VRSequence
+	VRItem
+	VRTag
+	VRPixelData
+)
+
+// GetVRKind returns the encoding type of VR (e.g., VRUint32) given a
+// two-character VR string (e.g., "UL").
+func GetVRKind(vr string) VRKind {
+	switch vr {
+	case "AT":
+		return VRTag
+	case "OW", "OB":
+		return VRBytes
+	case "UL":
+		return VRUInt32
+	case "SL":
+		return VRInt32
+	case "US":
+		return VRUInt16
+	case "SS":
+		return VRInt16
+	case "FL":
+		return VRFloat32
+	case "FD":
+		return VRFloat64
+	default:
+		return VRString
+	}
+}
 
 // LookupTag finds information about the given tag. If the tag is not part of
 // the DICOM standard, or is retired from the standard, it returns an error.

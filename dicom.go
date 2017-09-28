@@ -32,6 +32,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/yasushi-saito/go-dicom/dicomio"
 )
@@ -72,6 +73,21 @@ type ReadOptions struct {
 // ReadDataSetInBytes is a shorthand for Parse(bytes.NewBuffer(data), len(data)).
 func ReadDataSetInBytes(data []byte, options ReadOptions) (*DataSet, error) {
 	return ReadDataSet(bytes.NewBuffer(data), int64(len(data)), options)
+}
+
+// ReadDataSetFromFile parses file cotents into dicom.DataSet. It is a thin
+// wrapper around ReadDataSet.
+func ReadDataSetFromFile(path string, options ReadOptions) (*DataSet, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	st, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	return ReadDataSet(file, st.Size(), options)
 }
 
 // ReadDataSet reads a DICOM file from "io", up to "bytes". Returns a DICOM file struct.
