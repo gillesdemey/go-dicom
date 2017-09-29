@@ -131,12 +131,12 @@ func WriteElement(e *dicomio.Encoder, elem *Element) {
 	doassert(vr != "", vr)
 	if elem.Tag == TagPixelData {
 		if len(elem.Value) != 1 {
-			// TODO(saito) Use of ImageData is a temp hack. Come up with a more proper solution.
-			e.SetError(fmt.Errorf("PixelData element must have one value of type ImageData"))
+			// TODO(saito) Use of PixelDataInfo is a temp hack. Come up with a more proper solution.
+			e.SetError(fmt.Errorf("PixelData element must have one value of type PixelDataInfo"))
 		}
-		image, ok := elem.Value[0].(ImageData)
+		image, ok := elem.Value[0].(PixelDataInfo)
 		if !ok {
-			e.SetError(fmt.Errorf("PixelData element must have one value of type ImageData"))
+			e.SetError(fmt.Errorf("PixelData element must have one value of type PixelDataInfo"))
 		}
 		if elem.UndefinedLength {
 			encodeElementHeader(e, elem.Tag, vr, undefinedLength)

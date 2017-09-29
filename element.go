@@ -28,12 +28,13 @@ type Element struct {
 	// List of values in the element. Their types depends on value
 	// representation (VR) of the Tag; Cf. tag.go.
 	//
-	// If Tag==TagPixelData, len(Value)==1, and Value[0] is ImageData.
+	// If Tag==TagPixelData, len(Value)==1, and Value[0] is PixelDataInfo.
 	// Else if Tag==TagItem, each Value[i] is a *Element.
 	//    a value's Tag can be any (including TagItem, which represents a nested Item)
 	// Else if VR=="SQ", Value[i] is a *Element, with Tag=TagItem.
 	// Else if VR=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
 	// Else if VR=="LT", then len(Value)==1, and Value[0] is []byte.
+	// Else if VR=="DA", then len(Value)==1, and Value[0] is string. Use ParseDate() to parse the date string.
 	// Else if VR=="US", Value[] is a list of uint16s
 	// Else if VR=="UL", Value[] is a list of uint32s
 	// Else if VR=="SS", Value[] is a list of int16s
@@ -296,12 +297,12 @@ func readRawItem(d *dicomio.Decoder) ([]byte, bool) {
 }
 
 // Payload for PixelData element.
-type ImageData struct {
+type PixelDataInfo struct {
 	Offsets []uint32 // BasicOffsetTable
 	Frames  [][]byte // Parsed images
 }
 
-func (data ImageData) String() string {
+func (data PixelDataInfo) String() string {
 	s := fmt.Sprintf("image{offsets: %v, frames: [", data.Offsets)
 	for i := 0; i < len(data.Frames); i++ {
 		csum := sha256.Sum256(data.Frames[i])
@@ -420,18 +421,18 @@ func ReadElement(d *dicomio.Decoder, options ReadOptions) *Element {
 		// the file stores N images, the elements that follow PixelData
 		// are laid out in the following way:
 		//
-		// Item(BasicOffsetTable) Item(ImageData0) ... Item(ImageDataM) SequenceDelimiterItem
+		// Item(BasicOffsetTable) Item(PixelDataInfo0) ... Item(PixelDataInfoM) SequenceDelimiterItem
 		//
 		// Item(BasicOffsetTable) is an Item element whose payload
 		// encodes N uint32 values. Kth uint32 is the bytesize of the
-		// Kth image. Item(ImageData*) are chunked sequences of bytes. I
-		// presume that single ImageData item doesn't cross a image
+		// Kth image. Item(PixelDataInfo*) are chunked sequences of bytes. I
+		// presume that single PixelDataInfo item doesn't cross a image
 		// boundary, but the spec isn't clear.
 		//
-		// The total byte size of Item(ImageData*) equal the total of
+		// The total byte size of Item(PixelDataInfo*) equal the total of
 		// the bytesizes found in BasicOffsetTable.
 		if vl == undefinedLength {
-			var image ImageData
+			var image PixelDataInfo
 			image.Offsets = readBasicOffsetTable(d) // TODO(saito) Use the offset table.
 			if len(image.Offsets) > 1 {
 				vlog.Infof("Warning: multiple images not supported yet. Combining them into a byte sequence: %v", image.Offsets)
@@ -449,7 +450,7 @@ func ReadElement(d *dicomio.Decoder, options ReadOptions) *Element {
 			data = append(data, image)
 		} else {
 			vlog.Errorf("Warning: defined-length pixel data not supported: tag %v, VR=%v, VL=%v", tag.String(), vr, vl)
-			var image ImageData
+			var image PixelDataInfo
 			image.Frames = append(image.Frames, d.ReadBytes(int(vl)))
 			data = append(data, image)
 		}
@@ -525,16 +526,10 @@ func ReadElement(d *dicomio.Decoder, options ReadOptions) *Element {
 		d.PushLimit(int64(vl))
 		defer d.PopLimit()
 		if vr == "DA" {
-			// 8-byte Date string of form 19930822 or 10-byte
-			// ACR-NEMA300 string of form "1993.08.22". The latter
-			// is not compliant according to P3.5 6.2, but it still
-			// happens in real life.
-			for d.Len() > 0 && d.Error() == nil {
-				date := d.ReadString(8)
-				if strings.Contains(date, ".") {
-					date += d.ReadString(2)
-				}
-				data = append(data, date)
+			// TODO(saito) Maybe we should validate the date.
+			date := strings.Trim(d.ReadString(int(vl)), " \000")
+			if date != "" {
+				data = []interface{}{date}
 			}
 		} else if vr == "AT" {
 			// (2byte group, 2byte elem)

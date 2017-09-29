@@ -56,7 +56,7 @@ const (
 	VRSequence
 	VRItem
 	VRTag
-	VRPixelData
+	VRPixelData // PixelDataInfo
 )
 
 // GetVRKind returns the encoding type of VR (e.g., VRUint32) given a
