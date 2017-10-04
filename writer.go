@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/yasushi-saito/go-dicom/dicomio"
-	_ "v.io/x/lib/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // Produce a DICOM file header. metaElems[] is be a list of elements to be
@@ -123,9 +123,14 @@ func WriteElement(e *dicomio.Encoder, elem *Element) {
 		}
 	} else {
 		if err == nil && entry.VR != vr {
-			e.SetErrorf("VR value mismatch for tag %s. Element.VR=%v, but tag's VR is %v",
+			if GetVRKind(entry.VR) != GetVRKind(vr) {
+				// The golang repl. is different. We can't continue
+				e.SetErrorf("VR value mismatch for tag %s. Element.VR=%v, but DICOM standard defines VR to be %v",
+					TagString(elem.Tag), vr, entry.VR)
+				return
+			}
+			vlog.VI(1).Infof("VR value mismatch for tag %s. Element.VR=%v, but DICOM standard defines VR to be %v (continuing)",
 				TagString(elem.Tag), vr, entry.VR)
-			return
 		}
 	}
 	doassert(vr != "", vr)

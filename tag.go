@@ -45,17 +45,17 @@ const TagMetadataGroup = 2
 type VRKind int
 
 const (
-	VRString VRKind = iota
-	VRBytes
+	VRString VRKind = iota // string
+	VRBytes                // []byte
 	VRUInt16
 	VRUInt32
 	VRInt16
 	VRInt32
 	VRFloat32
 	VRFloat64
-	VRSequence
-	VRItem
-	VRTag
+	VRSequence  // *Element, w/ TagItem
+	VRItem      // *Element
+	VRTag       // Tag
 	VRPixelData // PixelDataInfo
 )
 
