@@ -9,10 +9,12 @@ import (
 // DirectoryRecord contains info about one DICOM file mentioned in DICOMDIR.
 type DirectoryRecord struct {
 	Path string
-	// perhaps extract more fields
+	// TODO(saito): perhaps extract more fields
 }
 
-// ParseDICOMDIR parses a DICOMDIR file contents from "in".
+// ParseDICOMDIR parses contents of a "DICOMDIR" stored in "in".
+//
+// http://dicom.nema.org/medical/Dicom/2016b/output/chtml/part03/sect_F.2.2.2.html
 func ParseDICOMDIR(in io.Reader) (recs []DirectoryRecord, err error) {
 	bytes, err := ioutil.ReadAll(in)
 	if err != nil {

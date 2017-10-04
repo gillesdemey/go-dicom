@@ -78,7 +78,7 @@ func ParseSpecificCharacterSet(encodingNames []string) (CodingSystem, error) {
 	var decoders []*encoding.Decoder
 	for _, name := range encodingNames {
 		var c *encoding.Decoder
-		vlog.VI(1).Infof("Using coding system %s", name)
+		vlog.VI(2).Infof("Using coding system %s", name)
 		if htmlName, ok := htmlEncodingNames[name]; !ok {
 			// TODO(saito) Support more encodings.
 			vlog.Errorf("Unknown character set '%s'. Assuming utf-8", encodingNames[0])
