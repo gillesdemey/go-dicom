@@ -54,6 +54,16 @@ func NewBytesEncoderWithTransferSyntax(transferSyntaxUID string) *Encoder {
 	return e
 }
 
+func NewEncoderWithTransferSyntax(out io.Writer, transferSyntaxUID string) *Encoder {
+	endian, implicit, err := ParseTransferSyntaxUID(transferSyntaxUID)
+	if err == nil {
+		return NewEncoder(out, endian, implicit)
+	}
+	e := NewEncoder(out, binary.LittleEndian, ExplicitVR)
+	e.SetErrorf("%v: Unknown transfer syntax uid", transferSyntaxUID)
+	return e
+}
+
 // Create a new encoder that writes to "out".
 func NewEncoder(out io.Writer, bo binary.ByteOrder, implicit IsImplicitVR) *Encoder {
 	return &Encoder{
