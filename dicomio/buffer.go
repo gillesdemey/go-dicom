@@ -460,10 +460,13 @@ func (d *Decoder) ReadBytes(length int) []byte {
 	v := make([]byte, length)
 	remaining := v
 	for len(remaining) > 0 {
-		n, err := d.Read(v)
+		n, err := d.Read(remaining)
 		if err != nil {
 			d.SetError(err)
 			break
+		}
+		if n < 0 || n > len(remaining) {
+			panic(fmt.Sprintf("Remaining: %d %d", n, len(remaining)))
 		}
 		remaining = remaining[n:]
 	}
