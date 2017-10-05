@@ -45,23 +45,27 @@ const TagMetadataGroup = 2
 type VRKind int
 
 const (
-	VRString VRKind = iota // string
-	VRBytes                // []byte
-	VRUInt16
-	VRUInt32
-	VRInt16
-	VRInt32
-	VRFloat32
-	VRFloat64
-	VRSequence  // *Element, w/ TagItem
-	VRItem      // *Element
-	VRTag       // Tag
-	VRPixelData // PixelDataInfo
+	VRString    VRKind = iota // list of string
+	VRBytes                   // []byte
+	VRUInt16                  // list of uint16
+	VRUInt32                  // list of uint32
+	VRInt16                   // list of int16
+	VRInt32                   // list of int32
+	VRFloat32                 // list of float32
+	VRFloat64                 // list of float64
+	VRSequence                // list of *Element, w/ TagItem
+	VRItem                    // list of *Element
+	VRTag                     // list of Tag
+	VRPixelData               // PixelDataInfo
 )
 
-// GetVRKind returns the encoding type of VR (e.g., VRUint32) given a
-// two-character VR string (e.g., "UL").
-func GetVRKind(vr string) VRKind {
+// GetVRKind returns the golang value encoding of an element with <tag, vr>.
+func GetVRKind(tag Tag, vr string) VRKind {
+	if tag == TagItem {
+		return VRItem
+	} else if tag == TagPixelData {
+		return VRPixelData
+	}
 	switch vr {
 	case "AT":
 		return VRTag
@@ -79,6 +83,8 @@ func GetVRKind(vr string) VRKind {
 		return VRFloat32
 	case "FD":
 		return VRFloat64
+	case "SQ":
+		return VRSequence
 	default:
 		return VRString
 	}

@@ -123,8 +123,8 @@ func WriteElement(e *dicomio.Encoder, elem *Element) {
 		}
 	} else {
 		if err == nil && entry.VR != vr {
-			if GetVRKind(entry.VR) != GetVRKind(vr) {
-				// The golang repl. is different. We can't continue
+			if GetVRKind(elem.Tag, entry.VR) != GetVRKind(elem.Tag, vr) {
+				// The golang repl. is different. We can't continue.
 				e.SetErrorf("VR value mismatch for tag %s. Element.VR=%v, but DICOM standard defines VR to be %v",
 					TagString(elem.Tag), vr, entry.VR)
 				return

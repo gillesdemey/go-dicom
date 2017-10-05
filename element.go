@@ -43,6 +43,9 @@ type Element struct {
 	// Else if VR=="FD", Value[] is a list of float64s
 	// Else if VR=="AT", Value[] is a list of Tag's.
 	// Else, Value[] is a list of strings.
+	//
+	// Note: Use GetVRKind() to map VR string to the go representation of
+	// VR.
 	Value []interface{} // Value Multiplicity PS 3.5 6.4
 
 	// Note: the following fields are not interesting to most people, but
@@ -86,7 +89,7 @@ func NewElement(tag Tag, values ...interface{}) (*Element, error) {
 		VR:    ti.VR,
 		Value: make([]interface{}, len(values)),
 	}
-	vrKind := GetVRKind(ti.VR)
+	vrKind := GetVRKind(tag, ti.VR)
 	for i, v := range values {
 		var ok bool
 		switch vrKind {
