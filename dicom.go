@@ -1,21 +1,3 @@
-// DICOM file parser. Example:
-//
-//   package main
-//
-//   import (
-// 	"fmt"
-// 	"github.com/yasushi-saito/go-dicom"
-//   )
-//
-//   func main() {
-//     data, err := dicom.ReadDataSetFromFile("myfile.dcm", st.Size())
-//     if err != nil {
-//         panic(err)
-//     }
-//     for _, elem := range data.Elements {
-//         fmt.Printf("%+v\n", elem)
-//     }
-//   }
 package dicom
 
 import (

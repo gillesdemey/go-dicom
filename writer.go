@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/yasushi-saito/go-dicom/dicomio"
 	"v.io/x/lib/vlog"
@@ -379,4 +380,18 @@ func WriteDataSet(out io.Writer, ds *DataSet) error {
 	}
 	e.PopTransferSyntax()
 	return e.Error()
+}
+
+// Write "ds" to the given file. If the file already exists, existing contents
+// are clobbered. Else, the file is newly created.
+func WriteDataSetToFile(path string, ds *DataSet) error {
+	out, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if err := WriteDataSet(out, ds); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }

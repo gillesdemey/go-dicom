@@ -100,23 +100,15 @@ func TestReadDataSet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	pn := elem.Value[0].(string)
-	if l := len(elem.Value); l != 1 {
-		t.Errorf("Incorrect patient name length: %d", l)
-	}
-	if pn != "TOUTATIX" {
-		t.Errorf("Incorrect patient name: %s", pn)
+	if elem.MustGetString() != "TOUTATIX" {
+		t.Errorf("Incorrect patient name: %s", elem)
 	}
 	elem, err = data.FindElementByName("TransferSyntaxUID")
 	if err != nil {
 		t.Error(err)
 	}
-	if len(elem.Value) != 1 {
-		t.Errorf("Wrong value size %s", len(elem.Value))
-	}
-	ts := elem.Value[0].(string)
-	if ts != "1.2.840.10008.1.2.4.91" {
-		t.Errorf("Incorrect TransferSyntaxUID: %s", ts)
+	if elem.MustGetString() != "1.2.840.10008.1.2.4.91" {
+		t.Errorf("Incorrect TransferSyntaxUID: %s", elem)
 	}
 	if l := len(data.Elements); l != 98 {
 		t.Errorf("Error parsing DICOM file, wrong number of elements: %d", l)
