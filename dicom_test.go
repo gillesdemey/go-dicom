@@ -137,6 +137,3 @@ func BenchmarkParseSingle(b *testing.B) {
 		_ = mustReadFile("examples/IM-0001-0001.dcm", dicom.ReadOptions{})
 	}
 }
-
-func TestReencode(t *testing.T) {
-}

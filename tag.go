@@ -45,18 +45,30 @@ const TagMetadataGroup = 2
 type VRKind int
 
 const (
-	VRString    VRKind = iota // list of string
-	VRBytes                   // []byte
-	VRUInt16                  // list of uint16
-	VRUInt32                  // list of uint32
-	VRInt16                   // list of int16
-	VRInt32                   // list of int32
-	VRFloat32                 // list of float32
-	VRFloat64                 // list of float64
-	VRSequence                // list of *Element, w/ TagItem
-	VRItem                    // list of *Element
-	VRTag                     // list of Tag
-	VRPixelData               // PixelDataInfo
+	// Element stores a list of strings
+	VRString VRKind = iota
+	// Element stores a []bytes
+	VRBytes
+	// Element stores a list of uint16s
+	VRUInt16
+	// Element stores a list of uint32s
+	VRUInt32
+	// Element stores a list of int16s
+	VRInt16
+	// Element stores a list of int32s
+	VRInt32
+	// Element stores a list of float32s
+	VRFloat32
+	// Element stores a list of float64s
+	VRFloat64
+	// Element stores a list of *Elements, w/ TagItem
+	VRSequence
+	// Element stores a list of *Elements
+	VRItem
+	// Element stores a list of Tags
+	VRTag
+	// Element stores a PixelDataInfo
+	VRPixelData
 )
 
 // GetVRKind returns the golang value encoding of an element with <tag, vr>.
@@ -110,7 +122,7 @@ func FindTag(tag Tag) (TagInfo, error) {
 func MustFindTag(tag Tag) TagInfo {
 	e, err := FindTag(tag)
 	if err != nil {
-		vlog.Fatalf("tag %s not found: %s", tag, err)
+		vlog.Fatalf("tag %v not found: %s", tag, err)
 	}
 	return e
 }

@@ -151,6 +151,15 @@ func (e *Element) GetUInt32() (uint32, error) {
 	return v, nil
 }
 
+// MustGetUInt32 is similar to GetUInt32, but panics on error.
+func (e *Element) MustGetUInt32() uint32 {
+	v, err := e.GetUInt32()
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 // GetUInt16 gets a uint16 value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a uint16.
 func (e *Element) GetUInt16() (uint16, error) {
@@ -237,6 +246,29 @@ func (e *Element) GetUint32s() ([]uint32, error) {
 // MustGetUint32s is similar to GetUint32s, but crashes the process on error.
 func (e *Element) MustGetUint32s() []uint32 {
 	values, err := e.GetUint32s()
+	if err != nil {
+		panic(err)
+	}
+	return values
+}
+
+// GetUint16s returns the list of uint16 values stored in the elment. Returns an
+// error if the VR of e.Tag is not a uint16.
+func (e *Element) GetUint16s() ([]uint16, error) {
+	values := make([]uint16, 0, len(e.Value))
+	for _, v := range e.Value {
+		v, ok := v.(uint16)
+		if !ok {
+			return nil, fmt.Errorf("uint16 value not found in %v", e.String())
+		}
+		values = append(values, v)
+	}
+	return values, nil
+}
+
+// MustGetUint16s is similar to GetUint16s, but crashes the process on error.
+func (e *Element) MustGetUint16s() []uint16 {
+	values, err := e.GetUint16s()
 	if err != nil {
 		panic(err)
 	}
