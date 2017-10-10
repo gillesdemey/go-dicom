@@ -164,6 +164,15 @@ func (e *Element) GetUInt16() (uint16, error) {
 	return v, nil
 }
 
+// MustGetUInt16 is similar to GetUInt16, but panics on error.
+func (e *Element) MustGetUInt16() uint16 {
+	v, err := e.GetUInt16()
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 // GetString gets a string value from an element.  It returns an error if the
 // element contains zero or >1 values, or the value is not a string.
 func (e *Element) GetString() (string, error) {
