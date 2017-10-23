@@ -25,6 +25,11 @@ const (
 var (
 	PatientRootQRFind = standardUID("1.2.840.10008.5.1.4.1.2.1.1")
 	StudyRootQRFind = standardUID("1.2.840.10008.5.1.4.1.2.2.1")
+	PatientRootQRGet = standardUID("1.2.840.10008.5.1.4.1.2.1.3")
+	StudyRootQRGet = standardUID("1.2.840.10008.5.1.4.1.2.2.3")
+	PatientRootQRMove = standardUID("1.2.840.10008.5.1.4.1.2.1.2")
+	StudyRootQRMove = standardUID("1.2.840.10008.5.1.4.1.2.2.2")
+
 	ModalityWorklistInformationFind = standardUID("1.2.840.10008.5.1.4.31")
 	VerificationSOPClass = standardUID("1.2.840.10008.1.1")
 
