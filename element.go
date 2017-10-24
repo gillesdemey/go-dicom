@@ -32,8 +32,8 @@ type Element struct {
 	// Else if Tag==TagItem, each Value[i] is a *Element.
 	//    a value's Tag can be any (including TagItem, which represents a nested Item)
 	// Else if VR=="SQ", Value[i] is a *Element, with Tag=TagItem.
-	// Else if VR=="OW" or "OB", then len(Value)==1, and Value[0] is []byte.
-	// Else if VR=="LT", then len(Value)==1, and Value[0] is []byte.
+	// Else if VR=="OW", "OB", then len(Value)==1, and Value[0] is []byte.
+	// Else if VR=="LT", or "UT", then len(Value)==1, and Value[0] is string
 	// Else if VR=="DA", then len(Value)==1, and Value[0] is string. Use ParseDate() to parse the date string.
 	// Else if VR=="US", Value[] is a list of uint16s
 	// Else if VR=="UL", Value[] is a list of uint32s
@@ -93,23 +93,23 @@ func NewElement(tag Tag, values ...interface{}) (*Element, error) {
 	for i, v := range values {
 		var ok bool
 		switch vrKind {
-		case VRString:
+		case VRStringList:
 			_, ok = v.(string)
 		case VRBytes:
 			_, ok = v.([]byte)
-		case VRUInt16:
+		case VRUInt16List:
 			_, ok = v.(uint16)
-		case VRUInt32:
+		case VRUInt32List:
 			_, ok = v.(uint32)
-		case VRInt16:
+		case VRInt16List:
 			_, ok = v.(int16)
-		case VRInt32:
+		case VRInt32List:
 			_, ok = v.(int32)
-		case VRFloat32:
+		case VRFloat32List:
 			_, ok = v.(float32)
-		case VRFloat64:
+		case VRFloat64List:
 			_, ok = v.(float64)
-		case VRTag:
+		case VRTagList:
 			_, ok = v.(Tag)
 		case VRSequence:
 			subelem, ok := v.(*Element)
@@ -572,9 +572,7 @@ func ReadElement(d *dicomio.Decoder, options ReadOptions) *Element {
 		if vr == "DA" {
 			// TODO(saito) Maybe we should validate the date.
 			date := strings.Trim(d.ReadString(int(vl)), " \000")
-			if date != "" {
-				data = []interface{}{date}
-			}
+			data = []interface{}{date}
 		} else if vr == "AT" {
 			// (2byte group, 2byte elem)
 			for d.Len() > 0 && d.Error() == nil {

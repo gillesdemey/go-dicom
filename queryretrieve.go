@@ -23,7 +23,7 @@ func matchString(pattern string, value string) (bool, error) {
 }
 
 func queryElement(elem *Element, f *Element) (match bool, err error) {
-	if len(f.Value) == 0 {
+	if isEmptyQuery(f) {
 		// Universal match
 		return true, nil
 	}
@@ -31,6 +31,8 @@ func queryElement(elem *Element, f *Element) (match bool, err error) {
 		return querySequence(f, elem)
 	}
 	if elem == nil {
+		// TODO(saito) This is probably wrong. We shouldn't distinguish between
+		// nonexistent element and an empty element.
 		return false, err
 	}
 	if f.VR != elem.VR {
@@ -48,10 +50,6 @@ func queryElement(elem *Element, f *Element) (match bool, err error) {
 			}
 		}
 		return false, nil
-	}
-	if len(f.Value) > 1 {
-		// A filter can't contain multiple values. Ps3.4, C.2.2.2.1
-		return false, fmt.Errorf("Multiple values found in filter '%v'", f)
 	}
 	// TODO: handle date-range matches
 	switch v := f.Value[0].(type) {
@@ -106,7 +104,53 @@ func queryElement(elem *Element, f *Element) (match bool, err error) {
 	return false, nil
 }
 
+func isEmptyQuery(f *Element) bool {
+	// Check if the glob pattern is a sequence of '*'s.
+	// "*" is the same as an empty query. P3.4, C2.2.2.4.
+	isUniversalGlob := func(s string) bool {
+		for i := 0; i < len(s); i++ {
+			if s[i] != '*' {
+				return false
+			}
+		}
+		return true
+	}
+
+	if len(f.Value) == 0 {
+		return true
+	}
+	switch GetVRKind(f.Tag, f.VR) {
+	case VRBytes:
+		if len(f.Value[0].([]byte)) == 0 {
+			return true
+		}
+	case VRString, VRDate:
+		pattern := f.Value[0].(string)
+		if len(pattern) == 0 {
+			return true
+		}
+		if isUniversalGlob(pattern) {
+			return true
+		}
+	case VRStringList:
+		pattern := f.Value[0].(string)
+		if isUniversalGlob(pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// Check if the dataset matches a QR condition "f". If so, it returns the <true,
+// matched element, nil>. If "f" asks for a universal match (i.e., empty query
+// value), and the element for f.Tag doesn't exist, the function returns <true,
+// nil, nil>. If "f" is malformed, the function returns <false, nil, error
+// reason>.
 func Query(ds *DataSet, f *Element) (match bool, matchedElem *Element, err error) {
+	if len(f.Value) > 1 {
+		// A filter can't contain multiple values. P3.4, C.2.2.2.1
+		return false, nil, fmt.Errorf("Multiple values found in filter '%v'", f)
+	}
 	if f.Tag == TagQueryRetrieveLevel || f.Tag == TagSpecificCharacterSet {
 		return true, nil, nil
 	}
@@ -114,7 +158,6 @@ func Query(ds *DataSet, f *Element) (match bool, matchedElem *Element, err error
 	if err != nil {
 		elem = nil
 	}
-
 	match, err = queryElement(elem, f)
 	if match {
 		return true, elem, nil

@@ -46,27 +46,31 @@ type VRKind int
 
 const (
 	// Element stores a list of strings
-	VRString VRKind = iota
-	// Element stores a []bytes
+	VRStringList VRKind = iota
+	// Element stores a []byte
 	VRBytes
+	// Element stores a string
+	VRString
 	// Element stores a list of uint16s
-	VRUInt16
+	VRUInt16List
 	// Element stores a list of uint32s
-	VRUInt32
+	VRUInt32List
 	// Element stores a list of int16s
-	VRInt16
+	VRInt16List
 	// Element stores a list of int32s
-	VRInt32
+	VRInt32List
 	// Element stores a list of float32s
-	VRFloat32
+	VRFloat32List
 	// Element stores a list of float64s
-	VRFloat64
+	VRFloat64List
 	// Element stores a list of *Elements, w/ TagItem
 	VRSequence
 	// Element stores a list of *Elements
 	VRItem
 	// Element stores a list of Tags
-	VRTag
+	VRTagList
+	// Element stores a date string. Use ParseDate() to parse the date string.
+	VRDate
 	// Element stores a PixelDataInfo
 	VRPixelData
 )
@@ -79,26 +83,30 @@ func GetVRKind(tag Tag, vr string) VRKind {
 		return VRPixelData
 	}
 	switch vr {
+	case "DA":
+		return VRDate
 	case "AT":
-		return VRTag
+		return VRTagList
 	case "OW", "OB":
 		return VRBytes
+	case "LT", "UT":
+		return VRString
 	case "UL":
-		return VRUInt32
+		return VRUInt32List
 	case "SL":
-		return VRInt32
+		return VRInt32List
 	case "US":
-		return VRUInt16
+		return VRUInt16List
 	case "SS":
-		return VRInt16
+		return VRInt16List
 	case "FL":
-		return VRFloat32
+		return VRFloat32List
 	case "FD":
-		return VRFloat64
+		return VRFloat64List
 	case "SQ":
 		return VRSequence
 	default:
-		return VRString
+		return VRStringList
 	}
 }
 
