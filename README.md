@@ -10,8 +10,11 @@ This is a fork of github.com/gillesdemey/go-dicom. Changes are:
 - Adds fuzz tests and tests that ensure compatibility with pydicom.
 
 TODO:
-- Handling non-default charset is still broken, especially for "PN" (person name) VR elements.
+- Implement mixed-coding-system files more properly. We currently botch
+  patient-name (PN) elements that mixes coding systems.
+
 - A multi-image file. Functionality is almost there, but I haven't had time to complete it.
+
 - Native pixeldata format. It'll be parsed as just []byte.
 
 
