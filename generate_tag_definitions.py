@@ -1,6 +1,87 @@
-package dicom
+#!/usr/bin/env python3.6
 
-const dicomDictData = `#
+import re
+import logging
+import sys
+from typing import IO, NamedTuple, List
+
+logging.basicConfig(level=logging.DEBUG)
+
+Tag = NamedTuple('Tag', [
+    ('group', int),
+    ('elem', int),
+    ('vr', str),
+    ('name', str),
+    ('vm', str)])
+
+def list_tags() -> List[Tag]:
+    global DATA
+
+    ok = True
+    tags: List[Tag] = []
+    for line in DATA.split("\n"):
+        if re.match(r'\s*#', line) or re.match(r'^\s*$', line):
+            continue
+        m = re.match(r'\(([^,]+),([^,]+)\)\s+(\w\w)\s+([^\t]+)\s+([^\t]+)', line)
+        if not m:
+            logging.error("Invalid line: %s", line)
+            ok = False
+            continue
+
+        vr=m.group(3).upper()
+        if vr == "XS":
+            # Its generally safe to treat XS as unsigned.  See
+            # https://github.com/dgobbi/vtk-dicom/issues/38 for
+	    # some discussions.
+            vr = "US"
+        elif vr == "OX":
+	    # TODO(saito) I'm less sure about the OX rule. Where is
+	    # this crap defined in the standard??
+            vr = "OW"
+
+        tag = Tag(group=m.group(1),
+                  elem=m.group(2),
+                  vr=vr,
+                  name=m.group(4),
+                  vm=m.group(5))
+
+
+        if not re.match('^[0-9A-Fa-f]+$', tag.group) or not re.match('^[0-9A-Fa-f]+$', tag.elem):
+            continue
+        tags.append(tag)
+    if not ok:
+        sys.exit(1)
+
+    return tags
+
+def generate(out: IO[str]):
+    tags = list_tags()
+
+    print("package dicom", file=out)
+    print("// Auto-generated from generate_tag_definitions.py. DO NOT EDIT.", file=out)
+    for t in tags:
+        if t.name.find("RETIRED") >= 0:
+            continue
+        print(f'var Tag{t.name} = Tag{{0x{t.group}, 0x{t.elem}}}', file=out)
+
+    print("var tagDict map[Tag]TagInfo", file=out)
+    print("func init() {", file=out)
+    print("	maybeInitTagDict()", file=out)
+    print("}", file=out)
+    print("func maybeInitTagDict() {", file=out)
+    print("	if len(tagDict) > 0 {", file=out)
+    print("		return", file=out)
+    print("	}", file=out)
+    print("	tagDict = make(map[Tag]TagInfo)", file=out)
+    for t in tags:
+        print(f'	tagDict[Tag{{0x{t.group}, 0x{t.elem}}}] = TagInfo{{Tag{{0x{t.group}, 0x{t.elem}}}, "{t.vr}", "{t.name}", "{t.vm}"}}', file=out)
+    print("}", file=out)
+
+
+#(0000,0000)	UL	CommandGroupLength	1	DICOM_2011
+
+
+DATA = """#
 #  Copyright (C) 1994-2012, OFFIS e.V.
 #  All rights reserved.  See COPYRIGHT file for details.
 #
@@ -3951,4 +4032,10 @@ const dicomDictData = `#
 #
 # EOF
 #
-`
+"""
+
+def main():
+    with open("tag_definitions.go", "w") as out:
+        generate(out)
+
+main()
