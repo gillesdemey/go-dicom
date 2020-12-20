@@ -1,5 +1,7 @@
 # DICOM parser in Go [![GoDoc](https://godoc.org/github.com/gillesdemey/go-dicom?status.svg)](https://godoc.org/github.com/gillesdemey/go-dicom) [![wercker status](https://app.wercker.com/status/c250d72bc82a5d8f267c7ee0b9e839bc/s/master "wercker status")](https://app.wercker.com/project/bykey/c250d72bc82a5d8f267c7ee0b9e839bc)
 
+This project is no longer maintained, please check out its successor [suyashkumar/dicom](https://github.com/suyashkumar/dicom).
+
 ## Usage
 ```Go
 package main
