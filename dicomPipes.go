@@ -27,10 +27,11 @@ func (di *DicomFile) Parse(buff []byte) <-chan DicomMessage {
 		panic(err)
 	}
 
-	_, c := parser.Parse(buff)
+	di, c := parser.Parse(buff)
 	if err != nil {
 		panic(err)
 	}
+
 	return c
 }
 
@@ -40,6 +41,22 @@ func (di *DicomFile) Discard(in <-chan DicomMessage, done *sync.WaitGroup) {
 	go func() {
 		for dcmMsg := range in {
 			dcmMsg.wait <- true
+			di.Elements = append(di.Elements, *dcmMsg.msg)
+		}
+		done.Done()
+	}()
+
+}
+
+// Discard messages and not store pixel data
+func (di *DicomFile) DiscardPixel(in <-chan DicomMessage, done *sync.WaitGroup) {
+	done.Add(1)
+	go func() {
+		for dcmMsg := range in {
+			dcmMsg.wait <- true
+			if dcmMsg.msg.Name != "PixelData" {
+				di.Elements = append(di.Elements, *dcmMsg.msg)
+			}
 		}
 		done.Done()
 	}()
